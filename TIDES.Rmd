@@ -37,7 +37,7 @@ demo_plot <- function(min,
     ggtitle(paste0(title, 
                    "\nM = ", round_to_decimal(mean(dat$score), 2), 
                    ", SD = ", round_to_decimal(sd(dat$score), 2),
-                   ", N = ", frequency_min + frequency_max))
+                   ", n = ", frequency_min + frequency_max))
 }
 
 demo_plot(min = 1, 
@@ -95,9 +95,13 @@ ggsave("plot min SD 7-point scale large N.pdf", width = 5, height = 4)
 
 ```
 
-# functions
+# TIDES implementations
+
+## Mestdaugh et al implementation
 
 source: Mestdagh et al. (2018) "Sidelining the mean: The relative variability index as a generic mean-corrected variability measure for bounded variables" Psych Methods. doi: 10.1037/met0000153. Code: https://github.com/seanchrismurphy/relativeVariability?tab=readme-ov-file
+
+### Functions
 
 ```{r}
 
@@ -148,16 +152,15 @@ truncation_induced_dependency_test <- function(mean, sd, n, min, max){
          min = min,
          max = max,
          max_sd = maximumSD(M = mean, MIN = min, MAX = max, n = n),
-         result = case_when(sd > max_sd ~ "inconsistent",
-                            sd <= max_sd ~ "inconsistent"))
+         result = case_when(sd > max_sd ~ "Inconsistent",
+                            sd <= max_sd ~ "Consistent"))
 }
 
 truncation_induced_dependency_test(mean = 2.1, sd = 2.4, n = 30, min = 1, max = 7)
 
 ```
 
-
-# plot
+### plot
 
 
 ```{r}
@@ -295,7 +298,7 @@ ggplot() +
 
 ```
 
-
+#### Multiple values
 
 ```{r}
 
@@ -389,7 +392,7 @@ dat |>
 
 ```
 
-# single value
+#### single value
 
 ```{r}
 
@@ -438,7 +441,142 @@ ggplot() +
 
 ```
 
+## New
 
+### Table
+
+#### Single value
+
+```{r}
+
+#source("R/tides.R")
+source("R/tides2.R")
+
+tides(mean = 2.2, 
+      sd = 2.4, 
+      n = 30, 
+      min = 1, 
+      max = 7) |>
+  mutate_if(is.numeric, janitor::round_half_up, digits = 2) |>
+  kable() |>
+  kable_classic(full_width = FALSE)
+
+```
+
+#### Multiple values
+
+```{r}
+
+dat <- tibble(mean = c(1, 1.2, 1.4), 
+              sd   = c(0.5, 0.5, 0.6),
+              n    = c(30, 30, 35),
+              min  = 1,
+              max  = c(7, 5, 7)) 
+
+source("R/tides_multiple.R")
+
+tides_multiple(mean = dat$mean,
+               sd = dat$sd,
+               n = dat$n,
+               min = dat$min,
+               max = dat$max) |>
+  mutate_if(is.numeric, janitor::round_half_up, digits = 2) |>
+  kable() |>
+  kable_classic(full_width = FALSE)
+  
+```
+
+
+### Plot
+
+```{r}
+
+#source("R/plot_tides.R")
+source("R/plot_tides2.R")
+
+plot_tides(mean = 1.63,
+           sd = 2.89,
+           n = 10,
+           min = 1,
+           max = 7)
+
+```
+
+
+### Lower plot
+
+```{r}
+
+# tides_test <- function(sample_size, min, 
+#                        max, score) {
+#   
+#   standardised_mean <- (score - min) / (max - min)
+#   
+#   max_standardised_sd <- ( sqrt( ((standardised_mean) * (1 - (standardised_mean))) ) ) * ( sqrt(sample_size / (sample_size - 1)) )
+#   
+#   max_unstandardised_sd <- max_standardised_sd * (max - min)
+#   
+#   return(max_unstandardised_sd)
+#   
+# }
+
+calculate_min_sd <- function(n, mean) {
+  # determine the closest integer values around the mean
+  lower_value <- floor(mean)
+  upper_value <- ceiling(mean)
+  
+  # calculate frequencies required to achieve the mean
+  total_sum <- n * mean
+  lower_count <- n * (upper_value - mean)
+  upper_count <- n * (mean - lower_value)
+  
+  # if the calculated counts are not integers, round them appropriately
+  lower_count <- round(lower_count)
+  upper_count <- round(upper_count)
+  
+  # ensure the total count equals n
+  if (lower_count + upper_count != n) {
+    lower_count <- n - upper_count
+  }
+  
+  # form the combination of values
+  values <- c(rep(lower_value, lower_count), rep(upper_value, upper_count))
+  
+  # calculate the mean and standard deviation
+  actual_mean <- mean(values)
+  sd_value <- sd(values)
+  
+  return(list(mean = actual_mean, sd = sd_value))
+}
+
+n <- 17
+min <- 1
+max <- 7
+granularity <- (max / max) / 100
+
+test_data <- tibble(
+  mean = rep(seq(min, max, granularity), length(n)),
+  n = rep(n, each = length(seq(min, max, granularity))),
+) |>
+  rowwise() |>
+  mutate(actual_mean = calculate_min_sd(n, mean = mean)$mean,
+         minimum_sd = calculate_min_sd(n, mean = mean)$sd)
+
+
+test_mean <- 6
+test_sd <- 1.5
+
+test_data |>
+  ggplot() +
+  geom_line(aes(actual_mean, minimum_sd)) +
+  # geom_line(aes(actual_mean, maximum_sd)) +
+  labs(y = "Possible SDs",
+       x = "Actual mean") +
+  facet_wrap(~n) +
+  geom_point(aes(x = test_mean,
+        y = test_sd))
+
+```
 
 
 
