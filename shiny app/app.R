@@ -209,10 +209,10 @@ plot_tides_with_min_sd <- function(mean, sd, n, min, max){
   )
   
   ggplot() +
-    geom_polygon(data = data_polygon_above, aes(x = x, y = y), fill = "grey10", alpha = 0.4) +
-    geom_polygon(data = data_polygon_below, aes(x = x, y = y), fill = "grey10", alpha = 0.4) +
-    geom_polygon(data = data_polygon_left,  aes(x = x, y = y), fill = "grey10", alpha = 0.4) +
-    geom_polygon(data = data_polygon_right, aes(x = x, y = y), fill = "grey10", alpha = 0.4) +
+    geom_polygon(data = data_polygon_above, aes(x = x, y = y), fill = "#006994", alpha = 0.7) + #123095
+    geom_polygon(data = data_polygon_below, aes(x = x, y = y), fill = "#006994", alpha = 0.7) + #002fa7
+    geom_polygon(data = data_polygon_left,  aes(x = x, y = y), fill = "#006994", alpha = 0.7) + #002fa6
+    geom_polygon(data = data_polygon_right, aes(x = x, y = y), fill = "#006994", alpha = 0.7) +
     geom_point(data = dat, aes(mean, sd)) +
     geom_text(data = dat, aes(mean, sd, label = result), 
               vjust = -1, size = 7) +
@@ -223,7 +223,10 @@ plot_tides_with_min_sd <- function(mean, sd, n, min, max){
     labs(x = "Mean",
          y = "SD") +
     theme_minimal(base_size = 20) +
-    theme(legend.position = "none")
+    theme(legend.position = "none") +
+    theme(panel.background = element_rect(fill = "#e5d5ba",
+                                          colour = "#e5d5ba",
+                                          linetype = "solid"))
 }
 
 
@@ -249,7 +252,7 @@ ui <- fluidPage(
       # }
     "))
   ),
-  #titlePanel("TIDES: Truncation-Induced Dependency in Summary Statistics"),
+  title = "TIDES",
   titlePanel(title = span(img(src = "logo.png", height = 90), "Truncation-Induced Dependency in Summary Statistics")),
   tags$h3("A method for checking the compatibility of reported means, SDs, and Ns given the min and max of the scale"),
   tags$h4("Hussey, Norwood, Cummins, Arslan, & Elson (2024)"),
