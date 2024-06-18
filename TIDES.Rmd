@@ -1,5 +1,5 @@
 
-# illustrate
+# Illustrate
 
 ```{r}
 
@@ -46,7 +46,7 @@ demo_plot(min = 1,
           frequency_max = 500, 
           title = "Max SD of 7-point scale: ")
 
-ggsave("plot max SD 7-point scale large N.pdf", width = 5, height = 4)
+ggsave("plots/plot max SD 7-point scale large N.pdf", width = 5, height = 4)
 
 
 demo_plot(min = 1, 
@@ -55,7 +55,7 @@ demo_plot(min = 1,
           frequency_max = 15, 
           title = "Max SD of 7-point scale: ")
 
-ggsave("plot max SD 7-point scale small N.pdf", width = 5, height = 4)
+ggsave("plots/plot max SD 7-point scale small N.pdf", width = 5, height = 4)
 
 
 demo_plot(min = 1, 
@@ -64,7 +64,7 @@ demo_plot(min = 1,
           frequency_max = 500, 
           title = "Max SD of 6-point scale: ")
 
-ggsave("plot max SD 6-point scale large N.pdf", width = 5, height = 4)
+ggsave("plots/plot max SD 6-point scale large N.pdf", width = 5, height = 4)
 
 
 demo_plot(min = 1, 
@@ -73,7 +73,7 @@ demo_plot(min = 1,
           frequency_max = 500, 
           title = "Max SD of 5-point scale: ")
 
-ggsave("plot max SD 5-point scale large N.pdf", width = 5, height = 4)
+ggsave("plots/plot max SD 5-point scale large N.pdf", width = 5, height = 4)
 
 
 demo_plot(min = 1, 
@@ -82,16 +82,56 @@ demo_plot(min = 1,
           frequency_max = 500, 
           title = "Max SD of 10-point scale: ")
 
-ggsave("plot max SD 10-point scale large N.pdf", width = 5, height = 4)
+ggsave("plots/plot max SD 10-point scale large N.pdf", width = 5, height = 4)
 
 
 demo_plot(min = 1, 
           max = 7, 
           frequency_min = 1000, 
           frequency_max = 0, 
-          title = "Min SD of 7-point scale: ")
+          title = "Lower bound of min SD of 7-point scale: ")
 
-ggsave("plot min SD 7-point scale large N.pdf", width = 5, height = 4)
+ggsave("plots/plot lower bound of min SD 7-point scale large N.pdf", width = 5, height = 4)
+
+
+dat <- tibble(score = c(rep(1, times = 500),
+                        rep(2, times = 500)))
+
+ggplot(dat, aes(score)) +
+  geom_histogram(binwidth = 1) +
+  scale_x_continuous(labels = seq(from = 1, to = 7, by = 1), 
+                     breaks = seq(from = 1, to = 7, by = 1),
+                     limit = c(1-0.5, 7+0.5)) +
+  theme_linedraw() +
+  theme(panel.grid.minor = element_blank()) +
+  ylab("Frequency") +
+  xlab("Score") +
+  ggtitle(paste0("Upper bound of min SD of 7-point scale: ", 
+                 "\nM = ", round_to_decimal(mean(dat$score), 2), 
+                 ", SD = ", round_to_decimal(sd(dat$score), 2),
+                 ", n = ", 500 + 500))
+
+ggsave("plots/plot upper bound of min SD 7-point scale large N.pdf", width = 5, height = 4)
+
+
+dat <- tibble(score = c(rep(1, times = 990),
+                        rep(2, times = 10)))
+
+ggplot(dat, aes(score)) +
+  geom_histogram(binwidth = 1) +
+  scale_x_continuous(labels = seq(from = 1, to = 7, by = 1), 
+                     breaks = seq(from = 1, to = 7, by = 1),
+                     limit = c(1-0.5, 7+0.5)) +
+  theme_linedraw() +
+  theme(panel.grid.minor = element_blank()) +
+  ylab("Frequency") +
+  xlab("Score") +
+  ggtitle(paste0("SD of a non-zero mean for a 7-point scale: ", 
+                 "\nM = ", round_to_decimal(mean(dat$score), 2), 
+                 ", SD = ", round_to_decimal(sd(dat$score), 2),
+                 ", n = ", 500 + 500))
+
+ggsave("plots/plot SD of a non-zero mean 7-point scale large N.pdf", width = 5, height = 4)
 
 ```
 
