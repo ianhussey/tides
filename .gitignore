@@ -2,3 +2,4 @@
 *.DS_Store
 *.Rhistory
 /shiny app/rsconnect
+/old
