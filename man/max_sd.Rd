@@ -4,12 +4,10 @@
 \alias{max_sd}
 \title{Calculate maximum Standard Deviation for a truncated variable}
 \usage{
-max_sd(mean, sd, n, min, max)
+max_sd(mean, n, min, max)
 }
 \arguments{
 \item{mean}{numeric variable representing the reported mean.}
-
-\item{sd}{numeric variable representing the reported Standard Deviation.}
 
 \item{n}{numeric variable representing the reported sample size.}
 

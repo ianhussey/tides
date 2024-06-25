@@ -5,13 +5,12 @@
 #' Assumptions to be checked: Does it still work if min or max are not integers?
 #' 
 #' @param mean numeric variable representing the reported mean.
-#' @param sd numeric variable representing the reported Standard Deviation.
 #' @param n numeric variable representing the reported sample size.
 #' @param min numeric variable representing the variable's minimum possible/observable score.
 #' @param max numeric variable representing the variable's maximum possible/observable score.
 #' @returns A numeric variable representing the maximum SD.
 #' @export 
-max_sd <- function(mean, sd, n, min, max){
+max_sd <- function(mean, n, min, max){
 
   # handle edge cases where the mean is at the minimum or maximum
   if (mean == min || mean == max) {
