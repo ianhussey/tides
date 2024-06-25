@@ -17,6 +17,9 @@ max_sd(mean, sd, n, min, max)
 
 \item{max}{numeric variable representing the variable's maximum possible/observable score.}
 }
+\value{
+A numeric variable representing the maximum SD.
+}
 \description{
 Explanation to be added
 }

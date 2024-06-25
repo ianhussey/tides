@@ -19,6 +19,9 @@ tides_multiple(mean, sd, n, min, max, calculate_min_sd = FALSE)
 
 \item{calculate_min_sd}{logical variable representing whether a minimum SD should also be calculated. This should only be calculated if the varible is not only trucated (has a minimum and maximum possible/observable score) but also the variable is discrete/binned/granular: ie the response must be whole numbers (e.g., a 1-7 likert scale, where an indiviudal cannot provide a score of 1.5).}
 }
+\value{
+a tibble containing the max and min SD and a summary variable \code{result} indicating if the tested values are consistent or not.
+}
 \description{
 Explanation to be added
 }

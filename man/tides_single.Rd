@@ -21,6 +21,9 @@ tides_single(mean, sd, n, min, max, calculate_min_sd = FALSE, verbose = TRUE)
 
 \item{verbose}{logical variable representing whether the output should also contain the input values.}
 }
+\value{
+a tibble containing the max and min SD and a summary variable \code{result} indicating if the tested values are consistent or not.
+}
 \description{
 Explanation to be added
 }

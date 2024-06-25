@@ -9,6 +9,8 @@
 #' @param n numeric variable representing the reported sample size.
 #' @param min numeric variable representing the variable's minimum possible/observable score.
 #' @param max numeric variable representing the variable's maximum possible/observable score.
+#' @returns A numeric variable representing the maximum SD.
+#' @export 
 max_sd <- function(mean, sd, n, min, max){
 
   # handle edge cases where the mean is at the minimum or maximum

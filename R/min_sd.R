@@ -7,6 +7,8 @@
 #'  
 #' @param mean numeric variable representing the reported mean.
 #' @param n numeric variable representing the reported sample size.
+#' @returns A numeric variable representing the minimum SD.
+#' @export 
 min_sd <- function(mean, n) {
   # determine the closest integer values around the mean
   lower_value <- floor(mean)

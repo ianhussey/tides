@@ -11,6 +11,9 @@ min_sd(mean, n)
 
 \item{n}{numeric variable representing the reported sample size.}
 }
+\value{
+A numeric variable representing the minimum SD.
+}
 \description{
 Explanation to be added
 }
