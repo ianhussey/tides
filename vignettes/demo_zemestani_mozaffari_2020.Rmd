@@ -1,0 +1,81 @@
+
+```{r}
+
+library(tidyverse)
+library(purrr)
+library(knitr)
+library(kableExtra)
+
+source("../R/tides_with_min_sd.R")
+source("../R/tides_multiple_with_min_sd.R")
+source("../R/plot_tides_with_min_sd.R")
+
+results_reported_baseline <- data.frame(
+  timepoint = c("t1", "t1"),
+  condition = c("intervention", "control"),
+  n =    c(23.00, 29.00),
+  mean = c(31.09, 31.92),
+  sd =   c( 6.03,  4.83),
+  min = 21, # scale is 0 to 63, but recruitment used >= 20 at baseline
+  max = 63
+) 
+
+
+# n = 23
+# mean = 31.09
+# sd = 6.03
+# min = 21
+# max = 63
+
+# res_baseline <- 
+#   tides_multiple_with_min_sd(mean = results_reported_baseline$mean, 
+#                              sd = results_reported_baseline$sd, 
+#                              n = results_reported_baseline$n, 
+#                              min = results_reported_baseline$min, 
+#                              max = results_reported_baseline$max)
+
+res_baseline <-
+  tides(mean = results_reported_baseline$mean,
+        sd = results_reported_baseline$sd,
+        n = results_reported_baseline$n,
+        min = results_reported_baseline$min,
+        max = results_reported_baseline$max,
+        calculate_min_sd = FALSE)
+
+res_baseline |>
+  #dplyr::select(mean, sd, n, min, max, result) |>
+  kable() |>
+  kable_classic(full_width = FALSE)
+
+```
+
+
+```{r}
+
+results_reported <- data.frame(
+  timepoint = c("t2", "t3", "t2", "t3"),
+  condition = c("intervention", "intervention", "control", "control"),
+  n =    c(23.00, 23.00, 29.00, 29.00),
+  mean = c(20.70, 24.09, 32.57, 33.40),
+  sd =   c( 3.40,  3.77,  5.15,  4.45),
+  min = 0, 
+  max = 63
+) 
+
+
+res <- tides_multiple_with_min_sd(mean = results_reported$mean, 
+                                  sd = results_reported$sd, 
+                                  n = results_reported$n, 
+                                  min = results_reported$min, 
+                                  max = results_reported$max)
+
+res |>
+  dplyr::select(mean, sd, n, min, max, result) |>
+  kable() |>
+  kable_classic(full_width = FALSE)
+
+```
+
+- could SPRITE be used to construct bounds? probably not
+
+
