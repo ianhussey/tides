@@ -10,15 +10,14 @@ source("../R/tides_with_min_sd.R")
 source("../R/tides_multiple_with_min_sd.R")
 source("../R/plot_tides_with_min_sd.R")
 
-results_reported_baseline <- data.frame(
-  timepoint = c("t1", "t1"),
-  condition = c("intervention", "control"),
-  n =    c(23.00, 29.00),
-  mean = c(31.09, 31.92),
-  sd =   c( 6.03,  4.83),
-  min = 21, # scale is 0 to 63, but recruitment used >= 20 at baseline
-  max = 63
-) 
+results_reported_baseline <- 
+  tibble(timepoint = c("t1", "t1"),
+         condition = c("intervention", "control"),
+         n =    c(23.00, 29.00),
+         mean = c(31.09, 31.92),
+         sd =   c( 6.03,  4.83),
+         min = 21, # scale is 0 to 63, but recruitment used >= 20 at baseline
+         max = 63) 
 
 
 # n = 23
