@@ -1,0 +1,704 @@
+
+# Illustrate
+
+```{r}
+
+library(tidyverse)
+
+round_to_decimal <- function(number, decimal_places) {
+  # Create the format string with the required number of decimal places
+  format_string <- paste0("%.", decimal_places, "f")
+  
+  # Format the number and return as character to retain trailing zeros
+  formatted_number <- sprintf(format_string, number)
+  
+  return(formatted_number)
+}
+
+
+demo_plot <- function(min,
+                      max,
+                      frequency_min,
+                      frequency_max,
+                      title){
+  
+  dat <- tibble(score = c(rep(min, times = frequency_min),
+                          rep(max, times = frequency_max)))
+  
+  ggplot(dat, aes(score)) +
+    geom_histogram(binwidth = 1) +
+    scale_x_continuous(labels = seq(from = min, to = max, by = 1), 
+                       breaks = seq(from = min, to = max, by = 1),
+                       limit = c(min-0.5, max+0.5)) +
+    theme_linedraw() +
+    theme(panel.grid.minor = element_blank()) +
+    ylab("Frequency") +
+    xlab("Score") +
+    ggtitle(paste0(title, 
+                   "\nM = ", round_to_decimal(mean(dat$score), 2), 
+                   ", SD = ", round_to_decimal(sd(dat$score), 2),
+                   ", n = ", frequency_min + frequency_max))
+}
+
+demo_plot(min = 1, 
+          max = 7, 
+          frequency_min = 500, 
+          frequency_max = 500, 
+          title = "Max SD of 7-point scale: ")
+
+ggsave("plots/plot max SD 7-point scale large N.pdf", width = 5, height = 4)
+
+
+demo_plot(min = 1, 
+          max = 7, 
+          frequency_min = 15, 
+          frequency_max = 15, 
+          title = "Max SD of 7-point scale: ")
+
+ggsave("plots/plot max SD 7-point scale small N.pdf", width = 5, height = 4)
+
+
+demo_plot(min = 1, 
+          max = 6, 
+          frequency_min = 500, 
+          frequency_max = 500, 
+          title = "Max SD of 6-point scale: ")
+
+ggsave("plots/plot max SD 6-point scale large N.pdf", width = 5, height = 4)
+
+
+demo_plot(min = 1, 
+          max = 5, 
+          frequency_min = 500, 
+          frequency_max = 500, 
+          title = "Max SD of 5-point scale: ")
+
+ggsave("plots/plot max SD 5-point scale large N.pdf", width = 5, height = 4)
+
+
+demo_plot(min = 1, 
+          max = 10, 
+          frequency_min = 500, 
+          frequency_max = 500, 
+          title = "Max SD of 10-point scale: ")
+
+ggsave("plots/plot max SD 10-point scale large N.pdf", width = 5, height = 4)
+
+
+demo_plot(min = 1, 
+          max = 7, 
+          frequency_min = 1000, 
+          frequency_max = 0, 
+          title = "Lower bound of min SD of 7-point scale: ")
+
+ggsave("plots/plot lower bound of min SD 7-point scale large N.pdf", width = 5, height = 4)
+
+
+dat <- tibble(score = c(rep(1, times = 500),
+                        rep(2, times = 500)))
+
+ggplot(dat, aes(score)) +
+  geom_histogram(binwidth = 1) +
+  scale_x_continuous(labels = seq(from = 1, to = 7, by = 1), 
+                     breaks = seq(from = 1, to = 7, by = 1),
+                     limit = c(1-0.5, 7+0.5)) +
+  theme_linedraw() +
+  theme(panel.grid.minor = element_blank()) +
+  ylab("Frequency") +
+  xlab("Score") +
+  ggtitle(paste0("Upper bound of min SD of 7-point scale: ", 
+                 "\nM = ", round_to_decimal(mean(dat$score), 2), 
+                 ", SD = ", round_to_decimal(sd(dat$score), 2),
+                 ", n = ", 500 + 500))
+
+ggsave("plots/plot upper bound of min SD 7-point scale large N.pdf", width = 5, height = 4)
+
+
+dat <- tibble(score = c(rep(1, times = 990),
+                        rep(2, times = 10)))
+
+ggplot(dat, aes(score)) +
+  geom_histogram(binwidth = 1) +
+  scale_x_continuous(labels = seq(from = 1, to = 7, by = 1), 
+                     breaks = seq(from = 1, to = 7, by = 1),
+                     limit = c(1-0.5, 7+0.5)) +
+  theme_linedraw() +
+  theme(panel.grid.minor = element_blank()) +
+  ylab("Frequency") +
+  xlab("Score") +
+  ggtitle(paste0("SD of a non-zero mean for a 7-point scale: ", 
+                 "\nM = ", round_to_decimal(mean(dat$score), 2), 
+                 ", SD = ", round_to_decimal(sd(dat$score), 2),
+                 ", n = ", 500 + 500))
+
+ggsave("plots/plot SD of a non-zero mean 7-point scale large N.pdf", width = 5, height = 4)
+
+```
+
+# TIDES implementations
+
+## Mestdaugh et al implementation
+
+source: Mestdagh et al. (2018) "Sidelining the mean: The relative variability index as a generic mean-corrected variability measure for bounded variables" Psych Methods. doi: 10.1037/met0000153. Code: https://github.com/seanchrismurphy/relativeVariability?tab=readme-ov-file
+
+### Functions
+
+```{r}
+
+require(tibble)
+require(dplyr)
+
+maximumVAR <- function(M, MIN, MAX, n){
+  # check input
+  
+  #extreme cases
+  if (M == MIN || M == MAX){
+    mv = 0;
+  }
+  # normal case
+  else{
+    
+    if(abs(MIN) > abs(MAX)){ #mirror for special cases like MIN=-INF
+      MINt <-- MAX
+      MAX <-- MIN
+      MIN <- MINt            
+      M <-- M
+    }
+    
+    nMax <- floor((n*M-n*MIN)/(MAX-MIN)) #compute nb  
+    nMin <- n-1-nMax # compute na
+    
+    if(nMax==0){
+      MAX <- 0
+    }
+    
+    m <- n*M-nMin*MIN-nMax*MAX # compute m
+    mv <- (nMin*(MIN-M)^2+nMax*(MAX-M)^2+(M-m)^2)/(n-1) #compute maximum variability
+  }
+  
+  maximumVar = mv
+}
+
+
+maximumSD <- function(M, MIN, MAX, n){
+  maximumSD <- sqrt(maximumVAR(M, MIN, MAX, n))
+}
+
+
+truncation_induced_dependency_test <- function(mean, sd, n, min, max){
+  tibble(mean = mean,
+         sd = sd,
+         n = n,
+         min = min,
+         max = max,
+         max_sd = maximumSD(M = mean, MIN = min, MAX = max, n = n),
+         result = case_when(sd > max_sd ~ "Inconsistent",
+                            sd <= max_sd ~ "Consistent"))
+}
+
+truncation_induced_dependency_test(mean = 2.1, sd = 2.4, n = 30, min = 1, max = 7)
+
+```
+
+### plot
+
+
+```{r}
+
+# data_standardized <- expand_grid(
+#   mean = seq(from = 1, to = 7, by = 0.001),
+#   min = 1,
+#   max = 7,
+#   n = c(22, 104)
+# ) |>
+#   mutate(max_sd = pmap(list(mean, min, max, n), maximumSD),
+#          max_sd = as.numeric(max_sd)) |>
+#   # standardization
+#   mutate(min_std = min - min,
+#          max_std = max - min,
+#          mean_std = (mean - min)/max_std,
+#          max_sd_std = max_sd / max_std) 
+# 
+# data_standardized_reshaped <- data_standardized |>
+#   filter(n == min(n) | n == max(n)) |>
+#   mutate(curve = case_when(n == min(n) ~ "max_sd_std_1",
+#                            n == max(n) ~ "max_sd_std_2")) |>
+#   dplyr::select(curve, mean_std, max_sd_std) |>
+#   pivot_wider(names_from = curve,
+#               values_from = max_sd_std) |>
+#   rowwise() |>
+#   mutate(x = mean_std,
+#          y_lower = min(c(max_sd_std_1, max_sd_std_2)),
+#          y_upper = max(c(max_sd_std_1, max_sd_std_2))) |>
+#   ungroup()
+# 
+# data_polygon_above <- bind_rows(
+#   data.frame(x = data_standardized_reshaped$x, y = data_standardized_reshaped$y_upper),
+#   data.frame(x = rev(data_standardized_reshaped$x), y = rep(Inf, length(data_standardized_reshaped$x)))
+# )
+# 
+# # Create a data frame for the polygon between the y and y2 curves
+# data_polygon_between <- bind_rows(
+#   data.frame(x = data_standardized_reshaped$x, y = data_standardized_reshaped$y_upper),
+#   data.frame(x = rev(data_standardized_reshaped$x), y = rev(data_standardized_reshaped$y_lower))
+# )
+# 
+# 
+# # Plot the curve and shade the area above it
+# ggplot() +
+#   geom_polygon(data = data_polygon_above, aes(x = x, y = y), fill = "grey10", alpha = 0.5) +
+#   geom_polygon(data = data_polygon_between, aes(x = x, y = y), fill = "grey40", alpha = 0.5) +
+#   scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +  # Expand the y-axis to avoid clipping the polygon
+#   labs(title = "Shading Area Above a Curve",
+#        x = "Range-normalised mean",
+#        y = "Range-normalised SD") +
+#   theme_minimal()
+
+```
+
+
+
+```{r}
+
+dat <- readxl::read_excel("zhao et al forest plot 1 extracted.xlsx") |>
+  pivot_longer(cols = -study,
+               names_to = c("metric", "condition"),
+               names_sep = "_",
+               values_to = "score") |>
+  pivot_wider(names_from = metric,
+              values_from = score) |>
+  mutate(min = 1,
+         max = 7, 
+         items = 9, # bodge this to have data for demo plot
+         mean = mean/items, 
+         sd = sd/items) |>
+  filter(mean >= min & mean <= max)  |> # bodge this to have data for demo plot
+  # standardization
+  mutate(max_sd = pmap(list(mean, min, max, n), maximumSD),
+         max_sd = as.numeric(max_sd)) |>
+  mutate(min_std = min - min,
+         max_std = max - min,
+         mean_std = (mean - min)/max_std,
+         max_sd_std = max_sd / max_std) 
+
+
+
+
+data_standardized <- 
+  expand_grid(condition = c(rep("control", times = 5), rep("intervention", times = 5)),
+              min  = 1,
+              max  = 7,
+              plotting_mean = seq(from = 1, to = 7, by = 0.001),
+              n    = c(22, 104)) |> # unnecessarily blows up nrows - fix
+  mutate(max_sd = pmap(list(plotting_mean, min, max, n), maximumSD),
+         max_sd = as.numeric(max_sd)) |>
+  # standardization
+  mutate(min_std = min - min,
+         max_std = max - min,
+         plotting_mean_std = (plotting_mean - min)/max_std,
+         max_sd_std = max_sd / max_std) 
+
+data_standardized_reshaped <- data_standardized |>
+  filter(n == min(n) | n == max(n)) |>
+  mutate(curve = case_when(n == min(n) ~ "max_sd_std_1",
+                           n == max(n) ~ "max_sd_std_2")) |>
+  dplyr::select(curve, plotting_mean_std, max_sd_std) |>
+  pivot_wider(names_from = curve,
+              values_from = max_sd_std) |>
+  rowwise() |>
+  mutate(x = plotting_mean_std,
+         y_lower = min(c(max_sd_std_1, max_sd_std_2)),
+         y_upper = max(c(max_sd_std_1, max_sd_std_2))) |>
+  ungroup()
+
+data_polygon_above <- bind_rows(
+  data.frame(x = data_standardized_reshaped$x, y = data_standardized_reshaped$y_upper),
+  data.frame(x = rev(data_standardized_reshaped$x), y = rep(Inf, length(data_standardized_reshaped$x)))
+)
+
+# Create a data frame for the polygon between the y and y2 curves
+data_polygon_between <- bind_rows(
+  data.frame(x = data_standardized_reshaped$x, y = data_standardized_reshaped$y_upper),
+  data.frame(x = rev(data_standardized_reshaped$x), y = rev(data_standardized_reshaped$y_lower))
+)
+
+
+# Plot the curve and shade the area above it
+ggplot() +
+  geom_polygon(data = data_polygon_above, aes(x = x, y = y), fill = "grey10", alpha = 0.5) +
+  geom_polygon(data = data_polygon_between, aes(x = x, y = y), fill = "grey45", alpha = 0.5) +
+  geom_point(data = dat, aes(mean_std, max_sd_std)) + 
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +  
+  labs(
+    #title = "[unnamed error detection method]",
+    x = "Range-normalised mean",
+    y = "Range-normalised SD"
+  ) +
+  theme_minimal()
+
+```
+
+#### Multiple values
+
+```{r}
+
+# dat <- readxl::read_excel("zhao et al forest plot 1 extracted.xlsx") |>
+#   pivot_longer(cols = -study,
+#                names_to = c("metric", "condition"),
+#                names_sep = "_",
+#                values_to = "score") |>
+#   pivot_wider(names_from = metric,
+#               values_from = score) |>
+#   mutate(min = 1,
+#          max = 7,
+#          items = 9, # bodge this to have data for demo plot
+#          mean = mean/items,
+#          sd = sd/items) |>
+#   filter(mean >= min & mean <= max) # bodge this to have data for demo plot
+# 
+# dput(dat)
+
+dat <- tibble(study = c("Pots 2016", "Pots 2016", "Yuyi 2022", "Yuyi 2022", "Tamannaei 2017", "Tamannaei 2017", "Zhihong 2012", "Zhihong 2012", "Zemestani 2020", "Zemestani 2020", "Lappalainen 2015", "Lappalainen 2015", "Bohlmeijer 2011", "Bohlmeijer 2011", "Zhao 2022", "Zhao 2022", "Juan 2021", "Juan 2021"), 
+              condition = c("intervention", "control", "intervention", "control", "intervention", "control", "intervention", "control", "intervention", "control", "intervention", "control", "intervention", "control", "intervention", "control", "intervention", "control"), 
+              mean = c(1.63, 2.14, 1.39, 1.72, 3.13, 2.06, 1.51, 2.89, 2.3, 3.61, 1.48, 1.98, 1.77, 2.45, 1.51, 2.89, 5.48, 6.04), 
+              sd = c(0.89, 0.95, 0.36, 0.26, 1.80, 0.85 + 2, # create a violation
+                     1.05 + 1, # create a violation
+                     1.11, 0.37, 0.57, 0.75, 0.81, 1.15, 1.11, 1.05, 1.11, 0.24, 0.36), 
+              n = c(71, 78, 30, 30, 10, 9, 92, 76, 26, 30, 18, 20, 39, 42, 92, 76, 30, 30), 
+              min = c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), 
+              max = c(7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7), 
+              items = c(9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9)) |>
+  mutate(max_sd = pmap(list(mean, min, max, n), maximumSD),
+         max_sd = as.numeric(max_sd),
+         consistency = case_when(sd > max_sd ~ "Inconsistent",
+                                 sd <= max_sd ~ "Consistent"))
+
+data_standardized <- 
+  expand_grid(min  = 1,
+              max  = 7,
+              plotting_mean = seq(from = 1, to = 7, by = 0.001),
+              n = c(min(c(71, 78, 30, 30, 10, 9, 92, 76, 26, 30, 18, 20, 39, 42, 92, 76, 30, 30)), 
+                    max(c(71, 78, 30, 30, 10, 9, 92, 76, 26, 30, 18, 20, 39, 42, 92, 76, 30, 30)))) |> # unnecessarily blows up nrows - fix
+  mutate(max_sd = pmap(list(plotting_mean, min, max, n), maximumSD),
+         max_sd = as.numeric(max_sd))
+
+data_standardized_reshaped <- data_standardized |>
+  filter(n == min(n) | n == max(n)) |>
+  mutate(curve = case_when(n == min(n) ~ "max_sd_1",
+                           n == max(n) ~ "max_sd_2")) |>
+  dplyr::select(curve, plotting_mean, max_sd) |>
+  pivot_wider(names_from = curve,
+              values_from = max_sd) |>
+  rowwise() |>
+  mutate(x = plotting_mean,
+         y_lower = min(c(max_sd_1, max_sd_2)),
+         y_upper = max(c(max_sd_1, max_sd_2))) |>
+  ungroup()
+
+data_polygon_above <- bind_rows(
+  data.frame(x = data_standardized_reshaped$x, y = data_standardized_reshaped$y_upper),
+  data.frame(x = rev(data_standardized_reshaped$x), y = rep(Inf, length(data_standardized_reshaped$x)))
+)
+
+# Create a data frame for the polygon between the y and y2 curves
+data_polygon_between <- bind_rows(
+  data.frame(x = data_standardized_reshaped$x, y = data_standardized_reshaped$y_upper),
+  data.frame(x = rev(data_standardized_reshaped$x), y = rev(data_standardized_reshaped$y_lower))
+)
+
+
+# Plot the curve and shade the area above it
+ggplot() +
+  geom_polygon(data = data_polygon_above,   aes(x = x, y = y), fill = "grey10", alpha = 0.5) +
+  geom_polygon(data = data_polygon_between, aes(x = x, y = y), fill = "grey45", alpha = 0.5) +
+  geom_point(data = dat, aes(mean, sd, color = consistency)) + 
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +  
+  scale_x_continuous(expand = expansion(mult = c(0, 0)),
+                     labels = c(1,2,3,4,5,6,7),
+                     breaks = c(1,2,3,4,5,6,7)) +
+  scale_color_manual(values=c("black", "red")) +
+  labs(
+    title = "Consistency of Means and SDs given truncation-induced dependencies",
+    x = "Reported Mean",
+    y = "Reported SD"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+dat |>
+  dplyr::select(study, condition, n, mean, sd, min, max, consistency) |>
+  knitr::kable() |>
+  kableExtra::kable_classic(full_width = FALSE)
+
+```
+
+#### single value
+
+```{r}
+
+mean = 1.63
+sd = 2.89
+n = 71
+min = 1
+max = 7
+
+dat <- tibble(mean = mean, 
+              sd = sd,
+              n = n,
+              min = min,
+              max = max) |>
+  mutate(max_sd = pmap(list(mean, min, max, n), maximumSD),
+         max_sd = as.numeric(max_sd))
+
+data_standardized <- 
+  expand_grid(min = min,
+              max = max,
+              plotting_mean = seq(from = min, to = max, by = 0.001),
+              n = n) |> # unnecessarily blows up nrows - fix
+  mutate(max_sd = pmap(list(plotting_mean, min, max, n), maximumSD),
+         max_sd = as.numeric(max_sd))
+
+data_standardized_reshaped <- data_standardized |>
+  mutate(x = plotting_mean,
+         y = max_sd) 
+
+data_polygon_above <- bind_rows(
+  data.frame(x = data_standardized_reshaped$x, y = data_standardized_reshaped$y),
+  data.frame(x = rev(data_standardized_reshaped$x), y = rep(Inf, length(data_standardized_reshaped$x)))
+)
+
+ggplot() +
+  geom_polygon(data = data_polygon_above, aes(x = x, y = y), fill = "grey10", alpha = 0.6) +
+  geom_point(data = dat, aes(mean, sd)) + 
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +  
+  scale_x_continuous(expand = expansion(mult = c(0, 0)),
+                     labels = seq(from = min, to = max, by = 1),
+                     breaks = seq(from = min, to = max, by = 1)) +
+  labs(x = "Mean",
+       y = "SD") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+```
+
+## New
+
+### Table
+
+#### Single value
+
+```{r}
+
+#source("R/tides.R")
+source("R/tides2.R")
+
+tides(mean = 2.2, 
+      sd = 2.4, 
+      n = 30, 
+      min = 1, 
+      max = 7) |>
+  mutate_if(is.numeric, janitor::round_half_up, digits = 2) |>
+  kable() |>
+  kable_classic(full_width = FALSE)
+
+```
+
+#### Multiple values
+
+```{r}
+
+dat <- tibble(mean = c(1, 1.2, 1.4), 
+              sd   = c(0.5, 0.5, 0.6),
+              n    = c(30, 30, 35),
+              min  = 1,
+              max  = c(7, 5, 7)) 
+
+source("R/tides_multiple.R")
+
+tides_multiple(mean = dat$mean,
+               sd = dat$sd,
+               n = dat$n,
+               min = dat$min,
+               max = dat$max) |>
+  mutate_if(is.numeric, janitor::round_half_up, digits = 2) |>
+  kable() |>
+  kable_classic(full_width = FALSE)
+
+```
+
+
+### Plot
+
+```{r}
+
+#source("R/plot_tides.R")
+source("R/plot_tides2.R")
+
+plot_tides(mean = 1.63,
+           sd = 2.89,
+           n = 10,
+           min = 1,
+           max = 7)
+
+```
+
+
+### Lower plot
+
+```{r}
+
+# tides_test <- function(sample_size, min, 
+#                        max, score) {
+#   
+#   standardised_mean <- (score - min) / (max - min)
+#   
+#   max_standardised_sd <- ( sqrt( ((standardised_mean) * (1 - (standardised_mean))) ) ) * ( sqrt(sample_size / (sample_size - 1)) )
+#   
+#   max_unstandardised_sd <- max_standardised_sd * (max - min)
+#   
+#   return(max_unstandardised_sd)
+#   
+# }
+
+calculate_min_sd <- function(n, mean) {
+  # determine the closest integer values around the mean
+  lower_value <- floor(mean)
+  upper_value <- ceiling(mean)
+  
+  # calculate frequencies required to achieve the mean
+  total_sum <- n * mean
+  lower_count <- n * (upper_value - mean)
+  upper_count <- n * (mean - lower_value)
+  
+  # if the calculated counts are not integers, round them appropriately
+  lower_count <- round(lower_count)
+  upper_count <- round(upper_count)
+  
+  # ensure the total count equals n
+  if (lower_count + upper_count != n) {
+    lower_count <- n - upper_count
+  }
+  
+  # form the combination of values
+  values <- c(rep(lower_value, lower_count), rep(upper_value, upper_count))
+  
+  # calculate the mean and standard deviation
+  actual_mean <- mean(values)
+  sd_value <- sd(values)
+  
+  return(list(mean = actual_mean, sd = sd_value))
+}
+
+n <- 17
+min <- 1
+max <- 7
+granularity <- (max / max) / 100
+
+test_data <- tibble(
+  mean = rep(seq(min, max, granularity), length(n)),
+  n = rep(n, each = length(seq(min, max, granularity))),
+) |>
+  rowwise() |>
+  mutate(actual_mean = calculate_min_sd(n, mean = mean)$mean,
+         minimum_sd = calculate_min_sd(n, mean = mean)$sd)
+
+
+test_mean <- 6
+test_sd <- 1.5
+
+test_data |>
+  ggplot() +
+  geom_line(aes(actual_mean, minimum_sd)) +
+  # geom_line(aes(actual_mean, maximum_sd)) +
+  labs(y = "Possible SDs",
+       x = "Actual mean") +
+  facet_wrap(~n) +
+  geom_point(aes(x = test_mean,
+                 y = test_sd))
+
+```
+
+# plot tides multi
+
+```{r}
+
+dat <- tibble(mean = c(1, 1.2, 1.4), 
+              sd   = c(0.5, 0.5, 0.6),
+              n    = c(30, 30, 35),
+              min  = 1,
+              max  = c(7, 5, 7)) 
+
+dat <- tibble(mean = mean, 
+              sd = sd,
+              n = n,
+              min = min,
+              max = max) |>
+  mutate(results = pmap(list(mean, sd, n, min, max, calculate_min_sd, verbose = FALSE), tides_single)) |>
+  unnest(results)
+
+data_plot <- 
+  expand_grid(min = min,
+              max = max,
+              plotting_mean = seq(from = min, to = max, by = 0.01),
+              n = n) |>
+  mutate(results = pmap(list(plotting_mean, sd, n, min, max, calculate_min_sd, verbose = FALSE), tides_single)) |>
+  unnest(results) |>
+  mutate(x = plotting_mean,
+         y_max = max_sd,
+         y_min = min_sd)
+
+data_polygon_above <- bind_rows(
+  data.frame(x = data_plot$x, y = data_plot$y_max),
+  data.frame(x = rev(data_plot$x), y = rep(Inf, length(data_plot$x)))
+)
+
+data_polygon_below <- bind_rows(
+  data.frame(x = data_plot$x, y = data_plot$y_min),
+  data.frame(x = rev(data_plot$x), y = rep(-Inf, length(data_plot$x)))
+)
+
+data_polygon_left <- data.frame(
+  x = c(-Inf, min, min, -Inf),
+  y = c(-Inf, -Inf, Inf, Inf)
+)
+
+data_polygon_right <- data.frame(
+  x = c(max, Inf, Inf, max),
+  y = c(-Inf, -Inf, Inf, Inf)
+)
+
+p <- 
+  ggplot() +
+  geom_polygon(data = data_polygon_above, aes(x = x, y = y), fill = "grey10", alpha = 0.4) +
+  geom_polygon(data = data_polygon_left,  aes(x = x, y = y), fill = "grey10", alpha = 0.4) +
+  geom_polygon(data = data_polygon_right, aes(x = x, y = y), fill = "grey10", alpha = 0.4) +
+  geom_point(data = dat, aes(mean, sd)) +
+  geom_text(data = dat, aes(mean, sd, label = result), 
+            vjust = -1, size = 7) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +  
+  scale_x_continuous(expand = expansion(mult = c(0, 0)),
+                     labels = seq(from = min, to = max, by = 1),
+                     breaks = seq(from = min, to = max, by = 1)) +
+  labs(x = "Mean",
+       y = "SD") +
+  theme_minimal(base_size = 20) +
+  theme(legend.position = "none")
+
+if(calculate_min_sd){
+  p <- p + geom_polygon(data = data_polygon_below, aes(x = x, y = y), fill = "grey10", alpha = 0.4)
+}
+
+if(max - min > 10){
+  p <- p + scale_x_continuous(breaks = scales::pretty_breaks(n = 10))
+}
+
+
+# plot_tides_multi <- function(mean, sd, n, min, max, calculate_min_sd = FALSE){
+# 
+#   return(p)
+# }
+
+```
+
+
+
