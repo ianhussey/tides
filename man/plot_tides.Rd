@@ -4,7 +4,7 @@
 \alias{plot_tides}
 \title{Calculate and plot a TIDES test for a single set of values}
 \usage{
-plot_tides(mean, sd, n, min, max, calculate_min_sd)
+plot_tides(mean, sd, n, min, max, calculate_min_sd = FALSE)
 }
 \arguments{
 \item{mean}{numeric variable representing the reported mean.}
