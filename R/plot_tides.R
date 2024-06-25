@@ -11,7 +11,8 @@
 #' @returns A ggplot object: the TIDES plot and results 
 #' @export 
 plot_tides <- function(mean, sd, n, min, max, calculate_min_sd = FALSE){
-  dat <- tibble(mean = mean, 
+  
+  data_reported <- tibble(mean = mean, 
                 sd = sd,
                 n = n,
                 min = min,
@@ -31,22 +32,22 @@ plot_tides <- function(mean, sd, n, min, max, calculate_min_sd = FALSE){
            y_min = min_sd)
     
   data_polygon_above <- bind_rows(
-    data.frame(x = data_plot$x, y = data_plot$y_max),
-    data.frame(x = rev(data_plot$x), y = rep(Inf, length(data_plot$x)))
+    tibble(x = data_plot$x, y = data_plot$y_max),
+    tibble(x = rev(data_plot$x), y = rep(Inf, length(data_plot$x)))
   )
   
   data_polygon_below <- bind_rows(
-    data.frame(x = data_plot$x, y = data_plot$y_min),
-    data.frame(x = rev(data_plot$x), y = rep(-Inf, length(data_plot$x)))
+    tibble(x = data_plot$x, y = data_plot$y_min),
+    tibble(x = rev(data_plot$x), y = rep(-Inf, length(data_plot$x)))
   )
   
-  data_polygon_left <- data.frame(
-    x = c(-Inf, min, min, -Inf),
-    y = c(-Inf, -Inf, Inf, Inf)
+  data_polygon_left <- tibble(
+    x = c(-Inf,  min, min, -Inf),
+    y = c(-Inf, -Inf, Inf,  Inf)
   )
   
-  data_polygon_right <- data.frame(
-    x = c(max, Inf, Inf, max),
+  data_polygon_right <- tibble(
+    x = c( max,  Inf, Inf, max),
     y = c(-Inf, -Inf, Inf, Inf)
   )
   
@@ -55,8 +56,8 @@ plot_tides <- function(mean, sd, n, min, max, calculate_min_sd = FALSE){
     geom_polygon(data = data_polygon_above, aes(x = x, y = y), fill = "grey10", alpha = 0.4) +
     geom_polygon(data = data_polygon_left,  aes(x = x, y = y), fill = "grey10", alpha = 0.4) +
     geom_polygon(data = data_polygon_right, aes(x = x, y = y), fill = "grey10", alpha = 0.4) +
-    geom_point(data = dat, aes(mean, sd)) +
-    geom_text(data = dat, aes(mean, sd, label = result), 
+    geom_point(data = data_reported, aes(mean, sd)) +
+    geom_text(data = data_reported, aes(mean, sd, label = result), 
               vjust = -1, size = 7) +
     scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +  
     scale_x_continuous(expand = expansion(mult = c(0, 0)),

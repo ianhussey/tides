@@ -40,16 +40,16 @@ tides_single <- function(mean, sd, n, min, max, calculate_min_sd = FALSE, verbos
                   max_standardized_sd = max_standardized_sd,
                   min_sd = min_sd,
                   max_sd = max_sd,
-                  result = case_when(sd > max_sd | sd < min_sd ~ "Inconsistent",
-                                     sd <= max_sd & sd >= min_sd ~ "Consistent"))
+                  result = case_when(sd > max_sd | (sd < min_sd | is.na(min_sd)) ~ "Inconsistent",
+                                     sd <= max_sd & (sd >= min_sd | is.na(min_sd)) ~ "Consistent"))
   } else if (!verbose){
     res <- tibble(standardized_mean = standardized_mean,
                   standardized_sd = standardized_sd,
                   max_standardized_sd = max_standardized_sd,
                   min_sd = min_sd,
                   max_sd = max_sd,
-                  result = case_when(sd > max_sd | sd < min_sd ~ "Inconsistent",
-                                     sd <= max_sd & sd >= min_sd ~ "Consistent"))
+                  result = case_when(sd > max_sd | (sd < min_sd | is.na(min_sd)) ~ "Inconsistent",
+                                     sd <= max_sd & (sd >= min_sd | is.na(min_sd)) ~ "Consistent"))
   }
   
   return(res)
