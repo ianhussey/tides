@@ -12,13 +12,14 @@
 #' @export 
 plot_tides <- function(mean, sd, n, min, max, calculate_min_sd = FALSE){
   
-  data_reported <- tibble(mean = mean, 
-                sd = sd,
-                n = n,
-                min = min,
-                max = max) |>
-    mutate(results = pmap(list(mean, sd, n, min, max, calculate_min_sd, verbose = FALSE), tides_single)) |>
-    unnest(results)
+  data_reported <- 
+    tides_single(mean = mean, 
+                 sd = sd, 
+                 n = n, 
+                 min = min, 
+                 max = max, 
+                 calculate_min_sd = calculate_min_sd,
+                 verbose = TRUE)
   
   data_plot <- 
     expand_grid(min = min,
