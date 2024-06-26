@@ -89,9 +89,9 @@ demo_plot(min = 1,
           max = 7, 
           frequency_min = 1000, 
           frequency_max = 0, 
-          title = "Lower bound of min SD of 7-point scale: ")
+          title = "below bound of min SD of 7-point scale: ")
 
-ggsave("plots/plot lower bound of min SD 7-point scale large N.pdf", width = 5, height = 4)
+ggsave("plots/plot below bound of min SD 7-point scale large N.pdf", width = 5, height = 4)
 
 
 dat <- tibble(score = c(rep(1, times = 500),
@@ -228,7 +228,7 @@ truncation_induced_dependency_test(mean = 2.1, sd = 2.4, n = 30, min = 1, max = 
 #               values_from = max_sd_std) |>
 #   rowwise() |>
 #   mutate(x = mean_std,
-#          y_lower = min(c(max_sd_std_1, max_sd_std_2)),
+#          y_below = min(c(max_sd_std_1, max_sd_std_2)),
 #          y_upper = max(c(max_sd_std_1, max_sd_std_2))) |>
 #   ungroup()
 # 
@@ -240,7 +240,7 @@ truncation_induced_dependency_test(mean = 2.1, sd = 2.4, n = 30, min = 1, max = 
 # # Create a data frame for the polygon between the y and y2 curves
 # data_polygon_between <- bind_rows(
 #   data.frame(x = data_standardized_reshaped$x, y = data_standardized_reshaped$y_upper),
-#   data.frame(x = rev(data_standardized_reshaped$x), y = rev(data_standardized_reshaped$y_lower))
+#   data.frame(x = rev(data_standardized_reshaped$x), y = rev(data_standardized_reshaped$y_below))
 # )
 # 
 # 
@@ -307,7 +307,7 @@ data_standardized_reshaped <- data_standardized |>
               values_from = max_sd_std) |>
   rowwise() |>
   mutate(x = plotting_mean_std,
-         y_lower = min(c(max_sd_std_1, max_sd_std_2)),
+         y_below = min(c(max_sd_std_1, max_sd_std_2)),
          y_upper = max(c(max_sd_std_1, max_sd_std_2))) |>
   ungroup()
 
@@ -319,7 +319,7 @@ data_polygon_above <- bind_rows(
 # Create a data frame for the polygon between the y and y2 curves
 data_polygon_between <- bind_rows(
   data.frame(x = data_standardized_reshaped$x, y = data_standardized_reshaped$y_upper),
-  data.frame(x = rev(data_standardized_reshaped$x), y = rev(data_standardized_reshaped$y_lower))
+  data.frame(x = rev(data_standardized_reshaped$x), y = rev(data_standardized_reshaped$y_below))
 )
 
 
@@ -391,7 +391,7 @@ data_standardized_reshaped <- data_standardized |>
               values_from = max_sd) |>
   rowwise() |>
   mutate(x = plotting_mean,
-         y_lower = min(c(max_sd_1, max_sd_2)),
+         y_below = min(c(max_sd_1, max_sd_2)),
          y_upper = max(c(max_sd_1, max_sd_2))) |>
   ungroup()
 
@@ -403,7 +403,7 @@ data_polygon_above <- bind_rows(
 # Create a data frame for the polygon between the y and y2 curves
 data_polygon_between <- bind_rows(
   data.frame(x = data_standardized_reshaped$x, y = data_standardized_reshaped$y_upper),
-  data.frame(x = rev(data_standardized_reshaped$x), y = rev(data_standardized_reshaped$y_lower))
+  data.frame(x = rev(data_standardized_reshaped$x), y = rev(data_standardized_reshaped$y_below))
 )
 
 
@@ -543,7 +543,7 @@ plot_tides(mean = 1.63,
 ```
 
 
-### Lower plot
+### below plot
 
 ```{r}
 
@@ -562,25 +562,25 @@ plot_tides(mean = 1.63,
 
 calculate_min_sd <- function(n, mean) {
   # determine the closest integer values around the mean
-  lower_value <- floor(mean)
+  below_value <- floor(mean)
   upper_value <- ceiling(mean)
   
   # calculate frequencies required to achieve the mean
   total_sum <- n * mean
-  lower_count <- n * (upper_value - mean)
-  upper_count <- n * (mean - lower_value)
+  below_count <- n * (upper_value - mean)
+  upper_count <- n * (mean - below_value)
   
   # if the calculated counts are not integers, round them appropriately
-  lower_count <- round(lower_count)
+  below_count <- round(below_count)
   upper_count <- round(upper_count)
   
   # ensure the total count equals n
-  if (lower_count + upper_count != n) {
-    lower_count <- n - upper_count
+  if (below_count + upper_count != n) {
+    below_count <- n - upper_count
   }
   
   # form the combination of values
-  values <- c(rep(lower_value, lower_count), rep(upper_value, upper_count))
+  values <- c(rep(below_value, below_count), rep(upper_value, upper_count))
   
   # calculate the mean and standard deviation
   actual_mean <- mean(values)
@@ -618,87 +618,462 @@ test_data |>
 
 ```
 
+# table multi
+
+```{r}
+
+library(TIDES)
+library(tibble)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(scales)
+library(knitr)
+library(kableExtra)
+
+round_down <- function(x, digits = 2) {
+  factor <- 10 ^ digits
+  floor(x * factor) / factor
+}
+
+round_up <- function(x, digits = 2) {
+  factor <- 10 ^ digits
+  ceiling(x * factor) / factor
+}
+
+# data_input should instead be loaded from a csv file with the same structure and content
+data_input <- 
+  tibble(
+    id   = c(1,2,3,4,5,6,7),
+    mean = c(1.1, 1.2, 1.4, 5.6, 3.4, 6.6, 3.8),
+    sd   = c(0.5, 0.5, 0.6, 0.1, 2.4, 2.0, 0.8),
+    n    = c(12, 30, 350, 13, 62, 55, 48),
+    min  = 1,
+    max  = c(7, 5, 7, 63, 7, 8, 5)
+  )
+
+#readr::write_csv(data_input, "test_data.csv")
+
+# tides test and table of results
+TIDES::tides_multiple(mean = data_input$mean,
+                      sd = data_input$sd,
+                      n = data_input$n,
+                      min = data_input$min,
+                      max = data_input$max,
+                      calculate_min_sd = TRUE) |>
+  select(mean, sd, n, min, max, min_sd, max_sd, result) |>
+  mutate(min_sd = round_down(min_sd),
+         max_sd = round_up(max_sd)) |>
+  kable() |>
+  kable_classic(full_width = FALSE)
+
+```
+
 # plot tides multi
 
 ```{r}
 
-dat <- tibble(mean = c(1, 1.2, 1.4), 
-              sd   = c(0.5, 0.5, 0.6),
-              n    = c(30, 30, 35),
-              min  = 1,
-              max  = c(7, 5, 7)) 
+library(TIDES)
+library(tibble)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+library(scales)
+library(knitr)
+library(kableExtra)
 
-dat <- tibble(mean = mean, 
-              sd = sd,
-              n = n,
-              min = min,
-              max = max) |>
-  mutate(results = pmap(list(mean, sd, n, min, max, calculate_min_sd, verbose = FALSE), tides_single)) |>
-  unnest(results)
 
-data_plot <- 
-  expand_grid(min = min,
-              max = max,
-              plotting_mean = seq(from = min, to = max, by = 0.01),
-              n = n) |>
-  mutate(results = pmap(list(plotting_mean, sd, n, min, max, calculate_min_sd, verbose = FALSE), tides_single)) |>
-  unnest(results) |>
-  mutate(x = plotting_mean,
-         y_max = max_sd,
-         y_min = min_sd)
+# mean_single = 1.1
+# sd_single   = 0.5
+# n_single    = 30
+# min_single  = 1
+# max_single  = 7
 
-data_polygon_above <- bind_rows(
-  data.frame(x = data_plot$x, y = data_plot$y_max),
-  data.frame(x = rev(data_plot$x), y = rep(Inf, length(data_plot$x)))
+
+reported_means = c(1.1, 1.2, 1.4, 5.6, 3.4, 6.6, 3.8)
+reported_sds   = c(0.5, 0.5, 0.6, 0.1, 2.4, 2.0, 0.8)
+reported_ns    = c(12, 30, 350, 13, 62, 55, 48)
+reported_mins  = 1
+reported_maxs  = c(7, 5, 7, 63, 7, 8, 5)
+calculate_min_sd_variable = TRUE
+
+max_sd(mean = reported_means[1],
+       n = reported_ns[1],
+       min = reported_mins[1],
+       max = reported_maxs[1])
+
+tides_single(mean = reported_means[1],
+             sd = reported_sds[1],
+             n = reported_ns[1],
+             min = reported_mins[1],
+             max = reported_maxs[1])
+
+
+# dat_single <- 
+#   tides_single(mean = mean_single, 
+#                sd = sd_single, 
+#                n = n_single, 
+#                min = min_single, 
+#                max = max_single, 
+#                calculate_min_sd = calculate_min_sd,
+#                verbose = TRUE)
+
+data_reported <- 
+  tides_multiple(mean = reported_means, 
+                 sd = reported_sds, 
+                 n = reported_ns, 
+                 min = reported_mins, 
+                 max = reported_maxs, 
+                 calculate_min_sd = calculate_min_sd_variable)
+
+data_plot_upper_most_coarse <- 
+  expand_grid(min = 0,
+              max = min(reported_maxs - reported_mins),
+              plotting_mean = seq(from = 0, to = min(reported_maxs - reported_mins), by = 0.01),
+              n = min(reported_ns)) |>
+  mutate(max_sd = pmap(list(plotting_mean, n, min, max), max_sd)) |>
+  unnest(max_sd) |>
+  mutate(max_max_sd = max(max_sd),
+         pomp_max_sd = max_sd/max_max_sd,
+         pomp_plotting_mean = plotting_mean/min(reported_maxs - reported_mins)) |>
+  rename(x = pomp_plotting_mean,
+         y_max = pomp_max_sd)
+
+data_plot_upper_least_coarse <- 
+  expand_grid(min = 0,
+              max = max(reported_maxs - reported_mins),
+              plotting_mean = seq(from = 0, to = max(reported_maxs - reported_mins), by = 0.01),
+              n = max(reported_ns)) |>
+  mutate(max_sd = pmap(list(plotting_mean, n, min, max), max_sd)) |>
+  unnest(max_sd) |>
+  mutate(max_max_sd = max(max_sd),
+         pomp_max_sd = max_sd/max_max_sd,
+         pomp_plotting_mean = plotting_mean/max(reported_maxs - reported_mins)) |>
+  rename(x = pomp_plotting_mean,
+         y_max = pomp_max_sd)
+
+data_plot_below_most_coarse <- 
+  expand_grid(min = 0,
+              max = min(reported_maxs - reported_mins),
+              plotting_mean = seq(from = 0, to = min(reported_maxs - reported_mins), by = 0.01),
+              n = min(reported_ns)) |>
+  mutate(min_sd = pmap(list(plotting_mean, n), min_sd)) |>
+  unnest(min_sd) |>
+  mutate(max_min_sd = max(min_sd),
+         pomp_min_sd = min_sd/max_min_sd,
+         popomp_min_sd = pomp_min_sd / min(data_plot_upper_most_coarse$max_max_sd),
+         pomp_plotting_mean = plotting_mean/min(reported_maxs - reported_mins)) |>
+  rename(x = pomp_plotting_mean,
+         y_min = popomp_min_sd)
+
+data_plot_below_least_coarse <- 
+  expand_grid(min = 0,
+              max = max(reported_maxs - reported_mins),
+              plotting_mean = seq(from = 0, to = max(reported_maxs - reported_mins), by = 0.01),
+              n = max(reported_ns)) |>
+  mutate(min_sd = pmap(list(plotting_mean, n), min_sd)) |>
+  unnest(min_sd) |>
+  mutate(max_min_sd = max(min_sd),
+         pomp_min_sd = min_sd/max_min_sd,
+         popomp_min_sd = pomp_min_sd / max(data_plot_upper_least_coarse$max_max_sd),
+         pomp_plotting_mean = plotting_mean/max(reported_maxs - reported_mins)) |>
+  rename(x = pomp_plotting_mean,
+         y_min = popomp_min_sd)
+
+data_polygon_above_most_coarse <- bind_rows(
+  tibble(x = data_plot_upper_most_coarse$x, y = data_plot_upper_most_coarse$y_max),
+  tibble(x = rev(data_plot_upper_most_coarse$x), y = rep(Inf, length(data_plot_upper_most_coarse$x)))
 )
 
-data_polygon_below <- bind_rows(
-  data.frame(x = data_plot$x, y = data_plot$y_min),
-  data.frame(x = rev(data_plot$x), y = rep(-Inf, length(data_plot$x)))
+data_polygon_above_least_coarse <- bind_rows(
+  tibble(x = data_plot_upper_least_coarse$x, y = data_plot_upper_least_coarse$y_max),
+  tibble(x = rev(data_plot_upper_least_coarse$x), y = rep(Inf, length(data_plot_upper_least_coarse$x)))
 )
 
-data_polygon_left <- data.frame(
-  x = c(-Inf, min, min, -Inf),
-  y = c(-Inf, -Inf, Inf, Inf)
+data_polygon_below_most_coarse <- bind_rows(
+  tibble(x = data_plot_below_most_coarse$x, y = data_plot_below_most_coarse$y_min),
+  tibble(x = rev(data_plot_below_most_coarse$x), y = rep(-Inf, length(data_plot_below_most_coarse$x)))
 )
 
-data_polygon_right <- data.frame(
-  x = c(max, Inf, Inf, max),
+data_polygon_below_least_coarse <- bind_rows(
+  tibble(x = data_plot_below_least_coarse$x, y = data_plot_below_least_coarse$y_min),
+  tibble(x = rev(data_plot_below_least_coarse$x), y = rep(-Inf, length(data_plot_below_least_coarse$x)))
+)
+
+data_polygon_left <- tibble(
+  x = c(-Inf,    0,   0, -Inf),
+  y = c(-Inf, -Inf, Inf,  Inf)
+)
+
+data_polygon_right <- tibble(
+  x = c(   1,  Inf, Inf,   1),
   y = c(-Inf, -Inf, Inf, Inf)
 )
 
 p <- 
   ggplot() +
-  geom_polygon(data = data_polygon_above, aes(x = x, y = y), fill = "grey10", alpha = 0.4) +
+  geom_polygon(data = data_polygon_above_most_coarse, aes(x = x, y = y), fill = "grey10", alpha = 0.2) +
+  geom_polygon(data = data_polygon_above_least_coarse, aes(x = x, y = y), fill = "grey10", alpha = 0.2) +
   geom_polygon(data = data_polygon_left,  aes(x = x, y = y), fill = "grey10", alpha = 0.4) +
   geom_polygon(data = data_polygon_right, aes(x = x, y = y), fill = "grey10", alpha = 0.4) +
-  geom_point(data = dat, aes(mean, sd)) +
-  geom_text(data = dat, aes(mean, sd, label = result), 
-            vjust = -1, size = 7) +
+  geom_point(data = data_reported, aes(standardized_mean, standardized_sd)) +
+  # geom_text(data = data_reported, aes(standardized_mean, standardized_sd, label = result), 
+  #           vjust = -1, size = 7) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +  
-  scale_x_continuous(expand = expansion(mult = c(0, 0)),
-                     labels = seq(from = min, to = max, by = 1),
-                     breaks = seq(from = min, to = max, by = 1)) +
-  labs(x = "Mean",
-       y = "SD") +
+  scale_x_continuous(expand = expansion(mult = c(0.05, 0.05)),
+                     labels = seq(from = 0, to = 1, by = 0.1),
+                     breaks = seq(from = 0, to = 1, by = 0.1)) +
+  labs(x = "POMP Mean",
+       y = "POMP SD") +
   theme_minimal(base_size = 20) +
   theme(legend.position = "none")
 
+p
+
+calculate_min_sd = TRUE
+
 if(calculate_min_sd){
-  p <- p + geom_polygon(data = data_polygon_below, aes(x = x, y = y), fill = "grey10", alpha = 0.4)
+  p <- p + 
+    geom_polygon(data = data_polygon_below_most_coarse, aes(x = x, y = y), fill = "grey10", alpha = 0.2) +
+    geom_polygon(data = data_polygon_below_least_coarse, aes(x = x, y = y), fill = "grey10", alpha = 0.2)
 }
 
-if(max - min > 10){
-  p <- p + scale_x_continuous(breaks = scales::pretty_breaks(n = 10))
-}
+p
 
-
-# plot_tides_multi <- function(mean, sd, n, min, max, calculate_min_sd = FALSE){
-# 
-#   return(p)
-# }
+data_reported |>
+  kable() |>
+  kable_classic(full_width = TRUE)
 
 ```
 
+# combined chatgpt suggestions
+
+```{r}
+
+# truncation-induced dependency among summary statistics
+
+library(TIDES)
+library(tibble)
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+library(scales)
+library(knitr)
+library(kableExtra)
+
+tides_multiple <- function(mean, sd, n, min, max, calculate_min_sd = FALSE){
+  tibble(mean = mean,
+         sd = sd,
+         n = n,
+         min = min,
+         max = max) |>
+    mutate(results = pmap(list(mean, sd, n, min, max, calculate_min_sd, verbose = FALSE), tides_single)) |>
+    unnest(results)
+}
+
+max_sd <- function(mean, n, min, max){
+
+  # handle edge cases where the mean is at the minimum or maximum
+  if (mean == min || mean == max) {
+    max_sd <- 0
+  } else {
+    
+    # mirror values for special cases to ensure min < max
+    if (abs(min) > abs(max)) {
+      temp <- min
+      min <- max
+      max <- temp
+    }
+    
+    # calculate the number of observations at the maximum value
+    num_max <- floor((n * mean - n * min) / (max - min))
+    
+    # calculate the number of observations at the minimum value
+    num_min <- n - 1 - num_max
+    
+    # adjust max if num_max is 0
+    if (num_max == 0) {
+      max <- 0
+    }
+    
+    # compute the sum of means adjusted by the number of min and max values
+    adjusted_mean_sum <- n * mean - num_min * min - num_max * max
+    
+    # compute maximum variability
+    max_variability <- (num_min * (min - mean)^2 + num_max * (max - mean)^2 + (mean - adjusted_mean_sum)^2) / (n - 1)
+    
+    # calculate the maximum standard deviation
+    max_sd <- sqrt(max_variability)
+  }
+  
+  return(max_sd)
+}
+
+min_sd <- function(mean, n) {
+  # determine the closest integer values around the mean
+  lower_value <- floor(mean)
+  upper_value <- ceiling(mean)
+  
+  # calculate frequencies required to achieve the mean
+  total_sum <- n * mean
+  lower_count <- n * (upper_value - mean)
+  upper_count <- n * (mean - lower_value)
+  
+  # if the calculated counts are not integers, round them appropriately
+  lower_count <- round(lower_count)
+  upper_count <- round(upper_count)
+  
+  # ensure the total count equals n
+  if (lower_count + upper_count != n) {
+    lower_count <- n - upper_count
+  }
+  
+  # form the combination of values
+  values <- c(rep(lower_value, lower_count), rep(upper_value, upper_count))
+  
+  # calculate the mean and standard deviation
+  #actual_mean <- mean(values) 
+  min_sd <- sd(values)
+  
+  #return(list(actual_mean = actual_mean, min_sd = min_sd))
+  return(min_sd)
+}
+
+reported_means = c(1.1, 1.2, 1.4, 5.6, 3.4, 6.6, 3.8)
+reported_sds   = c(0.5, 0.5, 0.6, 0.1, 2.4, 2.0, 0.8)
+reported_ns    = c(12, 30, 350, 13, 62, 55, 48)
+reported_mins  = 1
+reported_maxs  = c(7, 5, 7, 63, 7, 8, 5)
+calculate_min_sd_variable = TRUE
+
+data_reported <- 
+  tides_multiple(mean = reported_means, 
+                 sd = reported_sds, 
+                 n = reported_ns, 
+                 min = reported_mins, 
+                 max = reported_maxs, 
+                 calculate_min_sd = calculate_min_sd_variable)
+
+data_plot_upper_most_coarse <- 
+  expand_grid(min = 0,
+              max = min(reported_maxs - reported_mins),
+              plotting_mean = seq(from = 0, to = min(reported_maxs - reported_mins), by = 0.01),
+              n = min(reported_ns)) |>
+  mutate(max_sd = pmap(list(plotting_mean, n, min, max), max_sd)) |>
+  unnest(max_sd) |>
+  mutate(max_max_sd = max(max_sd),
+         pomp_max_sd = max_sd/max_max_sd,
+         pomp_plotting_mean = plotting_mean/min(reported_maxs - reported_mins)) |>
+  rename(x = pomp_plotting_mean,
+         y_max = pomp_max_sd)
+
+data_plot_upper_least_coarse <- 
+  expand_grid(min = 0,
+              max = max(reported_maxs - reported_mins),
+              plotting_mean = seq(from = 0, to = max(reported_maxs - reported_mins), by = 0.01),
+              n = max(reported_ns)) |>
+  mutate(max_sd = pmap(list(plotting_mean, n, min, max), max_sd)) |>
+  unnest(max_sd) |>
+  mutate(max_max_sd = max(max_sd),
+         pomp_max_sd = max_sd/max_max_sd,
+         pomp_plotting_mean = plotting_mean/max(reported_maxs - reported_mins)) |>
+  rename(x = pomp_plotting_mean,
+         y_max = pomp_max_sd)
+
+data_plot_below_most_coarse <- 
+  expand_grid(min = 0,
+              max = min(reported_maxs - reported_mins),
+              plotting_mean = seq(from = 0, to = min(reported_maxs - reported_mins), by = 0.01),
+              n = min(reported_ns)) |>
+  mutate(min_sd = pmap(list(plotting_mean, n), min_sd)) |>
+  unnest(min_sd) |>
+  mutate(max_min_sd = max(min_sd),
+         pomp_min_sd = min_sd/max_min_sd,
+         popomp_min_sd = pomp_min_sd / min(data_plot_upper_most_coarse$max_max_sd),
+         pomp_plotting_mean = plotting_mean/min(reported_maxs - reported_mins)) |>
+  rename(x = pomp_plotting_mean,
+         y_min = popomp_min_sd)
+
+data_plot_below_least_coarse <- 
+  expand_grid(min = 0,
+              max = max(reported_maxs - reported_mins),
+              plotting_mean = seq(from = 0, to = max(reported_maxs - reported_mins), by = 0.01),
+              n = max(reported_ns)) |>
+  mutate(min_sd = pmap(list(plotting_mean, n), min_sd)) |>
+  unnest(min_sd) |>
+  mutate(max_min_sd = max(min_sd),
+         pomp_min_sd = min_sd/max_min_sd,
+         popomp_min_sd = pomp_min_sd / max(data_plot_upper_least_coarse$max_max_sd),
+         pomp_plotting_mean = plotting_mean/max(reported_maxs - reported_mins)) |>
+  rename(x = pomp_plotting_mean,
+         y_min = popomp_min_sd)
+
+data_polygon_above_most_coarse <- bind_rows(
+  tibble(x = data_plot_upper_most_coarse$x, y = data_plot_upper_most_coarse$y_max),
+  tibble(x = rev(data_plot_upper_most_coarse$x), y = rep(Inf, length(data_plot_upper_most_coarse$x)))
+)
+
+data_polygon_above_least_coarse <- bind_rows(
+  tibble(x = data_plot_upper_least_coarse$x, y = data_plot_upper_least_coarse$y_max),
+  tibble(x = rev(data_plot_upper_least_coarse$x), y = rep(Inf, length(data_plot_upper_least_coarse$x)))
+)
+
+data_polygon_below_most_coarse <- bind_rows(
+  tibble(x = data_plot_below_most_coarse$x, y = data_plot_below_most_coarse$y_min),
+  tibble(x = rev(data_plot_below_most_coarse$x), y = rep(-Inf, length(data_plot_below_most_coarse$x)))
+)
+
+data_polygon_below_least_coarse <- bind_rows(
+  tibble(x = data_plot_below_least_coarse$x, y = data_plot_below_least_coarse$y_min),
+  tibble(x = rev(data_plot_below_least_coarse$x), y = rep(-Inf, length(data_plot_below_least_coarse$x)))
+)
+
+data_polygon_left <- tibble(
+  x = c(-Inf,    0,   0, -Inf),
+  y = c(-Inf, -Inf, Inf,  Inf)
+)
+
+data_polygon_right <- tibble(
+  x = c(   1,  Inf, Inf,   1),
+  y = c(-Inf, -Inf, Inf, Inf)
+)
+
+p <- 
+  ggplot() +
+  geom_polygon(data = data_polygon_above_most_coarse, aes(x = x, y = y), fill = "grey10", alpha = 0.2) +
+  geom_polygon(data = data_polygon_above_least_coarse, aes(x = x, y = y), fill = "grey10", alpha = 0.2) +
+  geom_polygon(data = data_polygon_left,  aes(x = x, y = y), fill = "grey10", alpha = 0.4) +
+  geom_polygon(data = data_polygon_right, aes(x = x, y = y), fill = "grey10", alpha = 0.4) +
+  geom_point(data = data_reported, aes(standardized_mean, standardized_sd)) +
+  # geom_text(data = data_reported, aes(standardized_mean, standardized_sd, label = result), 
+  #           vjust = -1, size = 7) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +  
+  scale_x_continuous(expand = expansion(mult = c(0.05, 0.05)),
+                     labels = seq(from = 0, to = 1, by = 0.1),
+                     breaks = seq(from = 0, to = 1, by = 0.1)) +
+  labs(x = "POMP Mean",
+       y = "POMP SD") +
+  theme_minimal(base_size = 20) +
+  theme(legend.position = "none")+ 
+    geom_polygon(data = data_polygon_below_most_coarse, aes(x = x, y = y), fill = "grey10", alpha = 0.2) +
+    geom_polygon(data = data_polygon_below_least_coarse, aes(x = x, y = y), fill = "grey10", alpha = 0.2)
+
+p
+
+```
+
+```{r}
+
+pomp_plotting_mean = plotting_mean/min(reported_maxs - reported_mins)) |>
+rename(x = pomp_plotting_mean,
+       y_max = pomp_max_sd)
+
+pomp_plotting_mean = plotting_mean/max(reported_maxs - reported_mins)) |>
+rename(x = pomp_plotting_mean,
+       y_max = pomp_max_sd)
+# Fix: Ensure both use either min or max consistently, or adjust plot scaling to account for the difference.
 
 
+```
