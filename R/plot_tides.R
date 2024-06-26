@@ -28,7 +28,7 @@ plot_tides <- function(mean, sd, n, min, max, calculate_min_sd = FALSE){
                 n = n) |>
     mutate(results = pmap(list(plotting_mean, sd, n, min, max, calculate_min_sd, verbose = FALSE), tides_single)) |>
     unnest(results) |>
-    mutate(x = plotting_mean,
+    rename(x = plotting_mean,
            y_max = max_sd,
            y_min = min_sd)
     
