@@ -14,7 +14,7 @@
 tides_single <- function(mean, sd, n, min, max, calculate_min_sd = FALSE, verbose = TRUE){
   
   # calculate the maximum standard deviation
-  max_sd <- max_sd(mean, sd, n, min, max)
+  max_sd <- max_sd(mean, n, min, max)
   
   # calculate the minimum standard deviation using the provided function
   if (calculate_min_sd) {
