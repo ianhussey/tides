@@ -105,7 +105,7 @@ ui <- navbarPage(
                     "Preprint: [forthcoming] ", # "Preprint: ", a("on PsyArXiv", href = "URL", target = "_blank"))
                     br(),
                     br(),
-                    "Cite as: Hussey, I., Norwood, S. F., Cummins, J., Arslan, R. A., & Elson, M. (2024). Truncation-Induced Dependency in Summary Statistics (TIDES). https://github.com/ianhussey/TIDES",
+                    "Cite as: Hussey, I., Norwood, S. F., Cummins, J., Arslan, R. A., & Elson, M. (2024). Truncation-Induced Dependency in Summary Statistics (TIDES): A method to check for inconsistencies in reported summary statistics for truncated data. https://github.com/ianhussey/TIDES",
                     br(),
                     br(),
                     "Source code: ", a("GitHub", href = "https://github.com/ianhussey/TIDES", target = "_blank"))
