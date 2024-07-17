@@ -51,7 +51,7 @@ ui <- navbarPage(
              ),
              titlePanel(title = span(img(src = "logo.png", height = 90), "Truncation-Induced Dependency in Summary Statistics")),
              tags$h3("A method for checking the compatibility of reported means, SDs, and Ns given the min and max of the scale"),
-             tags$h4("Hussey, Norwood, Cummins, Arslan, & Elson (2024)"),
+             #tags$h4("Hussey, Norwood, Cummins, Arslan, & Elson (2024)"),
              sidebarLayout(
                sidebarPanel(
                  numericInput(inputId = "mean", label = "Mean:", value = 2.1, step = 0.1),
@@ -73,7 +73,7 @@ ui <- navbarPage(
            fluidPage(
              titlePanel(title = span(img(src = "logo.png", height = 90), "Truncation-Induced Dependency in Summary Statistics")),
              tags$h3("A method for checking the compatibility of reported means, SDs, and Ns given the min and max of the scale"),
-             tags$h4("Hussey, Norwood, Cummins, Arslan, & Elson (2024)"),
+             #tags$h4("Hussey, Norwood, Cummins, Arslan, & Elson (2024)"),
              sidebarLayout(
                sidebarPanel(
                  fileInput("file1", "Choose CSV File",
@@ -97,8 +97,18 @@ ui <- navbarPage(
            fluidPage(
              titlePanel(title = span(img(src = "logo.png", height = 90), "Truncation-Induced Dependency in Summary Statistics")),
              tags$h3("A method for checking the compatibility of reported means, SDs, and Ns given the min and max of the scale"),
-             tags$h4("Hussey, Norwood, Cummins, Arslan, & Elson (2024)"),
-             tags$p("This is a placeholder for a description/explanation of the method, links to a preprint/github, how to cite, etc.")
+             #tags$h4("Hussey, Norwood, Cummins, Arslan, & Elson (2024)"),
+             tags$p(br(),
+                    "Explanation of the method, its assumptions, use cases, etc. will be added here in time.",
+                    br(),
+                    br(),
+                    "Preprint: [forthcoming] ", # "Preprint: ", a("on PsyArXiv", href = "URL", target = "_blank"))
+                    br(),
+                    br(),
+                    "Cite as: Hussey, I., Norwood, S. F., Cummins, J., Arslan, R. A., & Elson, M. (2024). Truncation-Induced Dependency in Summary Statistics (TIDES). https://github.com/ianhussey/TIDES",
+                    br(),
+                    br(),
+                    "Source code: ", a("GitHub", href = "https://github.com/ianhussey/TIDES", target = "_blank"))
            )
   )
 )
