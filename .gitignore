@@ -1,5 +1,5 @@
 
 *.DS_Store
 *.Rhistory
-/shiny app/rsconnect
+/shiny_app/rsconnect
 /old
