@@ -60,8 +60,7 @@ ui <- navbarPage(
                  numericInput(inputId = "min", label = "Minimum Value:", value = 1, step = 1),
                  numericInput(inputId = "max", label = "Maximum Value:", value = 7, step = 1),
                  tags$b("Scale is interval:"),
-                 checkboxInput(inputId = "scale_is_interval", label = "Yes, also calculate minimum SD", value = TRUE),
-                 actionButton(inputId = "run_test", label = "Run Test")
+                 checkboxInput(inputId = "scale_is_interval", label = "Yes, also calculate minimum SD", value = TRUE)
                ),
                mainPanel(
                  plotOutput("result_plot")
