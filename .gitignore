@@ -3,3 +3,5 @@
 *.Rhistory
 /shiny_app/rsconnect
 /old
+.Rproj.user
+inst/doc
