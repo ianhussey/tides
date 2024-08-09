@@ -8,19 +8,13 @@ Description: Check reported Means, SDs and Ns from truncated data (data where th
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
+RoxygenNote: 7.2.3
 Imports: 
-    tibble,
-    dplyr,
-    tidyr,
-    purrr,
-    ggplot2,
-    scales
+    tibble,    dplyr,    tidyr,    purrr,    ggplot2,    scales
 Suggests:
     knitr,
     kableExtra,
     devtools,
-    roxygen2,
-    rmarkdown
+    roxygen2
 VignetteBuilder: knitr
 BuildVignettes: true

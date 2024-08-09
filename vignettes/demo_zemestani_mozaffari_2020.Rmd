@@ -1,24 +1,3 @@
----
-title: "demo_zemestani_mozaffari_2020_NEW"
-output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{demo_zemestani_mozaffari_2020_NEW}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
----
-
-```{r, include = FALSE}
-knitr::opts_chunk$set(
-  collapse = TRUE,
-  comment = "#>"
-)
-pkgload::load_all()
-```
-
-```{r setup}
-library(TIDES)
-```
-
 
 ```{r}
 
@@ -27,6 +6,9 @@ library(purrr)
 library(knitr)
 library(kableExtra)
 
+source("../R/tides_with_min_sd.R")
+source("../R/tides_multiple_with_min_sd.R")
+source("../R/plot_tides_with_min_sd.R")
 
 results_reported_baseline <- 
   tibble(timepoint = c("t1", "t1"),
