@@ -7,23 +7,32 @@
 tides_single(mean, sd, n, min, max, calculate_min_sd = FALSE, verbose = TRUE)
 }
 \arguments{
-\item{mean}{numeric variable representing the reported mean.}
+\item{mean}{Numeric. Reported mean.}
 
-\item{sd}{numeric variable representing the reported Standard Deviation.}
+\item{sd}{Numeric. Reported standard deviation.}
 
-\item{n}{numeric variable representing the reported sample size.}
+\item{n}{Numeric. Reported sample size.}
 
-\item{min}{numeric variable representing the variable's minimum possible/observable score.}
+\item{min}{Numeric. Minimum possible/observable score.}
 
-\item{max}{numeric variable representing the variable's maximum possible/observable score.}
+\item{max}{Numeric. Maximum possible/observable score.}
 
-\item{calculate_min_sd}{logical variable representing whether a minimum SD should also be calculated. This should only be calculated if the varible is not only trucated (has a minimum and maximum possible/observable score) but also the variable is discrete/binned/granular: ie the response must be whole numbers (e.g., a 1-7 likert scale, where an indiviudal cannot provide a score of 1.5).}
+\item{calculate_min_sd}{Logical. Should a minimum SD also be calculated? Only
+set if to \code{TRUE} if the variable is not only truncated (it has a minimum
+and maximum possible/observable score) but also discrete/binned/granular:
+the response must be whole numbers (e.g., a 1-7 Likert scale, where an
+individual cannot provide a score of 1.5). Default is \code{FALSE}.}
 
-\item{verbose}{logical variable representing whether the output should also contain the input values.}
+\item{verbose}{Logical. Should the output also contain the input values?
+Default is \code{TRUE}.}
 }
 \value{
-a tibble containing the max and min SD and a summary variable \code{result} indicating if the tested values are consistent or not.
+A tibble containing the max and min SD and a summary variable
+\code{consistency} indicating if the tested values are consistent or not.
 }
 \description{
 Explanation to be added
+}
+\examples{
+tides_single(mean = 1.1, sd = 0.5, n = 12, min = 1, max = 7)
 }
