@@ -31,10 +31,10 @@
 #' @export
 #'
 #' @examples
-#' umbrella_plot(mean = 1.1, sd = 0.5, n = 12, min = 1, max = 7)
+#' tides_umbrella_plot(mean = 1.1, sd = 0.5, n = 12, min = 1, max = 7)
 #'
 #' # Assuming a discrete scale:
-#' umbrella_plot(mean = 1.1, sd = 0.5, n = 12, min = 1, max = 7, calculate_min_sd = TRUE)
+#' tides_umbrella_plot(mean = 1.1, sd = 0.5, n = 12, min = 1, max = 7, calculate_min_sd = TRUE)
 
 # # Example data for testing
 # mean <- 1.1
@@ -53,21 +53,21 @@
 # label_force <- 175
 # label_force_pull <- 0.75
 
-umbrella_plot <- function(mean,
-                          sd,
-                          n,
-                          min,
-                          max,
-                          calculate_min_sd = FALSE,
-                          show_labels = c("consistency", "values", "both", "none"),
-                          max_range = 10,
-                          color_cons = "royalblue1",
-                          color_incons = "red",
-                          point_alpha = 1,
-                          point_shape = 19,
-                          point_size = 2,
-                          label_force = 175,
-                          label_force_pull = 0.75) {
+tides_umbrella_plot <- function(mean,
+                                sd,
+                                n,
+                                min,
+                                max,
+                                calculate_min_sd = FALSE,
+                                show_labels = c("consistency", "values", "both", "none"),
+                                max_range = 10,
+                                color_cons = "royalblue1",
+                                color_incons = "red",
+                                point_alpha = 1,
+                                point_shape = 19,
+                                point_size = 2,
+                                label_force = 175,
+                                label_force_pull = 0.75) {
 
   show_labels <- rlang::arg_match(show_labels)
 
