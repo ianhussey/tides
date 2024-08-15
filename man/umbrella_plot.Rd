@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot_tides.R
 \name{umbrella_plot}
 \alias{umbrella_plot}
-\title{Calculate and plot a TIDES test for a single set of values}
+\title{Visualize TIDES results using an umbrella plot}
 \usage{
 umbrella_plot(
   mean,
@@ -12,9 +12,12 @@ umbrella_plot(
   max,
   calculate_min_sd = FALSE,
   show_labels = c("consistency", "values", "both", "none"),
+  max_range = 10,
   color_cons = "royalblue1",
   color_incons = "red",
   point_alpha = 1,
+  point_shape = 19,
+  point_size = 2,
   label_force = 175,
   label_force_pull = 0.75
 )
@@ -36,11 +39,31 @@ and maximum possible/observable score) but also discrete/binned/granular:
 the response must be whole numbers (e.g., a 1-7 Likert scale, where an
 individual cannot provide a score of 1.5). Default is \code{FALSE}.}
 
-\item{show_labels}{String. One of these: \code{"consistency"} says whether the
-data are numerically consistent; \code{"values"} displays them in "mean (SD)"
-format; \code{"both"} combines the two labels, and \code{"none"} shows neither.}
+\item{show_labels}{String. One of these:
+\itemize{
+\item \code{"consistency"} (the default) declares whether the data are
+mathematically consistent.
+\item \code{"values"} displays the data in "mean (SD)" format.
+\item \code{"both"} combines the two labels above.
+\item \code{"none"} shows no labels.
+}}
 
-\item{point_alpha}{Numeric. Opacity of the data points. Default is \code{1}.}
+\item{max_range}{Integer. TODO: Explain \code{max_range}}
+
+\item{color_cons}{String. Fill color of consistent data points. Default is
+\code{"royalblue1"}.}
+
+\item{color_incons}{String. Fill color of inconsistent data points. Default
+is \code{"red"}.}
+
+\item{point_alpha}{Numeric. Opacity of the data points, ranging from 0 to 1.
+Default is \code{1}. Choose lower values for more transparency.}
+
+\item{point_shape}{Numeric or string. Shape of the data points; see
+https://ggplot2.tidyverse.org/articles/ggplot2-specs.html#sec:shape-spec.
+Default is \code{19}.}
+
+\item{point_size}{Numeric. Size of the data points. Default is \code{2}.}
 
 \item{label_force}{Numeric. Force of repulsion between overlapping text
 labels. Default is \code{175}.}
@@ -49,11 +72,14 @@ labels. Default is \code{175}.}
 its corresponding data point. Default is \code{0.75}.}
 }
 \value{
-A ggplot object: the TIDES umbrella plot and results.
+A ggplot object: the TIDES umbrella plot.
 }
 \description{
-Explanation to be added
+TODO: Explanation to be added
 }
 \examples{
 umbrella_plot(mean = 1.1, sd = 0.5, n = 12, min = 1, max = 7)
+
+# Assuming a discrete scale:
+umbrella_plot(mean = 1.1, sd = 0.5, n = 12, min = 1, max = 7, calculate_min_sd = TRUE)
 }
