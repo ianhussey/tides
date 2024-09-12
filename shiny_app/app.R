@@ -116,7 +116,7 @@ ui <- navbarPage(
 server <- function(input, output) {
   
   output$result_plot <- renderPlot({
-    plot_tides(mean = input$mean, 
+    tides_umbrella_plot(mean = input$mean, 
                sd = input$sd, 
                n = input$n, 
                min = input$min, 

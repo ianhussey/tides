@@ -2,6 +2,6 @@
 
 export(max_sd)
 export(min_sd)
-export(plot_tides)
 export(tides_multiple)
 export(tides_single)
+export(tides_umbrella_plot)

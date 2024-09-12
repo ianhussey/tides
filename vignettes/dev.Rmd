@@ -1,3 +1,23 @@
+---
+title: "Development"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Development}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(TIDES)
+```
+
 
 # Illustrate
 
@@ -531,10 +551,10 @@ tides_multiple(mean = dat$mean,
 
 ```{r}
 
-#source("R/plot_tides.R")
-source("R/plot_tides2.R")
+#source("R/tides_umbrella_plot.R")
+source("R/tides_umbrella_plot2.R")
 
-plot_tides(mean = 1.63,
+tides_umbrella_plot(mean = 1.63,
            sd = 2.89,
            n = 10,
            min = 1,
