@@ -1,0 +1,974 @@
+---
+title: "Briding umbrella plots and tides"
+author: "Ian Hussey"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    highlight: haddock
+    theme: flatly
+    toc: yes
+    toc_float: yes
+---
+  
+```{r include=FALSE}
+
+# formatting options
+# set default chunk options
+knitr::opts_chunk$set(message = FALSE, 
+warning = FALSE)
+
+# disable scientific notation
+options(scipen = 999) 
+
+```
+
+```{r}
+
+library(tidyverse)
+library(janitor)
+library(rsprite2)
+library(scrutiny) 
+library(purrr)
+library(patchwork)
+library(knitr)
+library(kableExtra)
+
+min_decimals <- function(x, digits = 2) {
+  sprintf(paste0("%.", digits, "f"), x)
+}
+
+```
+
+# GRIM vs GRIM+GRIMMER vs GRIM+GRIMMER+Umbrella plot 
+
+## using scrutiny + tides_modified_from_.sd_limits()
+
+```{r}
+
+tides_modified_from_.sd_limits <- function(n_obs, mean, sd, min_val, max_val, sd_prec = NULL, n_items = 1) {
+  
+  if (is.null(sd_prec)) {
+    sd_prec <- max(nchar(sub("^[0-9]*", "", mean)) - 1, 0)
+  }
+  
+  result <- c(-Inf, Inf)
+  
+  aMax <- min_val
+  aMin <- floor(mean*n_items)/n_items
+  bMax <- min(max(max_val, min_val + 1, aMin + 1), max_val)   # Adjusted here
+  bMin <- min(aMin + 1/n_items, max_val)                      # Adjusted here
+  total <- round(mean * n_obs * n_items)/n_items
+  
+  poss_values <- max_val
+  for (i in seq_len(n_items)) {
+    poss_values <- c(poss_values, min_val:(max_val-1) + (1 / n_items) * (i - 1))
+  }
+  poss_values <- sort(poss_values)
+  
+  for (abm in list(c(aMin, bMin, 1), c(aMax, bMax, 2))) {
+    
+    a <- abm[1]
+    b <- abm[2]
+    m <- abm[3]
+    
+    # Adjust a and b to be within min_val and max_val
+    a <- min(max(a, min_val), max_val)
+    b <- min(max(b, min_val), max_val)
+   
+    if (a == b) {
+      vec <- rep(a, n_obs)
+    } else {
+      k <- round((total - (n_obs * b)) / (a - b))
+      k <- min(max(k, 1), n_obs - 1)
+      vec <- c(rep(a, k), rep(b, n_obs - k))
+      diff <- sum(vec) - total
+      
+      if ((diff < 0)) {
+        vec <- c(rep(a, k - 1), a + abs(diff), rep(b, n_obs - k))
+      } else if ((diff > 0)) {
+        vec <- c(rep(a, k), b - diff, rep(b, n_obs - k - 1))
+      }
+    }
+    
+    # instead of throwing errors here, return NA
+    # if (round(mean(vec), sd_prec) != round(mean, sd_prec) | !all(floor(vec*10e9) %in% floor(poss_values*10e9))) {
+    #   stop("Error in calculating range of possible standard deviations")
+    # }
+    # result[m] <- round(sd(vec), sd_prec)
+    
+    # Check if the calculated mean and values match expected conditions
+    if (round(mean(vec), sd_prec) == round(mean, sd_prec) & all(floor(vec*10e9) %in% floor(poss_values*10e9))) {
+      result[m] <- round(sd(vec), sd_prec)
+    }
+    
+  }
+  
+  # Replace Inf or -Inf with NA
+  result[is.infinite(result)] <- NA
+  
+  # returns df instead of vector
+  res <- 
+    data.frame(sd_min = result[1],
+               sd_max = result[2]) |>
+    mutate(tides = case_when(sd < sd_min ~ FALSE,
+                             is.na(sd_min) ~ FALSE,
+                             sd > sd_max ~ FALSE,
+                             is.na(sd_max) ~ FALSE,
+                             TRUE ~ TRUE))
+  
+  return(res)
+}
+
+# dat_n_11 <-
+#   expand_grid(mean = seq(from = 0.5, to = 7.5, by = 0.01),
+#               sd = seq(from = 0, to = 4, by = 0.01)) |>
+#   mutate(n_obs   = 11,
+#          m_prec  = 2,
+#          sd_prec = 2,
+#          n_items = 1,
+#          min_val = 1,
+#          max_val = 7) |>
+#   mutate(grim = pmap(list(as.character(mean), n_obs),
+#                      grim)) |>
+#   mutate(grimmer = pmap(list(as.character(mean), as.character(sd), n_obs),
+#                         grimmer)) |>
+#   mutate(tides = pmap(list(n_obs, mean, sd, min_val, max_val, sd_prec, n_items),
+#                       tides_modified_from_.sd_limits)) |>
+#   unnest(grim) |>
+#   unnest(grimmer) |>
+#   unnest(tides)
+# 
+# dat_n_100 <-
+#   expand_grid(mean = seq(from = 0.5, to = 7.5, by = 0.01),
+#               sd = seq(from = 0, to = 4, by = 0.01)) |>
+#   mutate(n_obs   = 100,
+#          m_prec  = 2,
+#          sd_prec = 2,
+#          n_items = 1,
+#          min_val = 1,
+#          max_val = 7) |>
+#   mutate(grim = pmap(list(as.character(mean), n_obs),
+#                      grim)) |>
+#   mutate(grimmer = pmap(list(as.character(mean), as.character(sd), n_obs),
+#                         grimmer)) |>
+#   mutate(tides = pmap(list(n_obs, mean, sd, min_val, max_val, sd_prec, n_items),
+#                       tides_modified_from_.sd_limits)) |>
+#   unnest(grim) |>
+#   unnest(grimmer) |>
+#   unnest(tides)
+# 
+# write_rds(dat_n_11, "results_grim_grimmer_tides_n_11.rds")
+# write_rds(dat_n_100, "results_grim_grimmer_tides_n_100.rds")
+
+dat_n_11 <- read_rds("results_grim_grimmer_tides_n_11.rds")
+dat_n_100 <- read_rds("results_grim_grimmer_tides_n_100.rds")
+
+```
+
+### Plot N=11
+
+```{r fig.height=16, fig.width=7}
+
+dat_n_11 |>
+  count()
+
+dat_n_11 |>
+  count(grim, grimmer, tides)
+
+dat_n_11 <- dat_n_11 |>
+  mutate(label = case_when(mean < 1 | mean > 7 ~ "Impossible score flagged as possible",
+                           sd < 0 | sd > 3.6 ~ "Impossible score flagged as possible", # Croucher (2004) loose heuristic of max SD as 60% of range (ie 6 * .6 = .36)
+                           TRUE ~ "Possible score flagged as possible"))
+
+# only GRIM-consistent values
+p_grim_n_11 <- dat_n_11 |>
+  filter(grim) |>
+  ggplot(aes(mean, sd)) +
+  geom_point(shape = 15, size = 0.5, color = "grey35") + 
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), 
+                     limit = c(0, 4), 
+                     expand = c(0.01, 0.01)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), 
+                     limit = c(0.5, 7.5), 
+                     expand = c(0.01, 0.01)) +
+  scale_color_viridis_d(begin = 0.3, end = 0.7) +
+  ylab("Standard Deviation") +
+  xlab("Mean") +
+  ggtitle("GRIM consistent values") 
+
+# only GRIM and GRIMMER-consistent values
+p_grimmer_n_11 <- dat_n_11 |>
+  filter(grim & grimmer) |>
+  ggplot(aes(mean, sd)) +
+  geom_point(shape = 15, size = 0.5, color = "grey35") +
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), 
+                     limit = c(0, 4), 
+                     expand = c(0.01, 0.01)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), 
+                     limit = c(0.5, 7.5), 
+                     expand = c(0.01, 0.01)) +
+  scale_color_viridis_d(begin = 0.3, end = 0.7) +
+  ylab("Standard Deviation") +
+  xlab("Mean") +
+  ggtitle("GRIM + GRIMMER consistent values") 
+
+# only GRIM and GRIMMER and TIDES-consistent values
+p_tides_n_11 <- dat_n_11 |>
+  filter(grim & grimmer & tides) |>
+  ggplot(aes(mean, sd)) +
+  geom_point(shape = 15, size = 0.5, color = "grey35") +
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), 
+                     limit = c(0, 4), 
+                     expand = c(0.01, 0.01)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), 
+                     limit = c(0.5, 7.5), 
+                     expand = c(0.01, 0.01)) +
+  ylab("Standard Deviation") +
+  xlab("Mean") +
+  ggtitle("GRIM + GRIMMER + TIDES consistent values")
+
+
+# with coloring of impossible values
+# only GRIM-consistent values with colors
+p_grim_n_11_with_colors <- dat_n_11 |>
+  filter(grim) |>
+  # mutate(label = case_when(grim == FALSE ~ "Impossible score flagged as impossible",
+  #                          mean < 1 | mean > 7 ~ "Impossible score flagged as possible",
+  #                          sd < 0 | sd > 3.6 ~ "Impossible score flagged as possible", # Croucher (2004) loose heuristic of max SD as 60% of range (ie 6 * .6 = .36)
+  #                          TRUE ~ "Possible score flagged as possible")) |>
+  ggplot(aes(mean, sd, color = label)) +
+  geom_point(shape = 15, size = 0.5) + # "grey20"
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), 
+                     limit = c(0, 4), 
+                     expand = c(0.01, 0.01)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), 
+                     limit = c(0.5, 7.5), 
+                     expand = c(0.01, 0.01)) +
+  scale_color_viridis_d(begin = 0.3, end = 0.7) +
+  ylab("Standard Deviation") +
+  xlab("Mean") +
+  ggtitle("GRIM consistent values") +
+  theme(legend.position = "top",
+        legend.direction = "vertical") +
+  guides(color = guide_legend(override.aes = list(size = 4, ncol = 1), title = NULL))
+
+# only GRIM and GRIMMER-consistent values with colors
+p_grimmer_n_11_with_colors <- dat_n_11 |>
+  filter(grim & grimmer) |>
+  # mutate(label = case_when(grim == FALSE | grimmer == FALSE ~ "Impossible score flagged as impossible",
+  #                          mean < 1 | mean > 7 ~ "Impossible score flagged as possible",
+  #                          sd < 0 | sd > 3.6 ~ "Impossible score flagged as possible", # Croucher (2004) loose heuristic of max SD as 60% of range (ie 6 * .6 = .36)
+  #                          TRUE ~ "Possible score flagged as possible")) |>
+  ggplot(aes(mean, sd, color = label)) +
+  geom_point(shape = 15, size = 0.5) +
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), 
+                     limit = c(0, 4), 
+                     expand = c(0.01, 0.01)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), 
+                     limit = c(0.5, 7.5), 
+                     expand = c(0.01, 0.01)) +
+  scale_color_viridis_d(begin = 0.3, end = 0.7) +
+  ylab("Standard Deviation") +
+  xlab("Mean") +
+  ggtitle("GRIM + GRIMMER consistent values") +
+  theme(legend.position = "none")
+
+# only GRIM and GRIMMER and TIDES-consistent values with colors
+p_tides_n_11_with_colors <- dat_n_11 |>
+  filter(grim & grimmer & tides) |>
+  # mutate(label = case_when(grim == FALSE | grimmer == FALSE | tides == FALSE ~ "Impossible score flagged as impossible",
+  #                          mean < 1 | mean > 7 ~ "Impossible score flagged as possible",
+  #                          sd < 0 | sd > 3.6 ~ "Impossible score flagged as possible", # Croucher (2004) loose heuristic of max SD as 60% of range (ie 6 * .6 = .36)
+  #                          TRUE ~ "Possible score flagged as possible")) |>
+  ggplot(aes(mean, sd, color = label)) +
+  geom_point(shape = 15, size = 0.5) +
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), 
+                     limit = c(0, 4), 
+                     expand = c(0.01, 0.01)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), 
+                     limit = c(0.5, 7.5), 
+                     expand = c(0.01, 0.01)) +
+  scale_color_viridis_d(begin = 0.3, end = 0.7, direction = -1) +
+  ylab("Standard Deviation") +
+  xlab("Mean") +
+  ggtitle("GRIM + GRIMMER + TIDES consistent values") +
+  theme(legend.position = "none")
+  
+
+# dat_n_11 |>
+#   filter(grim & grimmer & tides) |>
+#   group_by(mean) |>
+#   filter(sd == max(sd) | sd == min(sd)) |>
+#   mutate(group = ifelse(sd == max(sd), "max", "min")) |>
+#   ungroup() |>
+#   ggplot(aes(mean, sd, group = group)) +
+#   #geom_point(shape = 15, size = 1, color = "grey20") +
+#   geom_line() +
+#   theme_linedraw() +
+#   scale_y_continuous(breaks = scales::breaks_pretty(n = 8), limit = c(0, 4)) +
+#   scale_x_continuous(breaks = scales::breaks_pretty(n = 7), limit = c(0.5, 7.5))
+
+p_grim_n_11 + 
+  p_grimmer_n_11 + 
+  p_tides_n_11 + 
+  plot_layout(ncol = 1)
+
+p_grim_n_11_with_colors + 
+  p_grimmer_n_11_with_colors + 
+  p_tides_n_11_with_colors + 
+  plot_layout(ncol = 1)
+
+```
+
+### Plot N=100
+
+```{r fig.height=16, fig.width=7}
+
+dat_n_100 |>
+  count()
+
+dat_n_100 |>
+  count(grim, grimmer, tides)
+
+dat_n_100 <- dat_n_100 |>
+  mutate(label = case_when(mean < 1 | mean > 7 ~ "Impossible score flagged as possible",
+                           sd < 0 | sd > 3.6 ~ "Impossible score flagged as possible", # Croucher (2004) loose heuristic of max SD as 60% of range (ie 6 * .6 = .36)
+                           TRUE ~ "Possible score flagged as possible"))
+
+# only GRIM-consistent values
+p_grim_n_100 <- dat_n_100 |>
+  filter(grim) |>
+  # mutate(label = case_when(grim == FALSE ~ "Impossible score flagged as impossible",
+  #                          mean < 1 | mean > 7 ~ "Impossible score flagged as possible",
+  #                          sd < 0 | sd > 3.6 ~ "Impossible score flagged as possible", # Croucher (2004) loose heuristic of max SD as 60% of range (ie 6 * .6 = .36)
+  #                          TRUE ~ "Possible score flagged as possible")) |>
+  ggplot(aes(mean, sd, color = label)) +
+  geom_point(shape = 15, size = 0.5) + # "grey20"
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), 
+                     limit = c(0, 4), 
+                     expand = c(0.01, 0.01)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), 
+                     limit = c(0.5, 7.5), 
+                     expand = c(0.01, 0.01)) +
+  scale_color_viridis_d(begin = 0.3, end = 0.7) +
+  ylab("Standard Deviation") +
+  xlab("Mean") +
+  ggtitle("GRIM consistent values") +
+  theme(legend.position = "top",
+        legend.direction = "vertical") +
+  guides(color = guide_legend(override.aes = list(size = 4, ncol = 1), title = NULL))
+
+# only GRIM and GRIMMER-consistent values
+p_grimmer_n_100 <- dat_n_100 |>
+  filter(grim & grimmer) |>
+  # mutate(label = case_when(grim == FALSE | grimmer == FALSE ~ "Impossible score flagged as impossible",
+  #                          mean < 1 | mean > 7 ~ "Impossible score flagged as possible",
+  #                          sd < 0 | sd > 3.6 ~ "Impossible score flagged as possible", # Croucher (2004) loose heuristic of max SD as 60% of range (ie 6 * .6 = .36)
+  #                          TRUE ~ "Possible score flagged as possible")) |>
+  ggplot(aes(mean, sd, color = label)) +
+  geom_point(shape = 15, size = 0.5) +
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), 
+                     limit = c(0, 4), 
+                     expand = c(0.01, 0.01)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), 
+                     limit = c(0.5, 7.5), 
+                     expand = c(0.01, 0.01)) +
+  scale_color_viridis_d(begin = 0.3, end = 0.7) +
+  ylab("Standard Deviation") +
+  xlab("Mean") +
+  ggtitle("GRIM + GRIMMER consistent values") +
+  theme(legend.position = "none")
+
+# only GRIM and GRIMMER and TIDES-consistent values
+p_tides_n_100 <- dat_n_100 |>
+  filter(grim & grimmer & tides) |>
+  # mutate(label = case_when(grim == FALSE | grimmer == FALSE | tides == FALSE ~ "Impossible score flagged as impossible",
+  #                          mean < 1 | mean > 7 ~ "Impossible score flagged as possible",
+  #                          sd < 0 | sd > 3.6 ~ "Impossible score flagged as possible", # Croucher (2004) loose heuristic of max SD as 60% of range (ie 6 * .6 = .36)
+  #                          TRUE ~ "Possible score flagged as possible")) |>
+  ggplot(aes(mean, sd, color = label)) +
+  geom_point(shape = 15, size = 0.5) +
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), 
+                     limit = c(0, 4), 
+                     expand = c(0.01, 0.01)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), 
+                     limit = c(0.5, 7.5), 
+                     expand = c(0.01, 0.01)) +
+  scale_color_viridis_d(begin = 0.3, end = 0.7, direction = -1) +
+  ylab("Standard Deviation") +
+  xlab("Mean") +
+  ggtitle("GRIM + GRIMMER + TIDES consistent values") +
+  theme(legend.position = "none")
+  
+
+# dat_n_100 |>
+#   filter(grim & grimmer & tides) |>
+#   group_by(mean) |>
+#   filter(sd == max(sd) | sd == min(sd)) |>
+#   mutate(group = ifelse(sd == max(sd), "max", "min")) |>
+#   ungroup() |>
+#   ggplot(aes(mean, sd, group = group)) +
+#   #geom_point(shape = 15, size = 1, color = "grey20") +
+#   geom_line() +
+#   theme_linedraw() +
+#   scale_y_continuous(breaks = scales::breaks_pretty(n = 8), limit = c(0, 4)) +
+#   scale_x_continuous(breaks = scales::breaks_pretty(n = 7), limit = c(0.5, 7.5))
+
+p_grim_n_100 + p_grimmer_n_100 + p_tides_n_100 + plot_layout(ncol = 1)
+
+```
+
+## using newly developed min_sd() and max_sd() functions
+
+```{r}
+
+min_sd <- function(mean, n, min_score, max_score, integer_responses = TRUE) {
+  # ---- 1) required total sum (rounded to an integer if the problem implies 
+  # exact feasibility)
+  required_sum <- n * mean
+  
+  # round required_sum if the problem implies the mean is exactly representable 
+  # by integer responses:
+  if(integer_responses){
+    required_sum <- round(required_sum)
+  }
+  
+  # feasibility check: the sum must lie between n*min_score and n*max_score 
+  # for an integer distribution to exist.
+  if (required_sum < n*min_score || required_sum > n*max_score) {
+    stop("No distribution of [min_score, max_score] integers can achieve that mean (sum out of range).")
+  }
+  
+  # ---- 2) check if the mean is effectively an integer within [min_score,max_score].
+  # if so, the minimal SD is 0 by taking all responses = that integer.
+  if (abs(required_sum - n*round(mean)) < 1e-9 && round(mean) >= min_score && round(mean) <= max_score) {
+    # i.e. if mean was effectively an integer in the feasible range
+    # check if n * round(mean) == required_sum
+    if (round(mean) * n == required_sum) {
+      # all responses equal to that integer
+      dist <- rep(round(mean), n)
+      return(data.frame(min_sd = 0))
+    }
+  }
+  
+  # ---- 3) otherwise, we attempt to use two adjacent integers L and L+1
+  # let L = floor(mean), clamped to [min_score, max_score].
+  L_init <- floor(mean)
+  if (L_init < min_score) L_init <- min_score
+  if (L_init > max_score) L_init <- max_score
+  
+  # we'll define a small helper to build a distribution given L
+  # and return if feasible:
+  build_dist_from_L <- function(L, required_sum, n, min_score, max_score) {
+    if (L < min_score || L > max_score) {
+      return(NULL)
+    }
+    # leftover = how many times we need (L+1)
+    leftover <- required_sum - n*L
+    if (leftover == 0) {
+      # all L
+      return(rep(L, n))
+    } else if (leftover > 0 && leftover <= n) {
+      # leftover data points (L+1), the rest are L
+      # but only if (L+1) <= max_score
+      if ((L + 1) <= max_score) {
+        return(c(rep(L, n - leftover), rep(L + 1, leftover)))
+      } else {
+        return(NULL)
+      }
+    } else {
+      # leftover < 0 or leftover > n => not feasible with L and L+1
+      return(NULL)
+    }
+  }
+  
+  # try L_init directly:
+  dist <- build_dist_from_L(L_init, required_sum, n, min_score, max_score)
+  if (is.null(dist)) {
+    # if that didn't work, try adjusting L_init up or down by 1 step
+    # (sometimes floor(mean) is not the right choice if leftover < 0 or > n).
+    
+    # let's define a small search around L_init:
+    candidates <- unique(c(L_init - 1, L_init, L_init + 1))
+    candidates <- candidates[candidates >= min_score & candidates <= max_score]
+    
+    found <- FALSE
+    for (L_try in candidates) {
+      dist_try <- build_dist_from_L(L_try, required_sum, n, min_score, max_score)
+      if (!is.null(dist_try)) {
+        dist <- dist_try
+        found <- TRUE
+        break
+      }
+    }
+    
+    if (!found) {
+      # possibly no solution with 2 adjacent integers => no feasible distribution
+      stop("Could not construct a minimal-variance distribution with two adjacent integers.")
+    }
+  }
+  
+  # if we reach here, 'dist' is a valid distribution
+  # ---- 4) compute sample SD in R (with denominator n-1)
+  min_sd <- sd(dist)
+  
+  data.frame(min_sd = min_sd)
+}
+
+max_sd <- function(mean, n, min_score, max_score, integer_responses = TRUE) {
+  # 1) required sum
+  required_sum <- n * mean
+  
+  # check: is required_sum in feasible range [n*min_score, n*max_score]?
+  if (required_sum < n*min_score - 1e-9 || required_sum > n*max_score + 1e-9) {
+    stop("No integer distribution can achieve this mean with responses in [min_score,max_score].")
+  }
+  
+  # round required_sum if the problem implies the mean is exactly 
+  # representable by integer responses:
+  if(integer_responses){
+    required_sum <- round(required_sum)
+  }
+  
+  # 2) solve for x 
+  x <- floor((required_sum - n*min_score) / (max_score - min_score))
+  x <- max(0, min(x, n))  # keep it in [0, n]
+  
+  # 3) leftover = required_sum - [x*max_score + (n-x)*min_score]
+  delta <- required_sum - (x*max_score + (n - x)*min_score)
+  if (delta < 0 || delta >= (max_score - min_score)) {
+    stop("Something went wrong with leftover. Check input.")
+  }
+  
+  # 4) sum of squares around mean:
+  
+  # part A: from x responses at max_score
+  ss_max_score <- x * (max_score - mean)^2
+  
+  # part B: from (n - x - 1) responses at min_score (if we do have a leftover) 
+  # or from (n - x) responses at min_score (if no leftover)
+  if (delta == 0) {
+    # no middle value
+    ss_min_score <- (n - x) * (min_score - mean)^2
+    ss_m <- 0
+  } else {
+    ss_min_score <- (n - x - 1) * (min_score - mean)^2
+    middle_val <- min_score + delta
+    ss_m <- (middle_val - mean)^2
+  }
+  
+  # total sum of squares
+  ss_total <- ss_max_score + ss_min_score + ss_m
+  
+  # sample variance = ss_total / (n - 1)
+  var_max <- ss_total / (n - 1)
+  sd_max  <- sqrt(var_max)
+  
+  data.frame(max_sd = sd_max)
+}
+
+# dat_n_11_new <-
+#   expand_grid(mean = seq(from = 0.5, to = 7.5, by = 0.01),
+#               sd = seq(from = 0, to = 4, by = 0.01)) |>
+#   mutate(n_obs   = 11,
+#          m_prec  = 2,
+#          sd_prec = 2,
+#          n_items = 1,
+#          min_val = 1,
+#          max_val = 7) |>
+#   mutate(grim = pmap(list(as.character(mean), n_obs),
+#                      grim)) |>
+#   unnest(grim) |>
+#   mutate(grimmer = pmap(list(as.character(mean), as.character(sd), n_obs),
+#                         grimmer)) |>
+#   unnest(grimmer) |>
+#   mutate(tides_max = pmap(list(mean, n_obs, min_val, max_val),
+#                           possibly(max_sd, otherwise = NA))) |>
+#   unnest(tides_max) |>
+#   mutate(tides_min = pmap(list(mean, n_obs, min_val, max_val),
+#                           possibly(min_sd, otherwise = NA))) |>
+#   unnest(tides_min) |>
+#   mutate(tides = case_when(sd <= max_sd & sd >= min_sd ~ TRUE,
+#                            TRUE ~ FALSE))
+# 
+# dat_n_100_new <-
+#   expand_grid(mean = seq(from = 0.5, to = 7.5, by = 0.01),
+#               sd = seq(from = 0, to = 4, by = 0.01)) |>
+#   mutate(n_obs   = 100,
+#          m_prec  = 2,
+#          sd_prec = 2,
+#          n_items = 1,
+#          min_val = 1,
+#          max_val = 7) |>
+#   mutate(grim = pmap(list(as.character(mean), n_obs),
+#                      grim)) |>
+#   unnest(grim) |>
+#   mutate(grimmer = pmap(list(as.character(mean), as.character(sd), n_obs),
+#                         grimmer)) |>
+#   unnest(grimmer) |>
+#   mutate(tides_max = pmap(list(mean, n_obs, min_val, max_val),
+#                           possibly(max_sd, otherwise = NA))) |>
+#   unnest(tides_max) |>
+#   mutate(tides_min = pmap(list(mean, n_obs, min_val, max_val),
+#                           possibly(min_sd, otherwise = NA))) |>
+#   unnest(tides_min) |> |>
+#   mutate(tides = case_when(sd <= round(max_sd, 2) & sd >= round(min_sd, 2) ~ TRUE,
+#                            TRUE ~ FALSE))
+# 
+# write_rds(dat_n_11_new, "results_grim_grimmer_tides_n_11_new.rds")
+# write_rds(dat_n_100_new, "results_grim_grimmer_tides_n_100_new.rds")
+
+dat_n_11_new <- read_rds("results_grim_grimmer_tides_n_11_new.rds")
+dat_n_100_new <- read_rds("results_grim_grimmer_tides_n_100_new.rds")
+
+```
+
+### Plot N=11
+
+```{r fig.height=16, fig.width=7}
+
+dat_n_11_new |>
+  count()
+
+dat_n_11_new |>
+  count(grim, grimmer, tides)
+
+dat_n_11_new <- dat_n_11_new |>
+  mutate(label = case_when(mean < 1 | mean > 7 ~ "Impossible score flagged as possible",
+                           sd < 0 | sd > 3.6 ~ "Impossible score flagged as possible", # Croucher (2004) loose heuristic of max SD as 60% of range (ie 6 * .6 = .36)
+                           TRUE ~ "Possible score flagged as possible"))
+
+# only GRIM-consistent values
+p_grim_n_11 <- dat_n_11_new |>
+  filter(grim) |>
+  # mutate(label = case_when(grim == FALSE ~ "Impossible score flagged as impossible",
+  #                          mean < 1 | mean > 7 ~ "Impossible score flagged as possible",
+  #                          sd < 0 | sd > 3.6 ~ "Impossible score flagged as possible", # Croucher (2004) loose heuristic of max SD as 60% of range (ie 6 * .6 = .36)
+  #                          TRUE ~ "Possible score flagged as possible")) |>
+  ggplot(aes(mean, sd, color = label)) +
+  geom_point(shape = 15, size = 0.5) + # "grey20"
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), 
+                     limit = c(0, 4), 
+                     expand = c(0.01, 0.01)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), 
+                     limit = c(0.5, 7.5), 
+                     expand = c(0.01, 0.01)) +
+  scale_color_viridis_d(begin = 0.3, end = 0.7) +
+  ylab("Standard Deviation") +
+  xlab("Mean") +
+  ggtitle("GRIM consistent values") +
+  theme(legend.position = "top",
+        legend.direction = "vertical") +
+  guides(color = guide_legend(override.aes = list(size = 4, ncol = 1), title = NULL))
+
+# only GRIM and GRIMMER-consistent values
+p_grimmer_n_11 <- dat_n_11_new |>
+  filter(grim & grimmer) |>
+  # mutate(label = case_when(grim == FALSE | grimmer == FALSE ~ "Impossible score flagged as impossible",
+  #                          mean < 1 | mean > 7 ~ "Impossible score flagged as possible",
+  #                          sd < 0 | sd > 3.6 ~ "Impossible score flagged as possible", # Croucher (2004) loose heuristic of max SD as 60% of range (ie 6 * .6 = .36)
+  #                          TRUE ~ "Possible score flagged as possible")) |>
+  ggplot(aes(mean, sd, color = label)) +
+  geom_point(shape = 15, size = 0.5) +
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), 
+                     limit = c(0, 4), 
+                     expand = c(0.01, 0.01)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), 
+                     limit = c(0.5, 7.5), 
+                     expand = c(0.01, 0.01)) +
+  scale_color_viridis_d(begin = 0.3, end = 0.7) +
+  ylab("Standard Deviation") +
+  xlab("Mean") +
+  ggtitle("GRIM + GRIMMER consistent values") +
+  theme(legend.position = "none")
+
+# only GRIM and GRIMMER and TIDES-consistent values
+p_tides_n_11 <- dat_n_11_new |>
+  filter(grim & grimmer & tides) |>
+  # mutate(label = case_when(grim == FALSE | grimmer == FALSE | tides == FALSE ~ "Impossible score flagged as impossible",
+  #                          mean < 1 | mean > 7 ~ "Impossible score flagged as possible",
+  #                          sd < 0 | sd > 3.6 ~ "Impossible score flagged as possible", # Croucher (2004) loose heuristic of max SD as 60% of range (ie 6 * .6 = .36)
+  #                          TRUE ~ "Possible score flagged as possible")) |>
+  ggplot(aes(mean, sd, color = label)) +
+  geom_point(shape = 15, size = 0.5) +
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), 
+                     limit = c(0, 4), 
+                     expand = c(0.01, 0.01)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), 
+                     limit = c(0.5, 7.5), 
+                     expand = c(0.01, 0.01)) +
+  scale_color_viridis_d(begin = 0.3, end = 0.7, direction = -1) +
+  ylab("Standard Deviation") +
+  xlab("Mean") +
+  ggtitle("GRIM + GRIMMER + TIDES consistent values") +
+  theme(legend.position = "none")
+  
+p_grim_n_11 + p_grimmer_n_11 + p_tides_n_11 + plot_layout(ncol = 1)
+
+```
+
+### Plot N=100
+
+```{r fig.height=16, fig.width=7}
+
+dat_n_100_new |>
+  count()
+
+dat_n_100_new |>
+  count(grim, grimmer, tides)
+
+dat_n_100_new <- dat_n_100_new |>
+  mutate(label = case_when(mean < 1 | mean > 7 ~ "Impossible score flagged as possible",
+                           sd < 0 | sd > 3.6 ~ "Impossible score flagged as possible", # Croucher (2004) loose heuristic of max SD as 60% of range (ie 6 * .6 = .36)
+                           TRUE ~ "Possible score flagged as possible"))
+
+# only GRIM-consistent values
+p_grim_n_100 <- dat_n_100_new |>
+  filter(grim) |>
+  # mutate(label = case_when(grim == FALSE ~ "Impossible score flagged as impossible",
+  #                          mean < 1 | mean > 7 ~ "Impossible score flagged as possible",
+  #                          sd < 0 | sd > 3.6 ~ "Impossible score flagged as possible", # Croucher (2004) loose heuristic of max SD as 60% of range (ie 6 * .6 = .36)
+  #                          TRUE ~ "Possible score flagged as possible")) |>
+  ggplot(aes(mean, sd, color = label)) +
+  geom_point(shape = 15, size = 0.5) + # "grey20"
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), 
+                     limit = c(0, 4), 
+                     expand = c(0.01, 0.01)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), 
+                     limit = c(0.5, 7.5), 
+                     expand = c(0.01, 0.01)) +
+  scale_color_viridis_d(begin = 0.3, end = 0.7) +
+  ylab("Standard Deviation") +
+  xlab("Mean") +
+  ggtitle("GRIM consistent values") +
+  theme(legend.position = "top",
+        legend.direction = "vertical") +
+  guides(color = guide_legend(override.aes = list(size = 4, ncol = 1), title = NULL))
+
+# only GRIM and GRIMMER-consistent values
+p_grimmer_n_100 <- dat_n_100_new |>
+  filter(grim & grimmer) |>
+  # mutate(label = case_when(grim == FALSE | grimmer == FALSE ~ "Impossible score flagged as impossible",
+  #                          mean < 1 | mean > 7 ~ "Impossible score flagged as possible",
+  #                          sd < 0 | sd > 3.6 ~ "Impossible score flagged as possible", # Croucher (2004) loose heuristic of max SD as 60% of range (ie 6 * .6 = .36)
+  #                          TRUE ~ "Possible score flagged as possible")) |>
+  ggplot(aes(mean, sd, color = label)) +
+  geom_point(shape = 15, size = 0.5) +
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), 
+                     limit = c(0, 4), 
+                     expand = c(0.01, 0.01)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), 
+                     limit = c(0.5, 7.5), 
+                     expand = c(0.01, 0.01)) +
+  scale_color_viridis_d(begin = 0.3, end = 0.7) +
+  ylab("Standard Deviation") +
+  xlab("Mean") +
+  ggtitle("GRIM + GRIMMER consistent values") +
+  theme(legend.position = "none")
+
+# only GRIM and GRIMMER and TIDES-consistent values
+p_tides_n_100 <- dat_n_100_new |>
+  filter(grim & grimmer & tides) |>
+  # mutate(label = case_when(grim == FALSE | grimmer == FALSE | tides == FALSE ~ "Impossible score flagged as impossible",
+  #                          mean < 1 | mean > 7 ~ "Impossible score flagged as possible",
+  #                          sd < 0 | sd > 3.6 ~ "Impossible score flagged as possible", # Croucher (2004) loose heuristic of max SD as 60% of range (ie 6 * .6 = .36)
+  #                          TRUE ~ "Possible score flagged as possible")) |>
+  ggplot(aes(mean, sd, color = label)) +
+  geom_point(shape = 15, size = 0.5) +
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), 
+                     limit = c(0, 4), 
+                     expand = c(0.01, 0.01)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), 
+                     limit = c(0.5, 7.5), 
+                     expand = c(0.01, 0.01)) +
+  scale_color_viridis_d(begin = 0.3, end = 0.7, direction = -1) +
+  ylab("Standard Deviation") +
+  xlab("Mean") +
+  ggtitle("GRIM + GRIMMER + TIDES consistent values") +
+  theme(legend.position = "none")
+  
+p_grim_n_100 + p_grimmer_n_100 + p_tides_n_100 + plot_layout(ncol = 1)
+
+```
+
+## Compare
+
+```{r}
+
+identical(dat_n_11, dat_n_11_new)
+
+all.equal(dat_n_11, dat_n_11_new)
+
+colnames(dat_n_11)
+
+dat_n_11_combined <- 
+  full_join(rename(dat_n_11, 
+                   max_sd_.sd_limits = sd_max, 
+                   min_sd_.sd_limits = sd_min,
+                   tides_modified_from_.sd_limits = tides), 
+            rename(dat_n_11_new, 
+                   max_sd_new = max_sd, 
+                   min_sd_new = min_sd,
+                   tides_new = tides),
+            by = c("mean", "sd", "n_obs", "m_prec", "sd_prec", "n_items", "min_val", "max_val")) |>
+  mutate(max_sd_new_rounded = round(max_sd_new, 2),
+         min_sd_new_rounded = round(min_sd_new, 2),
+         grim_match = grim.x == grim.y,
+         grimmer_match = grimmer.x == grimmer.y,
+         tides_match = tides_modified_from_.sd_limits == tides_new,
+         min_sd_match = case_when(min_sd_.sd_limits == min_sd_new_rounded |
+                                    (is.na(min_sd_.sd_limits) &
+                                       is.na(min_sd_new_rounded)) ~
+                                    TRUE,
+                                  TRUE ~ FALSE),
+         max_sd_match = case_when(max_sd_.sd_limits == max_sd_new_rounded |
+                                    (is.na(max_sd_.sd_limits) &
+                                       is.na(max_sd_new_rounded)) ~
+                                    TRUE,
+                                  TRUE ~ FALSE))
+
+dat_n_11_combined |>
+  count(tides_match)
+
+dat_n_11_combined |>
+  count(min_sd_match)
+
+dat_n_11_combined |>
+  count(grim_match)
+
+dat_n_11_combined |>
+  count(grimmer_match)
+
+dat_n_11_combined |>
+  count(tides_match)
+
+dat_n_11_combined |>
+  count(max_sd_match)
+
+temp <- dat_n_11_combined |>
+  select(mean, 
+         sd, 
+         #n_obs, 
+         min_sd_.sd_limits, 
+         #min_sd_new, 
+         min_sd_new_rounded, 
+         max_sd_.sd_limits, 
+         #max_sd_new, 
+         max_sd_new_rounded, 
+         #min_sd_match, 
+         #max_sd_match,
+         grim.x, 
+         #grim.y, 
+         grimmer.x, 
+         #grimmer.y, 
+         tides_modified_from_.sd_limits, 
+         tides_new) |>
+  filter(!is.na(min_sd_.sd_limits) | 
+           !is.na(min_sd_new_rounded) | 
+           !is.na(max_sd_.sd_limits) | 
+           !is.na(max_sd_new_rounded)) |>
+  distinct(min_sd_.sd_limits, 
+           #min_sd_new, 
+           min_sd_new_rounded, 
+           max_sd_.sd_limits, 
+           #max_sd_new, 
+           max_sd_new_rounded, 
+           #min_sd_match, 
+           #max_sd_match, 
+           grim.x, grimmer.x, 
+           tides_modified_from_.sd_limits, tides_new,
+           .keep_all = TRUE) |>
+  filter(grim.x, grimmer.x)
+
+# no rows have:
+temp |>
+  filter(tides_modified_from_.sd_limits == TRUE & tides_new == FALSE)
+
+# many rows have:
+temp |>
+  filter(tides_modified_from_.sd_limits == FALSE & tides_new == TRUE)
+
+```
+
+- view temp for examples of impossible scores
+
+
+# todo
+
+- newly developed functions dont taking precision or rounding into account
+- wheres the code for the POMP plots?
+- min_sd() the new function returns min_sd = 0 when the required mean is less than the scale minimum, where the other functions return NA.
+
+# testing
+
+```{r}
+
+library(rsprite2)
+
+sprite_checker <- function(m, sd){
+  sprite_parameters <- 
+    set_parameters(mean = m, 
+                   m_prec = 2, # number of decimal place M was reported to
+                   sd = sd, 
+                   sd_prec = 2, # number of decimal place SD was reported to
+                   n_obs = 11,
+                   min_val = 1, # lowest possible value of variable, if applicable. 
+                   max_val = 7, # highest possible value of variable, if applicable.
+                   dont_test = TRUE)   
+  
+  sprite_results <- 
+    find_possible_distributions(sprite_parameters, 
+                                seed = 42, # set seed for random number generator for reproducibility
+                                n_distributions = 1)
+  
+  list(
+    data  = sprite_results$distribution[[1]],
+    mean = round(mean(sprite_results$distribution[[1]]), 2),
+    sd = round(sd(sprite_results$distribution[[1]]), 2)
+  )
+}
+
+sprite_checker(m = 1.05, sd = 0.30)
+sprite_checker(m = 1.09, sd = 0.30)
+sprite_checker(m = 1.10, sd = 0.30) # passes tides_new and grimmer but shouldnt
+
+sprite_checker(m = 1.14, sd = 0.40)
+sprite_checker(m = 1.20, sd = 0.50)
+sprite_checker(m = 1.27, sd = 0.00) # passes tides_modified_from_.sd_limits, .sd_limits, min_sd, max_sd, and grimmer but it shouldn't pass any of them, right? but fails the original .sd_limits()
+
+
+summary_stats <- function(dat){
+  data.frame(mean = mean(dat),
+             sd = sd(dat)) |>
+    mutate_all(round, digits = 2)
+}
+
+summary_stats(c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2))
+
+```
+
+```{r}
+
+.sd_limits(n_obs = 11, mean = 1.27, min_val = 1, max_val = 7, sd_prec = 2, n_items = 1)
+
+tides_modified_from_.sd_limits(n_obs = 11, mean = 1.27, sd = 0.00, min_val = 1, max_val = 7, sd_prec = 2, n_items = 1)
+
+
+```
+

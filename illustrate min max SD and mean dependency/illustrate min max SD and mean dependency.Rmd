@@ -1,0 +1,138 @@
+
+# Illustrate
+
+```{r}
+
+library(tidyverse)
+
+round_to_decimal <- function(number, decimal_places) {
+  # Create the format string with the required number of decimal places
+  format_string <- paste0("%.", decimal_places, "f")
+  
+  # Format the number and return as character to retain trailing zeros
+  formatted_number <- sprintf(format_string, number)
+  
+  return(formatted_number)
+}
+
+
+demo_plot <- function(min,
+                      max,
+                      frequency_min,
+                      frequency_max,
+                      title){
+  
+  dat <- tibble(score = c(rep(min, times = frequency_min),
+                          rep(max, times = frequency_max)))
+  
+  ggplot(dat, aes(score)) +
+    geom_histogram(binwidth = 1) +
+    scale_x_continuous(labels = seq(from = min, to = max, by = 1), 
+                       breaks = seq(from = min, to = max, by = 1),
+                       limit = c(min-0.5, max+0.5)) +
+    theme_linedraw() +
+    theme(panel.grid.minor = element_blank()) +
+    ylab("Frequency") +
+    xlab("Score") +
+    ggtitle(paste0(title, 
+                   "\nM = ", round_to_decimal(mean(dat$score), 2), 
+                   ", SD = ", round_to_decimal(sd(dat$score), 2),
+                   ", n = ", frequency_min + frequency_max))
+}
+
+demo_plot(min = 1, 
+          max = 7, 
+          frequency_min = 500, 
+          frequency_max = 500, 
+          title = "Max SD of 7-point scale: ")
+
+ggsave("plots/plot max SD 7-point scale large N.pdf", width = 5, height = 4)
+
+
+demo_plot(min = 1, 
+          max = 7, 
+          frequency_min = 15, 
+          frequency_max = 15, 
+          title = "Max SD of 7-point scale: ")
+
+ggsave("plots/plot max SD 7-point scale small N.pdf", width = 5, height = 4)
+
+
+demo_plot(min = 1, 
+          max = 6, 
+          frequency_min = 500, 
+          frequency_max = 500, 
+          title = "Max SD of 6-point scale: ")
+
+ggsave("plots/plot max SD 6-point scale large N.pdf", width = 5, height = 4)
+
+
+demo_plot(min = 1, 
+          max = 5, 
+          frequency_min = 500, 
+          frequency_max = 500, 
+          title = "Max SD of 5-point scale: ")
+
+ggsave("plots/plot max SD 5-point scale large N.pdf", width = 5, height = 4)
+
+
+demo_plot(min = 1, 
+          max = 10, 
+          frequency_min = 500, 
+          frequency_max = 500, 
+          title = "Max SD of 10-point scale: ")
+
+ggsave("plots/plot max SD 10-point scale large N.pdf", width = 5, height = 4)
+
+
+demo_plot(min = 1, 
+          max = 7, 
+          frequency_min = 1000, 
+          frequency_max = 0, 
+          title = "below bound of min SD of 7-point scale: ")
+
+ggsave("plots/plot below bound of min SD 7-point scale large N.pdf", width = 5, height = 4)
+
+
+dat <- tibble(score = c(rep(1, times = 500),
+                        rep(2, times = 500)))
+
+ggplot(dat, aes(score)) +
+  geom_histogram(binwidth = 1) +
+  scale_x_continuous(labels = seq(from = 1, to = 7, by = 1), 
+                     breaks = seq(from = 1, to = 7, by = 1),
+                     limit = c(1-0.5, 7+0.5)) +
+  theme_linedraw() +
+  theme(panel.grid.minor = element_blank()) +
+  ylab("Frequency") +
+  xlab("Score") +
+  ggtitle(paste0("Upper bound of min SD of 7-point scale: ", 
+                 "\nM = ", round_to_decimal(mean(dat$score), 2), 
+                 ", SD = ", round_to_decimal(sd(dat$score), 2),
+                 ", n = ", 500 + 500))
+
+ggsave("plots/plot upper bound of min SD 7-point scale large N.pdf", width = 5, height = 4)
+
+
+dat <- tibble(score = c(rep(1, times = 990),
+                        rep(2, times = 10)))
+
+ggplot(dat, aes(score)) +
+  geom_histogram(binwidth = 1) +
+  scale_x_continuous(labels = seq(from = 1, to = 7, by = 1), 
+                     breaks = seq(from = 1, to = 7, by = 1),
+                     limit = c(1-0.5, 7+0.5)) +
+  theme_linedraw() +
+  theme(panel.grid.minor = element_blank()) +
+  ylab("Frequency") +
+  xlab("Score") +
+  ggtitle(paste0("SD of a non-zero mean for a 7-point scale: ", 
+                 "\nM = ", round_to_decimal(mean(dat$score), 2), 
+                 ", SD = ", round_to_decimal(sd(dat$score), 2),
+                 ", n = ", 500 + 500))
+
+ggsave("plots/plot SD of a non-zero mean 7-point scale large N.pdf", width = 5, height = 4)
+
+```
+
+
