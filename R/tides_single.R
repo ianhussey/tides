@@ -79,7 +79,7 @@ tides_single <- function(mean, sd, n, min, max, n_items = 1, digits = NULL,
   pomp_mean <- (mean - min)/(max - min)
   pomp_sd <- ifelse(!is.na(min_sd) & !is.na(max_sd), (sd - min_sd)/(max_sd - min_sd), NA)
   # when SD is zero, this divides by zero and returns Inf. Replace these with 0 as a dummy value so that they are plotted rather than ignored.
-  if (is.infinite(pomp_sd)) { pomp_sd <- 0 }
+  if (is.infinite(pomp_sd) | is.nan(pomp_sd)) { pomp_sd <- 0 }
   
   # results
   res <- data.frame(pomp_mean = janitor::round_half_up(pomp_mean, 4),
