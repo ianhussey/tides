@@ -10,12 +10,16 @@
 #' @param calculate_min_sd logical variable representing whether a minimum SD should also be calculated. This should only be calculated if the varible is not only trucated (has a minimum and maximum possible/observable score) but also the variable is discrete/binned/granular: ie the response must be whole numbers (e.g., a 1-7 likert scale, where an indiviudal cannot provide a score of 1.5).
 #' @returns a tibble containing the max and min SD and a summary variable `result` indicating if the tested values are consistent or not.
 #' @export 
-tides_multiple <- function(mean, sd, n, min, max, calculate_min_sd = FALSE){
+tides_multiple <- function(mean, sd, n, min, max, n_items = 1, digits, calculate_min_sd = TRUE){
   tibble(mean = mean,
          sd = sd,
          n = n,
          min = min,
-         max = max) |>
-    mutate(results = pmap(list(mean, sd, n, min, max, calculate_min_sd, verbose = FALSE), tides_single)) |>
+         max = max,
+         n_items = n_items,
+         digits = digits,
+         calculate_min_sd = calculate_min_sd) |>
+    mutate(results = pmap(list(mean, sd, n, min, max, n_items, digits, calculate_min_sd, verbose = FALSE),
+                          tides_single)) |>
     unnest(results)
 }
