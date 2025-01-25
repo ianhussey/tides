@@ -1,0 +1,774 @@
+---
+title: "Briding umbrella plots and tides"
+author: "Ian Hussey"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    highlight: haddock
+    theme: flatly
+    toc: yes
+    toc_float: yes
+---
+  
+```{r include=FALSE}
+
+# formatting options
+# set default chunk options
+knitr::opts_chunk$set(message = FALSE, 
+warning = FALSE)
+
+# disable scientific notation
+options(scipen = 999) 
+
+```
+
+```{r}
+
+library(tidyverse)
+library(janitor)
+library(rsprite2)
+library(scrutiny) 
+library(purrr)
+library(patchwork)
+library(knitr)
+library(kableExtra)
+
+min_decimals <- function(x, digits = 2) {
+  sprintf(paste0("%.", digits, "f"), x)
+}
+
+```
+
+# Illustrate error in .sd_limits
+
+This works correctly: all participants respond 1, therefore M = 1, SD = 0
+
+```{r}
+
+n_digits <- 2
+
+dat <- 
+  tibble(score = rep(1, times = 100)) |>
+  summarize(mean = round_half_up(mean(score), n_digits),
+            sd = round_half_up(sd(score), n_digits),
+            n = n())
+
+GRIMMER_test(mean = dat$mean, 
+             sd = dat$sd, 
+             n_obs = dat$n, 
+             m_prec = n_digits, 
+             sd_prec = n_digits, 
+             n_items = 1, 
+             min_val = 1, 
+             max_val = 7)
+
+```
+
+bug: this should return TRUE but it returns an error. Akin to the above example, all participants respond 7, therefore M = 7, SD = 0.
+
+Chunk set to do not run so to allow knit.
+
+```{r eval=FALSE, include=TRUE}
+
+dat <- 
+  tibble(score = rep(7, times = 100)) |>
+  summarize(mean = round_half_up(mean(score), n_digits),
+            sd = round_half_up(sd(score), n_digits),
+            n = n())
+
+GRIMMER_test(mean = dat$mean, 
+             sd = dat$sd, 
+             n_obs = dat$n, 
+             m_prec = n_digits, 
+             sd_prec = n_digits, 
+             n_items = 1, 
+             min_val = 1, 
+             max_val = 7) 
+
+```
+
+## original code for .sd_limits
+
+```{r}
+
+.sd_limits <- function(n_obs, mean, min_val, max_val, sd_prec = NULL, n_items = 1) {
+  
+  if (is.null(sd_prec)) {
+    sd_prec <- max(nchar(sub("^[0-9]*", "", mean)) - 1, 0)
+  }
+  
+  result <- c(-Inf, Inf)
+  
+  aMax <- min_val                                # "aMax" means "value of a to produce the max SD"
+  aMin <- floor(mean*n_items)/n_items
+  bMax <- max(max_val, min_val + 1, aMin + 1)   # sanity check (just max_val would normally be ok)
+  bMin <- aMin + 1/n_items
+  total <- round(mean * n_obs * n_items)/n_items
+  
+  poss_values <- max_val
+  for (i in seq_len(n_items)) {
+    poss_values <- c(poss_values, min_val:(max_val-1) + (1 / n_items) * (i - 1))
+  }
+  poss_values <- sort(poss_values)
+  
+  for (abm in list(c(aMin, bMin, 1), c(aMax, bMax, 2))) {
+    
+    a <- abm[1]
+    b <- abm[2]
+    m <- abm[3]
+    
+    
+    k <- round((total - (n_obs * b)) / (a - b))
+    k <- min(max(k, 1), n_obs - 1)               # ensure there is at least one of each of two numbers
+    vec <- c(rep(a, k), rep(b, n_obs - k))
+    diff <- sum(vec) - total
+    
+    if ((diff < 0)) {
+      vec <- c(rep(a, k - 1), a + abs(diff), rep(b, n_obs - k))
+    }
+    else if ((diff > 0)) {
+      vec <- c(rep(a, k), b - diff, rep(b, n_obs - k - 1))
+    }
+    
+    # # Debugging: Print relevant information to diagnose the issue
+    # cat("Iteration for a =", a, "b =", b, "\n")
+    # cat("Generated vec:", vec, "\n")
+    # cat("Mean of vec:", mean(vec), "Expected mean:", mean, "\n")
+    # cat("SD of vec:", sd(vec), "\n\n")
+    
+    if (round(mean(vec), sd_prec) != round(mean, sd_prec) | !all(floor(vec*10e9) %in% floor(poss_values*10e9))) {
+      stop("Error in calculating range of possible standard deviations")
+    }
+    
+    result[m] <- round(sd(vec), sd_prec)
+  }
+  
+  return(result)
+}
+
+```
+
+## potential fix
+
+```{r}
+
+.sd_limits_fixed <- function(n_obs, mean, min_val, max_val, sd_prec = NULL, n_items = 1) {
+  
+  if (is.null(sd_prec)) {
+    sd_prec <- max(nchar(sub("^[0-9]*", "", mean)) - 1, 0)
+  }
+  
+  result <- c(-Inf, Inf)
+  
+  aMax <- min_val
+  aMin <- floor(mean*n_items)/n_items
+  # bMax <- max(max_val, min_val + 1, aMin + 1) # original
+  bMax <- min(max(max_val, min_val + 1, aMin + 1), max_val)   # Adjusted here
+  # bMin <- aMin + 1/n_items # original
+  bMin <- min(aMin + 1/n_items, max_val)                      # Adjusted here
+  total <- round(mean * n_obs * n_items)/n_items
+  
+  poss_values <- max_val
+  for (i in seq_len(n_items)) {
+    poss_values <- c(poss_values, min_val:(max_val-1) + (1 / n_items) * (i - 1))
+  }
+  poss_values <- sort(poss_values)
+  
+  for (abm in list(c(aMin, bMin, 1), c(aMax, bMax, 2))) {
+    
+    a <- abm[1]
+    b <- abm[2]
+    m <- abm[3]
+    
+    # Adjust a and b to be within min_val and max_val
+    a <- min(max(a, min_val), max_val)
+    b <- min(max(b, min_val), max_val)
+   
+    if (a == b) {
+      vec <- rep(a, n_obs)
+    } else {
+      k <- round((total - (n_obs * b)) / (a - b))
+      k <- min(max(k, 1), n_obs - 1)
+      vec <- c(rep(a, k), rep(b, n_obs - k))
+      diff <- sum(vec) - total
+      
+      if ((diff < 0)) {
+        vec <- c(rep(a, k - 1), a + abs(diff), rep(b, n_obs - k))
+      } else if ((diff > 0)) {
+        vec <- c(rep(a, k), b - diff, rep(b, n_obs - k - 1))
+      }
+    }
+    
+    if (round(mean(vec), sd_prec) != round(mean, sd_prec) | !all(floor(vec*10e9) %in% floor(poss_values*10e9))) {
+      stop("Error in calculating range of possible standard deviations")
+    }
+    
+    result[m] <- round(sd(vec), sd_prec)
+  }
+  
+  return(result)
+}
+
+# illustrate what i think is a bug in .sd_limits: 
+n_digits <- 2
+
+# works correctly
+# all participants respond 1, therefore M = 1, SD = 0
+dat <- 
+  tibble(score = rep(1, times = 100)) |>
+  summarize(mean = round_half_up(mean(score), n_digits),
+            sd = round_half_up(sd(score), n_digits),
+            n = n())
+
+.sd_limits_fixed(n_obs = dat$n, 
+                 mean = dat$mean, 
+                 min_val = 1, 
+                 max_val = 7,
+                 sd_prec = n_digits, 
+                 n_items = 1)
+
+
+# works correctly
+# half repond 1, half repond 7, therefore M = 4, SD approaches 3 as N approaches Inf, is slightly higher than 3 in small samples
+dat <- 
+  tibble(score = c(rep(1, times = 50), rep(7, times = 50))) |>
+  summarize(mean = round_half_up(mean(score), n_digits),
+            sd = round_half_up(sd(score), n_digits),
+            n = n())
+
+.sd_limits_fixed(n_obs = dat$n, 
+                 mean = dat$mean, 
+                 min_val = 1, 
+                 max_val = 7,
+                 sd_prec = n_digits, 
+                 n_items = 1)
+
+
+# previously threw an error but now doesn't
+# all participants respond 7, therefore M = 7, SD = 0
+dat <- 
+  tibble(score = rep(7, times = 100)) |>
+  summarize(mean = round_half_up(mean(score), n_digits),
+            sd = round_half_up(sd(score), n_digits),
+            n = n())
+
+.sd_limits_fixed(n_obs = dat$n, 
+                 mean = dat$mean, 
+                 min_val = 1, 
+                 max_val = 7,
+                 sd_prec = n_digits, 
+                 n_items = 1)
+
+```
+
+# Umbrella plot using original .sd_limits() illustrating problem
+
+## Generate data
+
+```{r}
+
+# create possibly version of GRIMMER_test that fails quietly, given that it has a bug
+possibly_GRIMMER_test = possibly(GRIMMER_test, otherwise = FALSE)
+
+dat <- 
+  expand_grid(mean = seq(from = 1, to = 7, by = 0.01),
+              sd = seq(from = 0, to = 3.5, by = 0.01)) |>
+  mutate(n_obs   = 14,
+         m_prec  = 2,
+         sd_prec = 2,
+         n_items = 1,
+         min_val = 1, 
+         max_val = 7) |>
+  mutate(grim    = pmap(list(mean, n_obs, m_prec, n_items), GRIM_test)) |>
+  mutate(grimmer = pmap(list(mean, sd, n_obs, m_prec, sd_prec, n_items, min_val, max_val), possibly_GRIMMER_test)) |>
+  unnest(grim) |>
+  unnest(grimmer)
+#filter(grim & grimmer)
+
+```
+
+## Plot
+
+```{r fig.height=7, fig.width=10}
+
+# only GRIM-consistent values
+dat |>
+  filter(grim) |>
+  ggplot(aes(mean, sd)) +
+  geom_point(shape = 15, size = 1, color = "grey60") +
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), limit = c(0, 3.5)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), limit = c(1, 7))
+
+# only GRIMMER-consistent values
+dat |>
+  filter(grimmer) |>
+  ggplot(aes(mean, sd)) +
+  geom_point(shape = 15, size = 1, color = "grey60") +
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), limit = c(0, 3.5)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), limit = c(1, 7))
+
+# only GRIM and GRIMMER-consistent values
+dat |>
+  filter(grim & grimmer) |>
+  ggplot(aes(mean, sd)) +
+  geom_point(shape = 15, size = 1, color = "grey60") +
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), limit = c(0, 3.5)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), limit = c(1, 7))
+
+```
+
+- observe the vertical gaps in the plot, and the original bug of the point at (7,0) being missing.
+- some of these are due to issues with .sd_limits() eg the point at (7,0), and others seemt to be issues with rsprite2's::GRIMMER_test implementation eg the missing column of values at 2.86. 
+
+# Attempt 1 to fix Umbrella plot
+
+## Generate data
+
+```{r}
+
+GRIMMER_test_fixed <- function(mean, sd, n_obs, m_prec = NULL, sd_prec = NULL, n_items = 1, min_val = NULL, max_val = NULL) {
+  if (is.null(m_prec)) {
+    m_prec <- max(nchar(sub("^[0-9]*", "", mean)) - 1, 0)
+  }
+  
+  if (is.null(sd_prec)) {
+    sd_prec <- max(nchar(sub("^[0-9]*", "", sd)) - 1, 0)
+  }
+  
+  assert_count(m_prec)
+  assert_count(sd_prec)
+  assert_count(n_obs)
+  assert_count(n_items)
+  assert_number(mean)
+  assert_number(sd)
+  
+  effective_n = n_obs * n_items
+  
+  # Applies the GRIM test, and computes the possible mean.
+  sum <- mean * effective_n
+  realsum <- round(sum)
+  realmean <- realsum / effective_n
+  
+  #Checks whether mean and SD are within possible range
+  if (!is.null(min_val) & !is.null(max_val)) {
+    if (mean < min_val | mean > max_val) {
+      warning("The mean must be between the scale minimum and maximum")
+      return(FALSE)
+    }
+    sd_limits <- .sd_limits_fixed(n_obs, mean, min_val, max_val, sd_prec, n_items)
+    if (sd < sd_limits[1] | sd > sd_limits[2]) {
+      warning("Given the scale minimum and maximum, the standard deviation has to be between ", sd_limits[1], " and ", sd_limits[2], ".")
+      return(FALSE)
+    }
+  }
+  # Creates functions to round a number consistently up or down, when the last digit is 5
+  round_down <- function(number, decimals = 2) {
+    to_round <- number * 10^(decimals + 1) - floor(number * 10^(decimals)) * 10
+    number_rounded <- ifelse(to_round == 5,
+                             floor(number * 10^decimals) / 10^decimals,
+                             round(number, digits = decimals))
+    return(number_rounded)
+  }
+  
+  round_up <- function(number, decimals = 2) {
+    to_round <- number * 10^(decimals + 1) - floor(number * 10^(decimals)) * 10
+    number_rounded <- ifelse(to_round == 5,
+                             ceiling(number * 10^decimals) / 10^decimals,
+                             round(number, digits = decimals))
+    return(number_rounded)
+  }
+  
+  # Applies the GRIM test, to see whether the reconstituted mean is the same as the reported mean (with both down and up rounding)
+  
+  consistent_down <- round_down(number = realmean, decimals = m_prec) == mean
+  consistent_up <- round_up(number = realmean, decimals = m_prec) == mean
+  
+  if (!consistent_down & !consistent_up) {
+    warning("GRIM inconsistent - so GRIMMER test cannot be run. See ?GRIM_test")
+    return(FALSE)
+  }
+  
+  # Computes the lower and upper bounds for the sd.
+  
+  Lsigma <- ifelse(sd < 5 / (10^(sd_prec+1)), 0, sd - 5 / (10^(sd_prec+1)))
+  Usigma <- sd + 5 / (10^(sd_prec+1))
+  
+  # Computes the lower and upper bounds for the sum of squares of items.
+  
+  lower_bound <- ((n_obs - 1) * Lsigma^2 + n_obs * realmean^2)*n_items^2
+  upper_bound <- ((n_obs - 1) * Usigma^2 + n_obs * realmean^2)*n_items^2
+  
+  # Checks that there is at least an integer between the lower and upperbound
+  
+  if (ceiling(lower_bound) > floor(upper_bound)) {
+    return(FALSE)
+  }
+  
+  # Takes a vector of all the integers between the lowerbound and upperbound
+  
+  possible_integers <- ceiling(lower_bound):floor(upper_bound)
+  
+  # Creates the predicted variance and sd
+  
+  Predicted_Variance <- (possible_integers/n_items^2 - n_obs * realmean^2) / (n_obs - 1)
+  Predicted_SD <- sqrt(Predicted_Variance)
+  
+  # Computes whether one Predicted_SD matches the SD (trying to round both down and up)
+  
+  Rounded_SD_down <- round_down(Predicted_SD, sd_prec)
+  Rounded_SD_up <- round_up(Predicted_SD, sd_prec)
+  
+  Matches_SD <- Rounded_SD_down == sd | Rounded_SD_up == sd
+  
+  if (!any(Matches_SD)) {
+    return(FALSE)
+  }
+  
+  # Computes whether there is an integer of the correct oddness between the lower and upper bounds.
+  oddness <- realsum %% 2
+  Matches_Oddness <- possible_integers %% 2 == oddness
+  return(any(Matches_SD & Matches_Oddness))
+  
+  return(TRUE)
+}
+
+library(checkmate) # dependency not specified by rsprite2??
+
+GRIMMER_test_fixed(mean = 1.00,
+                   sd = 0.00,
+                   n_obs = 14,
+                   m_prec = 2,
+                   sd_prec = 2,
+                   n_items = 1,
+                   min_val = 1,
+                   max_val = 7)
+
+
+GRIMMER_test_fixed(mean = 2.10,
+                   sd = 0.90,
+                   n_obs = 31,
+                   m_prec = 2,
+                   sd_prec = 2,
+                   n_items = 1,
+                   min_val = 1,
+                   max_val = 7)
+
+# create possibly version of GRIMMER_test that fails quietly, given that it has a bug
+possibly_GRIMMER_test_fixed = possibly(GRIMMER_test_fixed, otherwise = FALSE)
+
+dat <- 
+  expand_grid(mean = seq(from = 1, to = 7, by = 0.01),
+              sd = seq(from = 0, to = 3.5, by = 0.01)) |>
+  mutate(n_obs   = 14,
+         m_prec  = 2,
+         sd_prec = 2,
+         n_items = 1,
+         min_val = 1, 
+         max_val = 7) |>
+  mutate(grim    = pmap(list(mean, n_obs, m_prec, n_items), GRIM_test)) |>
+  mutate(grimmer = pmap(list(mean, sd, n_obs, m_prec, sd_prec, n_items, min_val, max_val), possibly_GRIMMER_test_fixed)) |>
+  unnest(grim) |>
+  unnest(grimmer)
+#filter(grim & grimmer)
+
+```
+
+## Plot
+
+```{r fig.height=7, fig.width=10}
+
+# # only GRIM-consistent values
+# dat |>
+#   filter(grim) |>
+#   ggplot(aes(mean, sd)) +
+#   geom_point(shape = 15, size = 1, color = "grey60") +
+#   theme_linedraw() +
+#   scale_y_continuous(breaks = scales::breaks_pretty(n = 8), limit = c(0, 3.5)) +
+#   scale_x_continuous(breaks = scales::breaks_pretty(n = 7), limit = c(1, 7))
+# 
+# # only GRIMMER-consistent values
+# dat |>
+#   filter(grimmer) |>
+#   ggplot(aes(mean, sd)) +
+#   geom_point(shape = 15, size = 1, color = "grey60") +
+#   theme_linedraw() +
+#   scale_y_continuous(breaks = scales::breaks_pretty(n = 8), limit = c(0, 3.5)) +
+#   scale_x_continuous(breaks = scales::breaks_pretty(n = 7), limit = c(1, 7))
+
+# only GRIM and GRIMMER-consistent values
+dat |>
+  filter(grim & grimmer) |>
+  ggplot(aes(mean, sd)) +
+  geom_point(shape = 15, size = 0.7, color = "grey0", alpha = 0.4) +
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), limit = c(0, 3.5)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), limit = c(1, 7))
+
+# temp <- dat |>
+#   filter(grim & grimmer) |>
+#   filter(mean > 2.7 & mean < 3.1)
+# 
+# writexl::write_xlsx(temp, "temp.xlsx")
+
+```
+
+\TODO REDO THIS WITH scrutiny::grimmer()
+
+- point at (7,0) now appears, but vertical columns of values that should bre present are still missing, eg at 2.86. the issue is with GRIMMER_test().
+
+```{r}
+
+# these values pass grimmer on the web app http://www.prepubmed.org/grimmer_sd/?type=unknown&direction=Up&sd=2.17&mean=2.86&size=14
+# but fail GRIMMER_test
+GRIMMER_test_fixed(mean = 2.86,
+                   sd = 2.17,
+                   n_obs = 14,
+                   m_prec = 2,
+                   sd_prec = 2,
+                   n_items = 1,
+                   min_val = 1,
+                   max_val = 7)
+
+library(scrutiny) 
+
+grimmer(x = "2.86",
+        sd = "2.17",
+        n = 14,
+        items = 1)
+
+```
+
+# GRIM vs GRIM+GRIMMER vs GRIM+GRIMMER+Umbrella plot using scrutiny::grimmer + tides_modified_from_.sd_limits()
+
+```{r}
+
+tides_modified_from_.sd_limits <- function(n_obs, mean, sd, min_val, max_val, sd_prec = NULL, n_items = 1) {
+  
+  if (is.null(sd_prec)) {
+    sd_prec <- max(nchar(sub("^[0-9]*", "", mean)) - 1, 0)
+  }
+  
+  result <- c(-Inf, Inf)
+  
+  aMax <- min_val
+  aMin <- floor(mean*n_items)/n_items
+  bMax <- min(max(max_val, min_val + 1, aMin + 1), max_val)   # Adjusted here
+  bMin <- min(aMin + 1/n_items, max_val)                      # Adjusted here
+  total <- round(mean * n_obs * n_items)/n_items
+  
+  poss_values <- max_val
+  for (i in seq_len(n_items)) {
+    poss_values <- c(poss_values, min_val:(max_val-1) + (1 / n_items) * (i - 1))
+  }
+  poss_values <- sort(poss_values)
+  
+  for (abm in list(c(aMin, bMin, 1), c(aMax, bMax, 2))) {
+    
+    a <- abm[1]
+    b <- abm[2]
+    m <- abm[3]
+    
+    # Adjust a and b to be within min_val and max_val
+    a <- min(max(a, min_val), max_val)
+    b <- min(max(b, min_val), max_val)
+   
+    if (a == b) {
+      vec <- rep(a, n_obs)
+    } else {
+      k <- round((total - (n_obs * b)) / (a - b))
+      k <- min(max(k, 1), n_obs - 1)
+      vec <- c(rep(a, k), rep(b, n_obs - k))
+      diff <- sum(vec) - total
+      
+      if ((diff < 0)) {
+        vec <- c(rep(a, k - 1), a + abs(diff), rep(b, n_obs - k))
+      } else if ((diff > 0)) {
+        vec <- c(rep(a, k), b - diff, rep(b, n_obs - k - 1))
+      }
+    }
+    
+    # instead of throwing errors here, return NA
+    # if (round(mean(vec), sd_prec) != round(mean, sd_prec) | !all(floor(vec*10e9) %in% floor(poss_values*10e9))) {
+    #   stop("Error in calculating range of possible standard deviations")
+    # }
+    # result[m] <- round(sd(vec), sd_prec)
+    
+    # Check if the calculated mean and values match expected conditions
+    if (round(mean(vec), sd_prec) == round(mean, sd_prec) & all(floor(vec*10e9) %in% floor(poss_values*10e9))) {
+      result[m] <- round(sd(vec), sd_prec)
+    }
+    
+  }
+  
+  # Replace Inf or -Inf with NA
+  result[is.infinite(result)] <- NA
+  
+  # returns df instead of vector
+  res <- 
+    data.frame(sd_min = result[1],
+               sd_max = result[2]) |>
+    mutate(tides = case_when(sd < sd_min ~ FALSE,
+                             is.na(sd_min) ~ FALSE,
+                             sd > sd_max ~ FALSE,
+                             is.na(sd_max) ~ FALSE,
+                             TRUE ~ TRUE))
+  
+  return(res)
+}
+
+# dat_n_11 <-
+#   expand_grid(mean = seq(from = 0.5, to = 7.5, by = 0.01),
+#               sd = seq(from = 0, to = 4, by = 0.01)) |>
+#   mutate(n_obs   = 11,
+#          m_prec  = 2,
+#          sd_prec = 2,
+#          n_items = 1,
+#          min_val = 1,
+#          max_val = 7) |>
+#   mutate(grim = pmap(list(as.character(mean), n_obs),
+#                      grim)) |>
+#   mutate(grimmer = pmap(list(as.character(mean), as.character(sd), n_obs),
+#                         grimmer)) |>
+#   mutate(tides = pmap(list(n_obs, mean, sd, min_val, max_val, sd_prec, n_items),
+#                       tides_modified_from_.sd_limits)) |>
+#   unnest(grim) |>
+#   unnest(grimmer) |>
+#   unnest(tides)
+# 
+# dat_n_100 <-
+#   expand_grid(mean = seq(from = 0.5, to = 7.5, by = 0.01),
+#               sd = seq(from = 0, to = 4, by = 0.01)) |>
+#   mutate(n_obs   = 100,
+#          m_prec  = 2,
+#          sd_prec = 2,
+#          n_items = 1,
+#          min_val = 1,
+#          max_val = 7) |>
+#   mutate(grim = pmap(list(as.character(mean), n_obs),
+#                      grim)) |>
+#   mutate(grimmer = pmap(list(as.character(mean), as.character(sd), n_obs),
+#                         grimmer)) |>
+#   mutate(tides = pmap(list(n_obs, mean, sd, min_val, max_val, sd_prec, n_items),
+#                       tides_modified_from_.sd_limits)) |>
+#   unnest(grim) |>
+#   unnest(grimmer) |>
+#   unnest(tides)
+# 
+# write_rds(dat_n_11, "results_grim_grimmer_tides_n_11.rds")
+# write_rds(dat_n_100, "results_grim_grimmer_tides_n_100.rds")
+
+dat_n_11 <- read_rds("results_grim_grimmer_tides_n_11.rds")
+dat_n_100 <- read_rds("results_grim_grimmer_tides_n_100.rds")
+
+```
+
+## Plot N=11
+
+```{r fig.height=16, fig.width=7}
+
+dat_n_11 |>
+  count()
+
+dat_n_11 |>
+  count(grim, grimmer, tides)
+
+dat_n_11 <- dat_n_11 |>
+  mutate(label = case_when(mean < 1 | mean > 7 ~ "Impossible score flagged as possible",
+                           sd < 0 | sd > 3.6 ~ "Impossible score flagged as possible", # Croucher (2004) loose heuristic of max SD as 60% of range (ie 6 * .6 = .36)
+                           TRUE ~ "Possible score flagged as possible"))
+
+# only GRIM-consistent values
+p_grim_n_11 <- dat_n_11 |>
+  filter(grim) |>
+  # mutate(label = case_when(grim == FALSE ~ "Impossible score flagged as impossible",
+  #                          mean < 1 | mean > 7 ~ "Impossible score flagged as possible",
+  #                          sd < 0 | sd > 3.6 ~ "Impossible score flagged as possible", # Croucher (2004) loose heuristic of max SD as 60% of range (ie 6 * .6 = .36)
+  #                          TRUE ~ "Possible score flagged as possible")) |>
+  ggplot(aes(mean, sd, color = label)) +
+  geom_point(shape = 15, size = 0.5) + # "grey20"
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), 
+                     limit = c(0, 4), 
+                     expand = c(0.01, 0.01)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), 
+                     limit = c(0.5, 7.5), 
+                     expand = c(0.01, 0.01)) +
+  scale_color_viridis_d(begin = 0.3, end = 0.7) +
+  ylab("Standard Deviation") +
+  xlab("Mean") +
+  ggtitle("GRIM consistent values") +
+  theme(legend.position = "top",
+        legend.direction = "vertical") +
+  guides(color = guide_legend(override.aes = list(size = 4, ncol = 1), title = NULL))
+
+# only GRIM and GRIMMER-consistent values
+p_grimmer_n_11 <- dat_n_11 |>
+  filter(grim & grimmer) |>
+  # mutate(label = case_when(grim == FALSE | grimmer == FALSE ~ "Impossible score flagged as impossible",
+  #                          mean < 1 | mean > 7 ~ "Impossible score flagged as possible",
+  #                          sd < 0 | sd > 3.6 ~ "Impossible score flagged as possible", # Croucher (2004) loose heuristic of max SD as 60% of range (ie 6 * .6 = .36)
+  #                          TRUE ~ "Possible score flagged as possible")) |>
+  ggplot(aes(mean, sd, color = label)) +
+  geom_point(shape = 15, size = 0.5) +
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), 
+                     limit = c(0, 4), 
+                     expand = c(0.01, 0.01)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), 
+                     limit = c(0.5, 7.5), 
+                     expand = c(0.01, 0.01)) +
+  scale_color_viridis_d(begin = 0.3, end = 0.7) +
+  ylab("Standard Deviation") +
+  xlab("Mean") +
+  ggtitle("GRIM + GRIMMER consistent values") +
+  theme(legend.position = "none")
+
+# only GRIM and GRIMMER and TIDES-consistent values
+p_tides_n_11 <- dat_n_11 |>
+  filter(grim & grimmer & tides) |>
+  # mutate(label = case_when(grim == FALSE | grimmer == FALSE | tides == FALSE ~ "Impossible score flagged as impossible",
+  #                          mean < 1 | mean > 7 ~ "Impossible score flagged as possible",
+  #                          sd < 0 | sd > 3.6 ~ "Impossible score flagged as possible", # Croucher (2004) loose heuristic of max SD as 60% of range (ie 6 * .6 = .36)
+  #                          TRUE ~ "Possible score flagged as possible")) |>
+  ggplot(aes(mean, sd, color = label)) +
+  geom_point(shape = 15, size = 0.5) +
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), 
+                     limit = c(0, 4), 
+                     expand = c(0.01, 0.01)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), 
+                     limit = c(0.5, 7.5), 
+                     expand = c(0.01, 0.01)) +
+  scale_color_viridis_d(begin = 0.3, end = 0.7, direction = -1) +
+  ylab("Standard Deviation") +
+  xlab("Mean") +
+  ggtitle("GRIM + GRIMMER + TIDES consistent values") +
+  theme(legend.position = "none")
+  
+
+# dat_n_11 |>
+#   filter(grim & grimmer & tides) |>
+#   group_by(mean) |>
+#   filter(sd == max(sd) | sd == min(sd)) |>
+#   mutate(group = ifelse(sd == max(sd), "max", "min")) |>
+#   ungroup() |>
+#   ggplot(aes(mean, sd, group = group)) +
+#   #geom_point(shape = 15, size = 1, color = "grey20") +
+#   geom_line() +
+#   theme_linedraw() +
+#   scale_y_continuous(breaks = scales::breaks_pretty(n = 8), limit = c(0, 4)) +
+#   scale_x_continuous(breaks = scales::breaks_pretty(n = 7), limit = c(0.5, 7.5))
+
+p_grim_n_11 + p_grimmer_n_11 + p_tides_n_11 + plot_layout(ncol = 1)
+
+```
+
+
+
+
+
+
