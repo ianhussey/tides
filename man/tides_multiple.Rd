@@ -4,7 +4,16 @@
 \alias{tides_multiple}
 \title{Calculate TIDES test for multiple sets of values}
 \usage{
-tides_multiple(mean, sd, n, min, max, calculate_min_sd = FALSE)
+tides_multiple(
+  mean,
+  sd,
+  n,
+  min,
+  max,
+  n_items = 1,
+  digits,
+  calculate_min_sd = TRUE
+)
 }
 \arguments{
 \item{mean}{numeric variable representing the reported mean.}
