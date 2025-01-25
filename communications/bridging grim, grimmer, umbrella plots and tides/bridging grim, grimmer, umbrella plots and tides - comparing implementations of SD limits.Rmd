@@ -1,5 +1,5 @@
 ---
-title: "Briding umbrella plots and tides"
+title: "Bridging grim, grimmer, umbrella plots and tides"
 author: "Ian Hussey"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
