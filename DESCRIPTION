@@ -1,4 +1,4 @@
-Package: TIDES
+Package: tides
 Title: Truncation-Induced Dependency among Summary Statistics
 Version: 0.1
 Authors@R: 
