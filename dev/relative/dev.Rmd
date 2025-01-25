@@ -1,0 +1,627 @@
+
+# Dependencies
+
+```{r}
+
+library(tidyverse)
+
+source("functions.R")
+
+```
+
+
+```{r}
+
+# results <- 
+#   expand_grid(min = 1,
+#               max = 7,
+#               mean = seq(from = 1, to = 7, by = 1/10^2),
+#               n = 30) |>
+#   mutate(sd_min = pmap(list(mean, n), min_sd)) |>
+#   unnest(sd_min) 
+# # |>
+# #   distinct(sd_min, .keep_all = TRUE)
+# 
+# ggplot(results, aes(mean, sd_min)) +
+#   geom_line()
+
+```
+
+# Lookup tables
+
+## Possible values
+
+```{r}
+
+combinations <- values_of_possible_means_and_sds(n = 10, min = 1, max = 7)
+combinations
+
+sprite_plot(n = 10, min = 1, max = 7)
+
+
+values_plot(n = 10, min = 1, max = 5)
+values_plot(n = 10, min = 1, max = 6)
+values_plot(n = 10, min = 1, max = 7)
+
+values_plot(n = 10, min = 1, max = 7)
+values_plot(n = 15, min = 1, max = 7)
+values_plot(n = 20, min = 1, max = 7)
+
+```
+
+## Limits
+
+\TODO min_sd() function has always returned weird looking results, and this confirms that it produces different results to the limits function. Revisit min_sd().
+
+```{r}
+
+data_limits <- limits_of_possible_means_and_sds(n = 40, 
+                                                min_score = 1, 
+                                                max_score = 7)
+
+```
+
+
+```{r}
+
+plot_values <- values_plot(n = 30, 
+                           min_score = 1, 
+                           max_score = 7)
+
+temp <- limits_of_possible_means_and_sds(n = 30, 
+                                         min_score = 1, 
+                                         max_score = 7)
+
+plot_values_limits <- values_plot(n = 30, min = 1, max = 7, n_digits_reported = 3) +
+  geom_line(data = temp, aes(mean, sd_min)) +
+  geom_line(data = temp, aes(mean, sd_max))
+
+plot_limits <- limits_plot(n = 30, min_score = 1, max_score = 7, n_digits_reported = 3)
+
+```
+
+```{r}
+plot_values
+plot_values_limits
+plot_limits
+```
+
+
+```{r}
+
+limits_plot(n = 10, min_score = 1, max_score = 7, n_digits_reported = 3)
+limits_plot(n = 20, min_score = 1, max_score = 7, n_digits_reported = 3)
+limits_plot(n = 30, min_score = 1, max_score = 7, n_digits_reported = 3)
+limits_plot(n = 40, min_score = 1, max_score = 7, n_digits_reported = 3)
+
+
+limits_plot(n = 1000, min_score = 1, max_score = 7, n_digits_reported = 3)
+
+```
+
+# Boostrapping
+
+## PHQ9
+
+```{r}
+
+data_phq9 <- read_csv("Flores-Kanter et al. - 2021 - GAD-7, PHQ-9 and PANAS-18.csv") |>
+  select(starts_with("PHQ")) |>
+  rownames_to_column(var = "id") 
+
+data_phq9_meanscore <- data_phq9 |>
+  pivot_longer(cols = starts_with("PHQ"),
+               names_to = "item",
+               values_to = "score") |>
+  summarize(score = mean(score),
+            .by = "id")
+
+data_phq9_item9 <- data_phq9 |>
+  select(id, score = PHQ9)
+
+```
+
+## PANAS
+
+```{r}
+
+data_panas <- read_csv("Flores-Kanter et al. - 2021 - GAD-7, PHQ-9 and PANAS-18.csv") |>
+  select(starts_with("PANAS")) |>
+  rownames_to_column(var = "id") 
+
+data_panas_item9 <- data_panas |>
+  select(id, score = PANAS9)
+
+```
+
+## BDI-II
+
+```{r}
+
+data_bdiii <- read_csv("squires et al - 2022 - BDI-II, BAI, Event-Related Rumination Inventory.csv") |>
+  select(id = AnalysisID, starts_with("BDIII")) |>
+  drop_na()
+
+data_bdiii_meanscore <- data_bdiii |>
+  pivot_longer(cols = starts_with("BDIII"),
+               names_to = "item",
+               values_to = "score") |>
+  summarize(score = mean(score),
+            .by = "id")
+
+data_bdiii_item9 <- data_bdiii |>
+  select(id, score = BDIII_9)
+
+
+# run
+result <- 
+  bootstrap_summary_stats(data = data_bdiii_item9, 
+                          sample_n = 25, 
+                          iterations = 10000) |>
+  dplyr::count(n, mean, sd, name = "frequency")
+
+
+ggplot(result, aes(mean, sd, color = frequency)) +
+  geom_point(shape = "square") +
+  scale_color_viridis_c(begin = 0.2, end = 1) +
+  xlim(0, 3) +
+  ylim(0, 1.7)
+
+
+# run
+result_n10 <- 
+  bootstrap_summary_stats(data = data_bdiii_meanscore, 
+                          sample_n = 10, 
+                          iterations = 10000) |>
+  mutate(mean = round(mean, 2),
+         sd = round(sd, 2)) |>
+  dplyr::count(n, mean, sd, name = "frequency")
+
+
+
+
+result2 <- 
+  bootstrap_summary_stats(data = data_bdiii_meanscore, 
+                          sample_n = 100, 
+                          iterations = 10000) |>
+  mutate(mean = round(mean, 2),
+         sd = round(sd, 2)) |>
+  dplyr::count(n, mean, sd, name = "frequency")
+
+
+
+
+
+result3 <- 
+  bootstrap_summary_stats(data = data_bdiii_meanscore, 
+                          sample_n = 500, 
+                          iterations = 10000) |>
+  mutate(mean = round(mean, 2),
+         sd = round(sd, 2)) |>
+  dplyr::count(n, mean, sd, name = "frequency")
+
+
+ggplot(result_n10, aes(mean, sd, color = frequency)) +
+  geom_point(shape = "square") +
+  scale_color_viridis_c(begin = 0.2, end = 1) +
+  xlim(0, 3) +
+  ylim(0, 1.7)
+
+ggplot(result2, aes(mean, sd, color = frequency)) +
+  geom_point(shape = "square") +
+  scale_color_viridis_c(begin = 0.2, end = 1) +
+  xlim(0, 3) +
+  ylim(0, 1.7)
+
+ggplot(result3, aes(mean, sd, color = frequency)) +
+  geom_point(shape = "square") +
+  scale_color_viridis_c(begin = 0.2, end = 1) +
+  xlim(0, 3) +
+  ylim(0, 1.7)
+
+```
+
+# combined bootstrapping and possible values
+
+## BDI-II item 9
+
+### Native
+
+```{r}
+
+possible_values <- 
+  all_possible_means_and_sds(n = 10, 
+                             min = 0, 
+                             max = 3)
+
+bootstrapped_values <- 
+  bootstrap_summary_stats(data = data_bdiii_item9, 
+                          sample_n = 10, 
+                          iterations = 10000) |>
+  dplyr::count(n, mean, sd, name = "frequency")
+
+ggplot() +
+  geom_point(data = possible_values, aes(mean, sd), shape = "square", color = "grey") +
+  scale_color_viridis_c(begin = 0.5, end = 1) +
+  xlim(0, 3) +
+  ylim(0, 1.7) +
+  theme_linedraw() +
+  ggtitle("SPRITE plot (Heathers et al., 2018)")
+
+ggplot() +
+  geom_point(data = possible_values, aes(mean, sd), shape = "square", color = "grey") +
+  geom_point(data = bootstrapped_values, aes(mean, sd, color = frequency), shape = "square") +
+  scale_color_viridis_c(begin = 0.5, end = 1) +
+  xlim(0, 3) +
+  ylim(0, 1.7) +
+  theme_linedraw() +
+  ggtitle("TIDES (Hussey et al., 2024)")
+
+```
+
+### Standardized
+
+```{r}
+
+possible_values_std <- possible_values |>
+  mutate(mean = (mean - min(mean)) / (max(mean) - min(mean)),
+         sd = sd / max(sd))
+
+bootstrapped_values_std <- bootstrapped_values |>
+  mutate(mean = (mean - min(possible_values$mean)) / (max(possible_values$mean) - min(possible_values$mean)),
+         sd = sd / max(possible_values$sd))
+
+ggplot() +
+  geom_point(data = possible_values_std, aes(mean, sd/max(sd)), shape = "square", color = "grey") +
+  geom_point(data = bootstrapped_values_std, aes(mean, sd, color = frequency), shape = "square") +
+  scale_color_viridis_c(begin = 0.5, end = 1) +
+  xlab("Standardized mean") +
+  ylab("Standardized SD") +
+  xlim(0, 1) +
+  ylim(0, 1) +
+  theme_linedraw()
+
+```
+
+## PANAS item 9
+
+### Native
+
+```{r}
+
+possible_values_panas9 <- 
+  all_possible_means_and_sds(n = 10, 
+                             min = 1, 
+                             max = 5)
+
+bootstrapped_values_panas9 <- 
+  bootstrap_summary_stats(data = data_panas_item9, 
+                          sample_n = 10, 
+                          iterations = 10000) |>
+  dplyr::count(n, mean, sd, name = "frequency")
+
+ggplot() +
+  geom_point(data = possible_values_panas9, aes(mean, sd), shape = "square", color = "grey") +
+  scale_color_viridis_c(begin = 0.5, end = 1) +
+  xlim(1, 5) +
+  ylim(0, 2.2) +
+  theme_linedraw() +
+  ggtitle("SPRITE plot (Heathers et al., 2018)")
+
+ggplot() +
+  geom_point(data = possible_values_panas9, aes(mean, sd), shape = "square", color = "grey") +
+  geom_point(data = bootstrapped_values_panas9, aes(mean, sd, color = frequency), shape = "square") +
+  scale_color_viridis_c(begin = 0.5, end = 1) +
+  xlim(1, 5) +
+  ylim(0, 2.2) +
+  theme_linedraw() +
+  ggtitle("TIDES (Hussey et al., 2024)")
+
+```
+
+### Standardized
+
+```{r}
+
+possible_values_std_panas9 <- possible_values_panas9 |>
+  mutate(mean = (mean - min(mean)) / (max(mean) - min(mean)),
+         sd = sd / max(sd))
+
+bootstrapped_values_std_panas9 <- bootstrapped_values_panas9 |>
+  mutate(mean = (mean - min(possible_values_panas9$mean)) / (max(possible_values_panas9$mean) - min(possible_values_panas9$mean)),
+         sd = sd / max(possible_values_panas9$sd))
+
+ggplot() +
+  geom_point(data = possible_values_std_panas9, aes(mean, sd/max(sd)), shape = "square", color = "grey") +
+  geom_point(data = bootstrapped_values_std_panas9, aes(mean, sd, color = frequency), shape = "square") +
+  scale_color_viridis_c(begin = 0.5, end = 1) +
+  xlab("Standardized mean") +
+  ylab("Standardized SD") +
+  xlim(0, 1) +
+  ylim(0, 1) +
+  theme_linedraw() +
+  ggtitle("TIDES (Hussey et al., 2024)\nBDI-II item 9")
+
+ggplot() +
+  geom_point(data = possible_values_std, aes(mean, sd/max(sd)), shape = "square", color = "grey") +
+  geom_point(data = bootstrapped_values_std, aes(mean, sd, color = frequency), shape = "square") +
+  scale_color_viridis_c(begin = 0.5, end = 1) +
+  xlab("Standardized mean") +
+  ylab("Standardized SD") +
+  xlim(0, 1) +
+  ylim(0, 1) +
+  theme_linedraw() +
+  ggtitle("TIDES (Hussey et al., 2024)\nPANAS item 9")
+
+```
+
+# Bootstrapped full scale
+
+## PHQ-9 full scale
+
+### N=10
+
+#### Native
+
+```{r}
+
+bootstrapped_values_phq9 <- 
+  bootstrap_summary_stats(data = data_phq9_meanscore, 
+                          sample_n = 10, 
+                          iterations = 10000) |>
+  mutate(mean = janitor::round_half_up(mean*9, 3),
+         sd = janitor::round_half_up(sd*9, 3))
+
+# ggplot() +
+#   geom_point(data = bootstrapped_values_phq9, aes(mean, sd, color = frequency), shape = "square") +
+#   scale_color_viridis_c(begin = 0.5, end = 1) +
+#   xlim(0, 3) +
+#   ylim(0, 1.7) +
+#   theme_linedraw() +
+#   ggtitle("TIDES (Hussey et al., 2024)")
+
+limits_plot(n = 10, min_score = 1*9, max_score = 5*9, n_digits_reported = 3) +
+  geom_point(data = bootstrapped_values_phq9, aes(mean, sd, color = frequency), shape = "square")
+
+
+
+bootstrapped_values_phq9_rounded <- 
+  bootstrap_summary_stats(data = data_phq9_meanscore, 
+                          sample_n = 10, 
+                          iterations = 10000) |>
+  mutate(mean = janitor::round_half_up(mean*9, 1),
+         sd = janitor::round_half_up(sd*9, 1))
+
+limits_plot(n = 10, min_score = 1*9, max_score = 5*9, n_digits_reported = 1) +
+  geom_point(data = bootstrapped_values_phq9_rounded, aes(mean, sd, color = frequency), shape = "square")
+
+```
+
+#### Standardized
+
+\TODO there is a manual bodge to take the multiple items into account - needs fixing
+
+\TODO think about how the rounding is done inside bootstrap_summary_stats()
+
+```{r}
+
+bootstrapped_values_phq9 <- 
+  bootstrap_summary_stats(data = data_phq9_meanscore, 
+                          sample_n = 10, 
+                          iterations = 10000) |>
+  # manual bodge
+  mutate(mean = mean*9,
+         sd = sd*9)
+
+bootstrapped_values_phq9_std <- range_normalize(data = bootstrapped_values_phq9,
+                                                n = 10,
+                                                min_score = 1*9,
+                                                max_score = 5*9)
+
+limits_plot(n = 10, min_score = 1*9, max_score = 5*9, n_digits_reported = 3) +
+  geom_point(data = bootstrapped_values_phq9, aes(mean, sd, color = frequency), shape = "square") 
+
+standardized_limits_plot(n = 10, min_score = 1*9, max_score = 5*9, n_digits_reported = 3) +
+  geom_point(data = bootstrapped_values_phq9_std, aes(mean, sd, color = frequency), shape = "square") 
+
+```
+
+### N=100
+
+#### Native
+
+```{r}
+
+# bootstrapped_values <- 
+#   bootstrap_summary_stats(data = data_phq9_meanscore, 
+#                           sample_n = 100, 
+#                           iterations = 10000) |>
+#   dplyr::count(n, mean, sd, name = "frequency")
+
+# ggplot() +
+#   geom_point(data = bootstrapped_values, aes(mean, sd, color = frequency), shape = "square") +
+#   scale_color_viridis_c(begin = 0.5, end = 1) +
+#   xlim(0, 3) +
+#   ylim(0, 1.7) +
+#   theme_linedraw() +
+#   ggtitle("TIDES (Hussey et al., 2024)")
+
+```
+
+#### Standardized
+
+```{r}
+
+bootstrapped_values_phq9 <- 
+  bootstrap_summary_stats(data = data_phq9_meanscore, 
+                          sample_n = 100, 
+                          iterations = 10000) |>
+  # manual bodge
+  mutate(mean = mean*9,
+         sd = sd*9)
+
+bootstrapped_values_phq9_std <- range_normalize(data = bootstrapped_values_phq9,
+                                                n = 100,
+                                                min_score = 1*9,
+                                                max_score = 5*9)
+
+limits_plot(n = 100, min_score = 1*9, max_score = 5*9, n_digits_reported = 3) +
+  geom_point(data = bootstrapped_values_phq9, aes(mean, sd, color = frequency), shape = "square") 
+
+standardized_limits_plot(n = 100, min_score = 1*9, max_score = 5*9, n_digits_reported = 3) +
+  geom_point(data = bootstrapped_values_phq9_std, aes(mean, sd, color = frequency), shape = "square") 
+
+```
+
+## BDI-II full scale
+
+### N=10
+
+#### Native
+
+```{r}
+
+bootstrapped_values <- 
+  bootstrap_summary_stats(data = data_bdiii_meanscore, 
+                          sample_n = 10, 
+                          iterations = 10000) |>
+  mutate(mean = janitor::round_half_up(mean*21, 3),
+         sd = janitor::round_half_up(sd*21, 3))
+
+# ggplot() +
+#   geom_point(data = bootstrapped_values, aes(mean, sd, color = frequency), shape = "square") +
+#   scale_color_viridis_c(begin = 0.5, end = 1) +
+#   xlim(0, 3) +
+#   ylim(0, 1.7) +
+#   theme_linedraw() +
+#   ggtitle("TIDES (Hussey et al., 2024)")
+
+limits_plot(n = 10, min_score = 0, max_score = 3*21, n_digits_reported = 3) +
+  geom_point(data = bootstrapped_values, aes(mean, sd, color = frequency), shape = "square")
+
+
+
+bootstrapped_values_rounded <- 
+  bootstrap_summary_stats(data = data_bdiii_meanscore, 
+                          sample_n = 10, 
+                          iterations = 10000) |>
+  mutate(mean = janitor::round_half_up(mean*21, 1),
+         sd = janitor::round_half_up(sd*21, 1))
+
+limits_plot(n = 10, min_score = 0, max_score = 3*21, n_digits_reported = 1) +
+  geom_point(data = bootstrapped_values_rounded, aes(mean, sd, color = frequency), shape = "square")
+
+```
+
+#### Standardized
+
+\TODO there is a manual bodge to take the multiple items into account - needs fixing
+
+\TODO think about how the rounding is done inside bootstrap_summary_stats()
+
+```{r}
+
+bootstrapped_values <- 
+  bootstrap_summary_stats(data = data_bdiii_meanscore, 
+                          sample_n = 10, 
+                          iterations = 10000) |>
+  # manual bodge
+  mutate(mean = mean*21,
+         sd = sd*21)
+
+bootstrapped_values_std <- range_normalize(data = bootstrapped_values,
+                                           n = 10,
+                                           min_score = 0,
+                                           max_score = 63)
+
+limits_plot(n = 10, min_score = 0, max_score = 63, n_digits_reported = 3) +
+  geom_point(data = bootstrapped_values, aes(mean, sd, color = frequency), shape = "square") 
+
+standardized_limits_plot(n = 10, min_score = 0, max_score = 63, n_digits_reported = 3) +
+  geom_point(data = bootstrapped_values_std, aes(mean, sd, color = frequency), shape = "square") 
+
+counts_pomp <- bootstrapped_values_std |>
+  mutate(mean = janitor::round_half_up(mean, 2),
+         sd = janitor::round_half_up(sd, 2)) 
+
+counts_pomp |>
+  distinct(mean) |>
+  dplyr::count(name = "n_mean")
+
+counts_pomp |>
+  distinct(sd) |>
+  dplyr::count(name = "n_sd")
+
+counts_pomp |>
+  distinct(mean, sd) |>
+  dplyr::count(name = "n_mean_sd_pairs")
+
+```
+
+### N=100
+
+#### Native
+
+```{r}
+
+bootstrapped_values <- 
+  bootstrap_summary_stats(data = data_bdiii_meanscore, 
+                          sample_n = 100, 
+                          iterations = 10000) |>
+  dplyr::count(n, mean, sd, name = "frequency")
+
+ggplot() +
+  geom_point(data = bootstrapped_values, aes(mean, sd, color = frequency), shape = "square") +
+  scale_color_viridis_c(begin = 0.5, end = 1) +
+  xlim(0, 3) +
+  ylim(0, 1.7) +
+  theme_linedraw() +
+  ggtitle("TIDES (Hussey et al., 2024)")
+
+```
+
+#### Standardized
+
+```{r}
+
+bootstrapped_values <- 
+  bootstrap_summary_stats(data = data_bdiii_meanscore, 
+                          sample_n = 100, 
+                          iterations = 10000,
+                          n_digits_reported = 3) |>
+  # manual bodge
+  mutate(mean = mean*21,
+         sd = sd*21)
+
+bootstrapped_values_std <- range_normalize(data = bootstrapped_values,
+                                           n = 100,
+                                           min_score = 0,
+                                           max_score = 63)
+
+limits_plot(n = 100, min_score = 0, max_score = 63, n_digits_reported = 3) +
+  geom_point(data = bootstrapped_values, aes(mean, sd, color = frequency), shape = "square") 
+
+standardized_limits_plot(n = 100, min_score = 0, max_score = 63, n_digits_reported = 3) +
+  geom_point(data = bootstrapped_values_std, aes(mean, sd, color = frequency), shape = "square") 
+
+counts_pomp <- bootstrapped_values_std |>
+  mutate(mean = janitor::round_half_up(mean, 2),
+         sd = janitor::round_half_up(sd, 2)) 
+
+counts_pomp |>
+  distinct(mean) |>
+  dplyr::count(name = "n_mean")
+
+counts_pomp |>
+  distinct(sd) |>
+  dplyr::count(name = "n_sd")
+
+counts_pomp |>
+  distinct(mean, sd) |>
+  dplyr::count(name = "n_mean_sd_pairs")
+
+```
+
+
+
+

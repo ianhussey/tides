@@ -1,0 +1,253 @@
+---
+title: "SPRITE"
+author: "Ian Hussey"
+output: 
+  rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{SPRITE}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r include=FALSE}
+
+# formatting options
+# set default chunk options
+knitr::opts_chunk$set(message = FALSE, 
+                      warning = FALSE)
+
+# disable scientific notation
+options(scipen = 999) 
+
+```
+
+```{r}
+
+library(tidyverse)
+library(janitor)
+library(rsprite2)
+library(knitr)
+library(kableExtra)
+
+min_decimals <- function(x, digits = 2) {
+  sprintf(paste0("%.", digits, "f"), x)
+}
+
+```
+
+# SPRITE
+
+Note that data is hard coded into the RMarkdown file. It could also be loaded from disk, e.g., from a correctly formatted .csv file (with the headers label, mean, sd, n, and items) to a tibble via readr::read_csv(). 
+
+Note that datasets are only generated using the first row of the summary_statistics dataframe. You can alter the code below to change which row is used.
+
+```{r}
+
+# # enter your data here. Here is some example data
+# summary_statistics <- 
+#   tibble(
+#     label = "age",
+#     mean  = 1,
+#     sd    = 0,
+#     n     = 10,
+#     items = 1 # number of items in the scale used to measure this variable. For a single item measure like "what is your age?", items = 1. For a multi item scale, e.g., the BDI-II, this would be the number of items (e.g., 21).
+#   ) |>
+#   # these conversions to character and, below, back to numeric are done because the code is also common to the GRIM and GRIMMER tests, which require character data.
+#   mutate(x = as.character(min_decimals(mean)),
+#          sd = as.character(min_decimals(sd))) 
+# 
+# # summary statistics to generate data from
+# # note that when the summary_statistics data frame has multiple rows, only the first is used. Alter the code here to change this behavior, e.g., from [1] to [2].
+# sprite_parameters <- 
+#   set_parameters(mean = summary_statistics$mean[1], 
+#                  m_prec = 2, # number of decimal place M was reported to
+#                  sd = as.numeric(summary_statistics$sd[1]), 
+#                  sd_prec = 2, # number of decimal place SD was reported to
+#                  n_obs = summary_statistics$n[1],
+#                  min_val = 1, # lowest possible value of variable, if applicable. Eg. age could not be less than 18
+#                  max_val = 7)  # highest possible value of variable, if applicable. Eg. age unlikely to be above 120
+# 
+# # generate data
+# sprite_results <- 
+#   find_possible_distributions(sprite_parameters, 
+#                               seed = 42, # set seed for random number generator for reproducibility
+#                               n_distributions = 100)
+
+```
+
+```{r}
+
+# summary statistics to generate data from
+# note that when the summary_statistics data frame has multiple rows, only the first is used. Alter the code here to change this behavior, e.g., from [1] to [2].
+sprite_parameters <- 
+  set_parameters(mean = 1.00, 
+                 m_prec = 2, # number of decimal place M was reported to
+                 sd = 0.00, 
+                 sd_prec = 2, # number of decimal place SD was reported to
+                 n_obs = 10,
+                 min_val = 1, # lowest possible value of variable, if applicable. Eg. age could not be less than 18
+                 max_val = 7)  # highest possible value of variable, if applicable. Eg. age unlikely to be above 120
+
+# generate data
+sprite_results <- 
+  find_possible_distributions(sprite_parameters, 
+                              seed = 42, # set seed for random number generator for reproducibility
+                              n_distributions = 1000)
+
+```
+
+```{r}
+
+# error in .sd_limits: this should return TRUE
+GRIMMER_test(mean = 7, sd = 0, n_obs = 100, m_prec = 2, sd_prec = 2, n_items = 1, min_val = 1, max_val = 7)
+
+```
+
+
+```{r}
+
+library(purrr)
+
+safe_GRIMMER_test = possibly(GRIMMER_test, otherwise = FALSE)
+
+dat <- 
+  # expand_grid(mean = seq(from = 1, to = 3, by = 0.01),
+  #             sd = seq(from = 0, to = 1.5, by = 0.01)) |>
+  expand_grid(mean = seq(from = 1, to = 7, by = 0.01),
+              sd = seq(from = 0, to = 3.5, by = 0.01)) |>
+  mutate(n_obs   = 14,
+         m_prec  = 2,
+         sd_prec = 2,
+         n_items = 1,
+         # min_val = min(mean), 
+         # max_val = max(mean)) |>
+         min_val = 1, 
+         max_val = 7) |>
+  mutate(grim    = pmap(list(mean, n_obs, m_prec, n_items), GRIM_test)) |>
+  mutate(grimmer = pmap(list(mean, sd, n_obs, m_prec, sd_prec, n_items, min_val, max_val), safe_GRIMMER_test)) |>
+  unnest(grim) |>
+  unnest(grimmer)
+  #filter(grim & grimmer)
+
+```
+
+# Umbrella plot
+
+```{r fig.height=7, fig.width=10}
+
+dat |>
+  filter(grim) |>
+  ggplot(aes(mean, sd)) +
+  geom_point(shape = 15, size = 1, color = "grey60") +
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), limit = c(0, 3.5)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), limit = c(1, 7))
+
+dat |>
+  filter(grimmer) |>
+  ggplot(aes(mean, sd)) +
+  geom_point(shape = 15, size = 1, color = "grey60") +
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), limit = c(0, 3.5)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), limit = c(1, 7))
+
+dat |>
+  filter(grim & grimmer) |>
+  ggplot(aes(mean, sd)) +
+  geom_point(shape = 15, size = 1, color = "grey60") +
+  theme_linedraw() +
+  scale_y_continuous(breaks = scales::breaks_pretty(n = 8), limit = c(0, 3.5)) +
+  scale_x_continuous(breaks = scales::breaks_pretty(n = 7), limit = c(1, 7))
+
+```
+
+# ??
+
+```{r}
+
+sprite_results <-
+  find_possible_distributions(set_parameters(mean    = 1.1,
+                                             sd      = 0.32,
+                                             n_obs   = 10,
+                                             min_val = 1,
+                                             max_val = 3,
+                                             m_prec  = 2,
+                                             sd_prec = 2),
+                              seed = 42,
+                              n_distributions = 10)
+
+sprite <- function(mean, sd, n_obs, min_val, max_val){
+  find_possible_distributions(set_parameters(mean    = mean,
+                                             sd      = sd,
+                                             n_obs   = n_obs,
+                                             min_val = min_val,
+                                             max_val = max_val,
+                                             m_prec  = 2,
+                                             sd_prec = 2),
+                              seed = 42,
+                              n_distributions = 10) |>
+    select(-mean, -sd)
+}
+
+dat2 <- dat |>
+  mutate(sprite = pmap(list(mean, sd, n_obs, min_val, max_val), sprite)) |>
+  unnest(sprite)
+
+dat2 |>
+  count(mean, sd) |>
+  arrange(desc(n))
+
+```
+
+## Plot type 1
+
+Useful to see the min and max scores that could generate the summary statistics. Harder to interpret multimodality.
+
+```{r}
+
+plot_distributions(sprite_results)
+
+```
+
+## Plot type 2
+
+Useful to diagnose multimodality and other weird distributions, and min/max range, but can obscures the distribution of individual datasets. After all, only one of these datasets is true (if a real dataset did exist, and possibly not within the 100 generated as SPRITE isn't exhaustive).
+
+```{r fig.height=15, fig.width=6}
+
+enframe(sprite_results$distribution) %>%
+  unnest(cols = c(value)) %>%
+  group_by(name) %>%
+  rowid_to_column() %>%
+  ungroup() %>%
+  ggplot(aes(value)) + 
+  geom_histogram(aes(fill = "all", binwidth = 1, position = "identity", boundary = 0)) +
+  scale_fill_manual(values = "#702963") +
+  theme_linedraw() +
+  facet_wrap(~ name, ncol = 6) +
+  theme(legend.position = "none") +
+  xlab("Response") +
+  ggtitle("Some of the possible distributions\nthat conform to the reported N, M, and SD")
+
+```
+
+## Plot type 3
+
+Useful to see individual datasets and their distributions. E.g., if there is good reason to believe the real data should be right skewed (e.g., it is BDI-II data), inspection of individual datasets can help you assess whether this is plausible given these summary statistics.
+
+```{r}
+
+enframe(sprite_results$distribution) %>%
+  unnest(cols = c(value)) %>%
+  group_by(name) %>%
+  rowid_to_column() %>%
+  ungroup() %>%
+  ggplot(aes(value)) + 
+  geom_histogram(aes(group = as.factor(name)), alpha = 0.1, fill = "#702963", binwidth = 1, position = "identity", boundary = 0) +
+  theme_linedraw() +
+  xlab("Response") +
+  ggtitle("Some of the possible distributions\nthat conform to the reported N, M, and SD")
+
+```
+
+

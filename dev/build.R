@@ -1,8 +1,8 @@
 
 library(roxygen2)
 #setwd("~/git/")
-#devtools::create("TIDES")
-setwd("~/git/TIDES")
+#devtools::create("tides")
+setwd("~/git/tides")
 
 devtools::document()
 
@@ -13,10 +13,10 @@ devtools::check(vignettes = FALSE)
 
 #devtools::install()
 # or from github, after push
-devtools::install_github("ianhussey/TIDES")
+devtools::install_github("ianhussey/tides")
 
-library(TIDES)
+library(tides)
 
-?TIDES
+?tides
 
-detach("package:TIDES", unload=TRUE)
+detach("package:tides", unload=TRUE)

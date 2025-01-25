@@ -17,7 +17,7 @@ tides_single(mean, sd, n, min, max, calculate_min_sd = FALSE, verbose = TRUE)
 
 \item{max}{numeric variable representing the variable's maximum possible/observable score.}
 
-\item{calculate_min_sd}{logical variable representing whether a minimum SD should also be calculated. This should only be calculated if the varible is not only trucated (has a minimum and maximum possible/observable score) but also the variable is discrete/binned/granular: ie the response must be whole numbers (e.g., a 1-7 likert scale, where an indiviudal cannot provide a score of 1.5).}
+\item{calculate_min_sd}{logical variable representing whether a minimum SD should also be calculated. This should only be calculated if the variable is not only truncated (has a minimum and maximum possible/observable score) but also the variable is discrete/binned/granular: ie the response must be whole numbers (e.g., a 1-7 likert scale, where an indiviudal cannot provide a score of 1.5).}
 
 \item{verbose}{logical variable representing whether the output should also contain the input values.}
 }
