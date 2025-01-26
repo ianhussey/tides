@@ -26,8 +26,9 @@ options(scipen = 999)
 ```{r}
 
 library(tidyverse)
+library(scales)
 library(janitor)
-library(rsprite2)
+#library(rsprite2)
 library(scrutiny) 
 library(tides)
 library(purrr)
@@ -35,13 +36,9 @@ library(patchwork)
 library(knitr)
 library(kableExtra)
 
-min_decimals <- function(x, digits = 2) {
-  sprintf(paste0("%.", digits, "f"), x)
-}
-
 ```
 
-# GRIM vs GRIM+GRIMMER vs GRIM+GRIMMER+Umbrella plot 
+# Generate data
 
 Using {scrutiny} + {tides}
 
@@ -55,7 +52,8 @@ Using {scrutiny} + {tides}
 #          sd_prec = 2,
 #          n_items = 1,
 #          min_val = 1,
-#          max_val = 7) |>
+#          max_val = 7,
+#          calculate_min_sd = TRUE) |>
 #   mutate(grim = pmap(list(as.character(mean), n_obs),
 #                      grim)) |>
 #   mutate(grimmer = pmap(list(as.character(mean), as.character(sd), n_obs),
@@ -75,7 +73,8 @@ Using {scrutiny} + {tides}
 #          sd_prec = 2,
 #          n_items = 1,
 #          min_val = 1,
-#          max_val = 7) |>
+#          max_val = 7,
+#          calculate_min_sd = TRUE) |>
 #   mutate(grim = pmap(list(as.character(mean), n_obs),
 #                      grim)) |>
 #   mutate(grimmer = pmap(list(as.character(mean), as.character(sd), n_obs),
@@ -95,7 +94,9 @@ dat_n_100_tides <- read_rds("results_grim_grimmer_tides_n_100_tides.rds")
 
 ```
 
-### Plot and table functions
+# GRIM vs GRIM+GRIMMER vs GRIM+GRIMMER+Umbrella plots
+
+## Plotting function
 
 ```{r}
 
@@ -242,9 +243,9 @@ plot_helper <- function(dat, color_bounds = TRUE){
 }
 
 # proportion of possible values, considering only those where mean is within the scale bounds and SD is within Croucher's (2004) loose heuristic of max SD as 60% of range (ie 6 * .6 = 3.6)
-table_helper <- function(dat, min, max, max_sd){
+table_helper <- function(dat, min, max, heuristic_max_sd){
   dat_feasible <- dat |>
-    filter(mean >= min & mean <= max & sd >= 0 & sd <= max_sd)
+    filter(mean >= min & mean <= max & sd >= 0 & sd <= heuristic_max_sd)
   
   data.frame(check = c("GRIM", "GRIM+GRIMMER", "GRIM+GRIMMER+TIDES"),
              n_total = dat_feasible |>
@@ -266,7 +267,7 @@ table_helper <- function(dat, min, max, max_sd){
 
 ```
 
-### N=11
+## Plot N=11
 
 ```{r fig.height=16, fig.width=7}
 
@@ -274,13 +275,13 @@ plot_helper(dat_n_11_tides, color_bounds = FALSE)
 
 plot_helper(dat_n_11_tides, color_bounds = TRUE)
 
-table_helper(dat_n_11_tides, min = 1, max = 7, max_sd = 6*.60) |>
+table_helper(dat_n_11_tides, min = 1, max = 7, heuristic_max_sd = 6*.60) |>
   kable(align = "r") |>
   kable_classic(full_width = FALSE)
 
 ```
 
-### N=100
+## Plot N=100
 
 ```{r fig.height=16, fig.width=7}
 
@@ -288,13 +289,9 @@ plot_helper(dat_n_100_tides, color_bounds = FALSE)
 
 plot_helper(dat_n_100_tides, color_bounds = TRUE)
 
-table_helper(dat_n_100_tides, min = 1, max = 7, max_sd = 6*.60) |>
+table_helper(dat_n_100_tides, min = 1, max = 7, heuristic_max_sd = 6*.60) |>
   kable(align = "r") |>
   kable_classic(full_width = FALSE)
 
 ```
-
-# todo
-
-- wheres the code for the POMP plots? - in the /dev/relative folder
 

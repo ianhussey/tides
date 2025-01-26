@@ -1,0 +1,378 @@
+---
+title: "POMP TIDES"
+author: "Ian Hussey"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    highlight: haddock
+    theme: flatly
+    toc: yes
+    toc_float: yes
+---
+
+```{r include=FALSE}
+
+# formatting options
+# set default chunk options
+knitr::opts_chunk$set(message = FALSE, 
+                      warning = FALSE)
+
+# disable scientific notation
+options(scipen = 999) 
+
+```
+
+```{r}
+
+library(tidyverse)
+library(scales)
+library(janitor)
+#library(rsprite2)
+library(scrutiny) 
+library(tides)
+library(purrr)
+library(patchwork)
+library(knitr)
+library(kableExtra)
+
+```
+
+# GRIM vs GRIM+GRIMMER vs GRIM+GRIMMER+Umbrella plot 
+
+Using {scrutiny} + {tides}
+
+```{r}
+
+# dat_n_11_tides <-
+#   expand_grid(mean = seq(from = 0.5, to = 7.5, by = 0.01),
+#               sd = seq(from = 0, to = 4, by = 0.01)) |>
+#   mutate(n_obs   = 11,
+#          m_prec  = 2,
+#          sd_prec = 2,
+#          n_items = 1,
+#          min_val = 1,
+#          max_val = 7,
+#          calculate_min_sd = TRUE) |>
+#   mutate(grim = pmap(list(as.character(mean), n_obs),
+#                      grim)) |>
+#   mutate(grimmer = pmap(list(as.character(mean), as.character(sd), n_obs),
+#                         grimmer)) |>
+#   mutate(tides = pmap(list(mean, sd, n_obs, min_val, max_val, n_items, sd_prec,
+#                            calculate_min_sd = TRUE, verbose = FALSE),
+#                       tides_single)) |>
+#   unnest(grim) |>
+#   unnest(grimmer) |>
+#   unnest(tides)
+# 
+# dat_n_100_tides <-
+#   expand_grid(mean = seq(from = 0.5, to = 7.5, by = 0.01),
+#               sd = seq(from = 0, to = 4, by = 0.01)) |>
+#   mutate(n_obs   = 100,
+#          m_prec  = 2,
+#          sd_prec = 2,
+#          n_items = 1,
+#          min_val = 1,
+#          max_val = 7,
+#          calculate_min_sd = TRUE) |>
+#   mutate(grim = pmap(list(as.character(mean), n_obs),
+#                      grim)) |>
+#   mutate(grimmer = pmap(list(as.character(mean), as.character(sd), n_obs),
+#                         grimmer)) |>
+#   mutate(tides = pmap(list(mean, sd, n_obs, min_val, max_val, n_items, sd_prec,
+#                            calculate_min_sd = TRUE, verbose = FALSE),
+#                       tides_single)) |>
+#   unnest(grim) |>
+#   unnest(grimmer) |>
+#   unnest(tides)
+#
+# dat_n_5_to_100_tides <-
+#   expand_grid(mean = seq(from = 0.5, to = 7.5, by = 0.01),
+#               sd = seq(from = 0, to = 4, by = 0.01),
+#               n_obs = seq(from = 5, to = 100, by = 5)) |>
+#   mutate(m_prec  = 2,
+#          sd_prec = 2,
+#          n_items = 1,
+#          min_val = 1,
+#          max_val = 7,
+#          calculate_min_sd = TRUE) |>
+#   mutate(grim = pmap(list(as.character(mean), n_obs),
+#                      grim)) |>
+#   mutate(grimmer = pmap(list(as.character(mean), as.character(sd), n_obs),
+#                         grimmer)) |>
+#   mutate(tides = pmap(list(mean, sd, n_obs, min_val, max_val, n_items, sd_prec,
+#                            calculate_min_sd = TRUE, verbose = FALSE),
+#                       tides_single)) |>
+#   unnest(grim) |>
+#   unnest(grimmer) |>
+#   unnest(tides)
+# 
+# write_rds(dat_n_11_tides, "results_grim_grimmer_tides_n_11_tides.rds")
+
+dat_n_11_tides <- read_rds("results_grim_grimmer_tides_n_11_tides.rds")
+
+```
+
+
+## TIDES plot
+
+```{r}
+
+# doesn't work for so many points
+# dat_n_11_tides |>
+#   rename(n = n_obs,
+#          min = min_val,
+#          max = max_val,
+#          digits = sd_prec) |>
+#   plot_tides_multiple()
+
+set.seed(42)
+
+dat_n_11_tides |>
+  sample_n(size = 30) |>
+  rename(n = n_obs,
+         min = min_val,
+         max = max_val,
+         digits = sd_prec) |>
+  plot_tides_multiple()
+
+
+set.seed(42)
+
+dat_n_11_tides |>
+  sample_n(size = 1) |>
+  rename(n = n_obs,
+         min = min_val,
+         max = max_val,
+         digits = sd_prec) |>
+  plot_tides_single(text_size = 0.6)
+
+```
+
+## POMP plot
+
+The big issue with the pomp plot is that it only plots values whose SD range is calculable, so many values that would be inside the bounds but are GRIM/GRIMMER/TIDES inconsistent are not even plotted. How to calculate bounds in a more abstract way and plot all values inside it?
+
+Why is the point just inside the rectangle inconsistent when it should be consistent?
+
+### dev wrangling
+
+```{r}
+
+dat_liberal_boundaries_n_11 <- dat_n_11_tides |>
+  # Make two copies of 'min_sd'
+  mutate(min_sd_up = min_sd,
+         min_sd_down = min_sd,
+         max_sd_up = max_sd,
+         max_sd_down = max_sd) |>
+  # Fill upwards
+  fill(min_sd_up, .direction = "up") |>
+  fill(max_sd_up, .direction = "up") |>
+  # Fill downwards
+  fill(min_sd_down, .direction = "down") |>
+  fill(max_sd_down, .direction = "down") |>
+  # Take the minimum non-NA value between the two
+  mutate(min_min_sd = pmin(min_sd_up, min_sd_down, na.rm = TRUE),
+         min_min_sd = case_when(mean >= min_val & mean <= max_val ~ min_min_sd,
+                                TRUE ~ NA),
+         max_max_sd = pmax(max_sd_up, max_sd_down, na.rm = TRUE),
+         max_max_sd = case_when(mean >= min_val & mean <= max_val ~ max_max_sd,
+                                TRUE ~ NA)) |>
+  # Remove helper columns
+  select(-min_sd_up, -min_sd_down, -max_sd_up, -max_sd_down) |>
+  # Find limits - min and max values of min and max sd
+  group_by(mean, 
+           min_val, max_val, n_obs, n_items,
+           min_sd, max_sd) |>
+  summarize(min_sd = min(min_min_sd),
+            max_sd = max(max_max_sd),
+            .groups = "drop") |>
+  drop_na()
+
+ggplot(dat_liberal_boundaries_n_11) +
+  geom_ribbon(aes(x = mean, ymin = min_sd, ymax = max_sd), fill = "grey30", alpha = 0.25) +
+  theme_linedraw() +
+  scale_x_continuous(breaks = breaks_pretty(n = 7),
+                     name = "Mean") +
+  scale_y_continuous(breaks = breaks_pretty(n = 7),
+                     name = "Standard Deviation") +
+  ggtitle("Liberal boundary of min and max SD for N=11\nIgnoring granular consistency of mean and SD")
+
+```
+
+- This is the generic solution i needed, i think?
+- but then how did the psymeta code calculate SD bounds for all values?
+
+# ?
+
+```{r}
+
+dat_liberal_boundaries_n_11 |>
+  mutate(pomp_mean = case_when(mean >= min_val & mean <= max_val ~ 
+                                 round_half_up((mean - min_val)/(max_val - min_val), 2),
+                               TRUE ~ NA),
+         pomp_sd = case_when(!is.na(min_sd) & !is.na(max_sd) ~
+                               round_half_up((sd - min_sd)/(max_sd - min_sd), 2),
+                             TRUE ~ NA),
+         pomp_sd = case_when(is.infinite(pomp_sd) ~ 0,
+                             TRUE ~ pomp_sd)) |>
+  ggplot() +
+  geom_point(aes(x = pomp_mean, y = pomp_sd)) +
+  theme_linedraw() +
+  scale_x_continuous(breaks = breaks_pretty(n = 7),
+                     name = "Mean") +
+  scale_y_continuous(breaks = breaks_pretty(n = 7),
+                     name = "Standard Deviation") +
+  ggtitle("Liberal boundary of min and max SD\nIgnoring granular consistency of mean and SD")
+
+
+dat_liberal_boundaries_n_11 |>
+  select(pomp_mean, pomp_sd) |> #tides_consistent
+  drop_na() |>
+  distinct(pomp_mean, pomp_sd, .keep_all = TRUE) |>
+  #arrange(tides_consistent) |>
+  ggplot(aes(pomp_mean, pomp_sd)) + #, color = tides_consistent
+  geom_rect(aes(xmin = 0, xmax = 1, ymin = 1, ymax = Inf), fill = "grey91", color = NA) +
+  geom_rect(aes(xmin = 0, xmax = 1, ymin = -Inf, ymax = 0), fill = "grey91", color = NA) +
+  geom_rect(aes(xmin = -Inf, xmax = 0, ymin = -Inf, ymax = Inf), fill = "grey91", color = NA) +
+  geom_rect(aes(xmin = 1, xmax = Inf, ymin = -Inf, ymax = Inf), fill = "grey91", color = NA) +
+  geom_point(alpha = 0.7, shape = 15, size = 1) + 
+  scale_x_continuous(breaks = c(0, .1, .2, .3, .4, .5, .6, .7, .8, .9, 1),
+                     labels = scales::label_percent(),
+                     name = "Proportion-of-Maximum-Possible Mean") +
+  scale_y_continuous(breaks = function(x) unique(c(scales::breaks_pretty(n = 10)(x), -1, 0, 1)),
+                     labels = scales::label_percent(),
+                     name = "Proportion-of-Maximum-Possible SD",
+                     trans = signed_log10_trans) +
+  theme_linedraw() +
+  theme(panel.grid.minor = element_blank()) + 
+  scale_color_viridis_d(begin = 0.3, end = 0.7) +
+  labs(color = "Inside possible ranges") +
+  guides(color = guide_legend(override.aes = list(size = 4)))
+
+```
+
+### Plot assuming pomp values returned from tides_single() are sufficient
+
+note that they only contain 
+
+```{r}
+
+plot_tides_multiple_pomp <- function(dat, shade_limits = "inside"){
+  
+  signed_log10_trans <- trans_new(
+    name = "signed_log10",
+    transform = function(x) sign(x) * log10(abs(x) + 1),
+    inverse = function(x) sign(x) * (10^abs(x) - 1)
+  )
+  
+  if(shade_limits == "outside"){
+    
+    p <- dat |>
+      select(pomp_mean, pomp_sd, tides_consistent) |>
+      drop_na() |>
+      distinct(pomp_mean, pomp_sd, .keep_all = TRUE) |>
+      arrange(tides_consistent) |>
+      ggplot(aes(pomp_mean, pomp_sd, color = tides_consistent)) +
+      geom_rect(aes(xmin = 0, xmax = 1, ymin = 1, ymax = Inf), fill = "grey91", color = NA) +
+      geom_rect(aes(xmin = 0, xmax = 1, ymin = -Inf, ymax = 0), fill = "grey91", color = NA) +
+      geom_rect(aes(xmin = -Inf, xmax = 0, ymin = -Inf, ymax = Inf), fill = "grey91", color = NA) +
+      geom_rect(aes(xmin = 1, xmax = Inf, ymin = -Inf, ymax = Inf), fill = "grey91", color = NA) +
+      geom_point(alpha = 0.7, shape = 15, size = 1) + 
+      scale_x_continuous(breaks = c(0, .1, .2, .3, .4, .5, .6, .7, .8, .9, 1),
+                         labels = scales::label_percent(),
+                         name = "Proportion-of-Maximum-Possible Mean") +
+      scale_y_continuous(breaks = function(x) unique(c(scales::breaks_pretty(n = 10)(x), -1, 0, 1)),
+                         labels = scales::label_percent(),
+                         name = "Proportion-of-Maximum-Possible SD",
+                         trans = signed_log10_trans) +
+      theme_linedraw() +
+      theme(panel.grid.minor = element_blank()) + 
+      scale_color_viridis_d(begin = 0.3, end = 0.7) +
+      labs(color = "Inside possible ranges") +
+      guides(color = guide_legend(override.aes = list(size = 4)))
+    
+  } else if (shade_limits == "inside") {
+    
+    p <- dat |>
+      select(pomp_mean, pomp_sd, tides_consistent) |>
+      drop_na() |>
+      distinct(pomp_mean, pomp_sd, .keep_all = TRUE) |>
+      arrange(tides_consistent) |>
+      ggplot(aes(pomp_mean, pomp_sd, color = tides_consistent)) +
+      geom_rect(aes(xmin = 0, xmax = 1, ymin = 0, ymax = 1), fill = "grey91", color = NA) +
+      geom_point(alpha = 1, shape = 15, size = 1.5) + # ,  , 
+      scale_x_continuous(breaks = c(0, .1, .2, .3, .4, .5, .6, .7, .8, .9, 1),
+                         labels = scales::label_percent(),
+                         name = "Proportion-of-Maximum-Possible Mean") +
+      scale_y_continuous(breaks = function(x) unique(c(scales::breaks_pretty(n = 8)(x), -1, 0, 1)),
+                         labels = scales::label_percent(),
+                         name = "Proportion-of-Maximum-Possible SD",
+                         trans = signed_log10_trans) +
+      theme_linedraw() +
+      theme(legend.position = "top",
+            legend.direction = "vertical",
+            panel.grid.minor = element_blank()) + 
+      scale_color_manual(values = c("TRUE" = "#43BF71FF", 
+                                    "FALSE" = "#35608DFF"),
+                         labels = c("TRUE" = "TIDES-consistent value", 
+                                    "FALSE" = "TIDES-inconsistent value")) +
+      labs(color = "") +
+      guides(color = guide_legend(override.aes = list(size = 4)))
+    
+  } else {
+    stop("shade_limits must be 'inside' or 'outside")
+  }
+  
+  return(p)
+}
+
+```
+
+```{r fig.height=6, fig.width=7}
+
+plot_tides_multiple_pomp(dat_n_11_tides)
+
+```
+
+#### ?
+
+```{r}
+
+# could 
+# dat_n_11_tides |>
+#   fill(pomp_sd, .direction = "up") |>
+#   sample_n(size = 30) |>
+#   plot_tides_multiple_pomp()
+
+temp <- dat_n_11_tides |>
+  mutate(pomp_mean = janitor::round_half_up(pomp_mean, 2), ## 
+         pomp_sd = janitor::round_half_up(pomp_sd, 2)) |>
+  group_by(pomp_mean) |>
+  filter(abs(pomp_sd) == max(abs(pomp_sd), na.rm = TRUE)) |>
+  ungroup() |>
+  distinct(pomp_mean, pomp_sd, .keep_all = TRUE)
+
+plot_tides_multiple_pomp(temp)
+
+
+#plot_tides_multiple_pomp(dat_n_11_tides, shade_limits = "outside")
+
+```
+
+#### Random subset
+
+```{r fig.height=6, fig.width=7}
+
+set.seed(42)
+
+dat_n_11_tides |>
+  filter(sd_range_calculable == TRUE) |>
+  sample_n(size = 30) |>
+  plot_tides_multiple_pomp()
+
+```
+
+
+
+
