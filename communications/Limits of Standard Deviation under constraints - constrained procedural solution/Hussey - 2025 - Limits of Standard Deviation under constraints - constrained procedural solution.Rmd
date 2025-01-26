@@ -5,6 +5,11 @@ output:
   pdf_document
 ---
 
+# TODO
+
+- add discussion of previous work such as Mestdagh et al. (2018) "Sidelining the mean: The relative variability index as a generic mean-corrected variability measure for bounded variables" Psych Methods. doi: 10.1037/met0000153
+- check the below is in line with the updated code.
+
 # Overview
 
 This document provides a mathematical description of a constrained procedural solution for finding the minimum and maximum possible Standard Deviations for a truncated, granular variable (e.g., Likert scales), as implemented in the `tides_modified_from_.sd_limits()` R function. 
