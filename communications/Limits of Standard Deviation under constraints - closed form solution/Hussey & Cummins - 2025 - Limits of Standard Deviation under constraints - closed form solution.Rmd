@@ -14,7 +14,7 @@ knitr::opts_chunk$set(message = FALSE,
 
 # TODO
 
-- Add references to prior work and relate this to them.
+- Add references to prior work and relate this to them including Mestdagh et al. (2018) "Sidelining the mean: The relative variability index as a generic mean-corrected variability measure for bounded variables" Psych Methods. doi: 10.1037/met0000153
 - Note that this does not account for the fact that means are typically rounded for reporting, whereas the algorithmic solution does.
 - Note that this does not allow for application to mean scores from multi-item Likert scales, rather it assumes integer responses. The algorithmic solution does allow for this, although note that mean scores can be converted to sum scores by multiplying by $k$ items - although too suffers from the impact of rounding.
 
