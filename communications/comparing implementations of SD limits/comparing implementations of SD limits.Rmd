@@ -600,7 +600,7 @@ table_helper2(dat_n_100_new, max_sd = 3.6)
 
 ```
 
-## using tides package min_sd() and max_sd() functions
+## using tides package's old functions: min_sd() and max_sd() functions
 
 NB added rounding for checks
 

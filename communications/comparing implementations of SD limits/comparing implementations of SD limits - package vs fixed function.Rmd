@@ -1,0 +1,255 @@
+---
+title: "Comparing versions of tides functions"
+author: "Ian Hussey"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    code_folding: hide
+    highlight: haddock
+    theme: flatly
+    toc: yes
+    toc_float: yes
+---
+
+```{r include=FALSE}
+
+# formatting options
+# set default chunk options
+knitr::opts_chunk$set(message = FALSE, 
+                      warning = FALSE)
+
+# disable scientific notation
+options(scipen = 999) 
+
+```
+
+```{r}
+
+library(tidyverse)
+library(janitor)
+#library(rsprite2)
+library(scrutiny) 
+library(purrr)
+library(patchwork)
+library(knitr)
+library(kableExtra)
+
+```
+
+# GRIM vs GRIM+GRIMMER vs GRIM+GRIMMER+Umbrella plot 
+
+## using scrutiny + tides_modified_from_.sd_limits()
+
+On the basis this one was the most robust among the candidates
+
+```{r}
+
+# tides_modified_from_.sd_limits <- function(n_obs, mean, sd, min_val, max_val, sd_prec = NULL, n_items = 1) {
+#   
+#   if (is.null(sd_prec)) {
+#     sd_prec <- max(nchar(sub("^[0-9]*", "", mean)) - 1, 0)
+#   }
+#   
+#   result <- c(-Inf, Inf)
+#   
+#   aMax <- min_val
+#   aMin <- floor(mean*n_items)/n_items
+#   bMax <- min(max(max_val, min_val + 1, aMin + 1), max_val)   # Adjusted here
+#   bMin <- min(aMin + 1/n_items, max_val)                      # Adjusted here
+#   total <- round(mean * n_obs * n_items)/n_items
+#   
+#   poss_values <- max_val
+#   for (i in seq_len(n_items)) {
+#     poss_values <- c(poss_values, min_val:(max_val-1) + (1 / n_items) * (i - 1))
+#   }
+#   poss_values <- sort(poss_values)
+#   
+#   for (abm in list(c(aMin, bMin, 1), c(aMax, bMax, 2))) {
+#     
+#     a <- abm[1]
+#     b <- abm[2]
+#     m <- abm[3]
+#     
+#     # Adjust a and b to be within min_val and max_val
+#     a <- min(max(a, min_val), max_val)
+#     b <- min(max(b, min_val), max_val)
+#     
+#     if (a == b) {
+#       vec <- rep(a, n_obs)
+#     } else {
+#       k <- round((total - (n_obs * b)) / (a - b))
+#       k <- min(max(k, 1), n_obs - 1)
+#       vec <- c(rep(a, k), rep(b, n_obs - k))
+#       diff <- sum(vec) - total
+#       
+#       if ((diff < 0)) {
+#         vec <- c(rep(a, k - 1), a + abs(diff), rep(b, n_obs - k))
+#       } else if ((diff > 0)) {
+#         vec <- c(rep(a, k), b - diff, rep(b, n_obs - k - 1))
+#       }
+#     }
+#     
+#     # instead of throwing errors here, return NA
+#     # if (round(mean(vec), sd_prec) != round(mean, sd_prec) | !all(floor(vec*10e9) %in% floor(poss_values*10e9))) {
+#     #   stop("Error in calculating range of possible standard deviations")
+#     # }
+#     # result[m] <- round(sd(vec), sd_prec)
+#     
+#     # Check if the calculated mean and values match expected conditions
+#     if (round(mean(vec), sd_prec) == round(mean, sd_prec) & all(floor(vec*10e9) %in% floor(poss_values*10e9))) {
+#       result[m] <- round(sd(vec), sd_prec)
+#     }
+#     
+#   }
+#   
+#   # Replace Inf or -Inf with NA
+#   result[is.infinite(result)] <- NA
+#   
+#   # returns df instead of vector
+#   res <- 
+#     data.frame(sd_min = result[1],
+#                sd_max = result[2]) |>
+#     mutate(tides = case_when(sd < sd_min ~ FALSE,
+#                              is.na(sd_min) ~ FALSE,
+#                              sd > sd_max ~ FALSE,
+#                              is.na(sd_max) ~ FALSE,
+#                              TRUE ~ TRUE))
+#   
+#   return(res)
+# }
+#
+# dat_n_11 <-
+#   expand_grid(mean = seq(from = 0.5, to = 7.5, by = 0.01),
+#               sd = seq(from = 0, to = 4, by = 0.01)) |>
+#   mutate(n_obs   = 11,
+#          m_prec  = 2,
+#          sd_prec = 2,
+#          n_items = 1,
+#          min_val = 1,
+#          max_val = 7) |>
+#   mutate(grim = pmap(list(as.character(mean), n_obs),
+#                      grim)) |>
+#   mutate(grimmer = pmap(list(as.character(mean), as.character(sd), n_obs),
+#                         grimmer)) |>
+#   mutate(tides = pmap(list(n_obs, mean, sd, min_val, max_val, sd_prec, n_items),
+#                       tides_modified_from_.sd_limits)) |>
+#   unnest(grim) |>
+#   unnest(grimmer) |>
+#   unnest(tides)
+# 
+# write_rds(dat_n_11, "results_grim_grimmer_tides_n_11.rds")
+
+dat_n_11_modified_.sd_limits <- read_rds("results_grim_grimmer_tides_n_11.rds")
+
+```
+
+## using scrutiny + current tides package 
+
+tides_modified_from_.sd_limits was developed into the tides package's updated tides_single() function. It should producxe the same results, but let's check.
+
+```{r}
+
+# dat_n_11_tides <-
+#   expand_grid(mean = seq(from = 0.5, to = 7.5, by = 0.01),
+#               sd = seq(from = 0, to = 4, by = 0.01)) |>
+#   mutate(n_obs   = 11,
+#          m_prec  = 2,
+#          sd_prec = 2,
+#          n_items = 1,
+#          min_val = 1,
+#          max_val = 7,
+#          calculate_min_sd = TRUE) |>
+#   mutate(grim = pmap(list(as.character(mean), n_obs),
+#                      grim)) |>
+#   mutate(grimmer = pmap(list(as.character(mean), as.character(sd), n_obs),
+#                         grimmer)) |>
+#   mutate(tides = pmap(list(mean, sd, n_obs, min_val, max_val, n_items, sd_prec,
+#                            calculate_min_sd = TRUE, verbose = FALSE),
+#                       tides_single)) |>
+#   unnest(grim) |>
+#   unnest(grimmer) |>
+#   unnest(tides)
+# 
+# write_rds(dat_n_11_tides, "../bridging grim, grimmer, umbrella plots and tides/results_grim_grimmer_tides_n_11_tides.rds")
+
+dat_n_11_tides <- read_rds("../bridging grim, grimmer, umbrella plots and tides/results_grim_grimmer_tides_n_11_tides.rds")
+
+```
+
+## Compare
+
+```{r}
+
+dat_n_11_combined <- 
+  rename(dat_n_11_modified_.sd_limits, 
+         max_sd_.sd_limits = sd_max, 
+         min_sd_.sd_limits = sd_min,
+         tides_modified_from_.sd_limits = tides) |>
+  full_join(rename(dat_n_11_tides, 
+                   max_sd_new = max_sd, 
+                   min_sd_new = min_sd,
+                   tides_new = tides_consistent),
+            by = c("mean", "sd", "n_obs", "m_prec", "sd_prec", "n_items", "min_val", "max_val")) |>
+  mutate(max_sd_new_rounded = round(max_sd_new, 2),
+         min_sd_new_rounded = round(min_sd_new, 2),
+         grim_match = grim.x == grim.y,
+         grimmer_match = grimmer.x == grimmer.y,
+         tides_match = tides_modified_from_.sd_limits == tides_new,
+         min_sd_match = case_when((min_sd_.sd_limits == min_sd_new_rounded) | (is.na(min_sd_.sd_limits) * is.na(min_sd_new_rounded)) ~ TRUE,
+                                  TRUE ~ FALSE),
+         max_sd_match = case_when((max_sd_.sd_limits == max_sd_new_rounded) | (is.na(max_sd_.sd_limits) * is.na(max_sd_new_rounded)) ~ TRUE,
+                                  TRUE ~ FALSE))
+
+dat_n_11_combined |>
+  count(tides_match)
+
+dat_n_11_combined |>
+  count(min_sd_match)
+
+dat_n_11_combined |>
+  count(max_sd_match)
+
+```
+
+
+```{r}
+
+res_comparisons <- dat_n_11_combined |>
+  select(mean, 
+         sd, 
+         min_sd_.sd_limits, 
+         min_sd_new = min_sd_new_rounded, 
+         min_sd_match,
+         max_sd_.sd_limits, 
+         max_sd_new = max_sd_new_rounded,
+         max_sd_match,
+         grim.x, 
+         grimmer.x, 
+         tides_modified_from_.sd_limits, 
+         tides_new,
+         tides_match) |>
+  filter(!is.na(min_sd_.sd_limits) | 
+           !is.na(min_sd_new) | 
+           !is.na(max_sd_.sd_limits) | 
+           !is.na(max_sd_new)) |>
+  distinct(min_sd_.sd_limits, 
+           min_sd_new, 
+           max_sd_.sd_limits, 
+           max_sd_new,
+           grim.x, 
+           grimmer.x, 
+           tides_modified_from_.sd_limits, 
+           tides_new,
+           tides_match,
+           .keep_all = TRUE)
+  #filter(grim.x, grimmer.x) 
+  #filter(!min_sd_match)
+
+res_comparisons |>
+  count(min_sd_match)
+
+res_comparisons |>
+  count(max_sd_match)
+
+```
+
