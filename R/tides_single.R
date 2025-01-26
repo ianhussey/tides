@@ -58,10 +58,8 @@ tides_single <- function(mean, sd, n, min, max, n_items = 1, digits = NULL,
       }
     }
     
-    # check if the calculated mean and values match expected conditions
-    vec_mean <- mean(vec)
-    
-    if(mean_matches(vec_mean, mean, digits) & all(floor(vec * 1e9) %in% floor(poss_values * 1e9))){
+    # Check if the calculated mean and values match expected conditions
+    if (round(mean(vec), digits) == round(mean, digits) & all(floor(vec*10e9) %in% floor(poss_values*10e9))) {
       result[m] <- round(sd(vec), digits)
     }
     
@@ -113,28 +111,5 @@ tides_single <- function(mean, sd, n, min, max, n_items = 1, digits = NULL,
   return(res)
 }
 
-# custom rounding functions
-round_half_up <- function(x, digits = 0) {
-  posneg <- sign(x)
-  z <- abs(x) * 10^digits + 0.5
-  z <- trunc(z)
-  z <- z / 10^digits
-  z * posneg
-}
-
-round_half_down <- function(x, digits = 0) {
-  posneg <- sign(x)
-  z <- abs(x) * 10^digits - 0.5
-  z <- trunc(z)
-  z <- z / 10^digits
-  z * posneg
-}
-
-# function to check mean equality with different rounding methods
-mean_matches <- function(vec_mean, target_mean, sd_prec) {
-  rounded_means_vec <- c(round_half_up(vec_mean, sd_prec), round_half_down(vec_mean, sd_prec))
-  rounded_means_target <- c(round_half_up(target_mean, sd_prec), round_half_down(target_mean, sd_prec))
-  any(rounded_means_vec %in% rounded_means_target)
-}
 
 
