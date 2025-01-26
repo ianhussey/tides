@@ -4,7 +4,7 @@
 \alias{plot_tides_single}
 \title{Calculate and plot a TIDES test for a single set of values}
 \usage{
-plot_tides_single(res, base_size = 20)
+plot_tides_single(res, text_size = 0.6)
 }
 \arguments{
 \item{res}{a data frame, the output of tides_single().}

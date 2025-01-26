@@ -15,7 +15,7 @@
 #' }
 #' 
 #' @export 
-plot_tides_single <- function(res, base_size = 20){
+plot_tides_single <- function(res, text_size = 0.6){
   
   if(res |> nrow() != 1){
     stop("The input data frame must have one row, i.e., the output of tides_single().")
@@ -65,7 +65,7 @@ plot_tides_single <- function(res, base_size = 20){
     geom_polygon(data = data_polygon_right, aes(x = x, y = y), fill = "grey10", alpha = 0.4) +
     geom_point(data = data_reported, aes(mean, sd, color = tides_consistent)) +
     geom_text(data = data_reported, aes(mean, sd, label = label), 
-              vjust = -1, size = 7) +
+              vjust = -1, size = text_size*7) +
     #scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +  
     scale_y_continuous(expand = c(0.01, 0.1)) +
     # scale_x_continuous(expand = expansion(mult = c(0, 0)),
@@ -74,7 +74,7 @@ plot_tides_single <- function(res, base_size = 20){
     scale_x_continuous(expand = c(0.01, 0.01),
                        labels = seq(from = data_reported$min, to = data_reported$max, by = 1),
                        breaks = seq(from = data_reported$min, to = data_reported$max, by = 1)) +
-    theme_minimal(base_size = base_size) +
+    theme_minimal(base_size = text_size*20) +
     theme(legend.position = "none") +
     scale_color_manual(values = c("TRUE" = "#43BF71FF", 
                                   "FALSE" = "#35608DFF")) +
