@@ -7,10 +7,11 @@
 #' @param n numeric variable representing the reported sample size.
 #' @param min numeric variable representing the variable's minimum possible/observable score.
 #' @param max numeric variable representing the variable's maximum possible/observable score.
-#' @param calculate_min_sd logical variable representing whether a minimum SD should also be calculated. This should only be calculated if the varible is not only trucated (has a minimum and maximum possible/observable score) but also the variable is discrete/binned/granular: ie the response must be whole numbers (e.g., a 1-7 likert scale, where an indiviudal cannot provide a score of 1.5).
+#' @param n_items numeric variable representing how man items were averaged over at the participant level when creating the mean. I.e., when a single item Likert scale or a sum score of a multi-item Likert scale, no prior participant level averaging occured, only averaging across participants, so items = 1. If a multi item scale and mean score across items was used, enter the number of items here.
+#' @param calculate_min_sd logical variable representing whether a minimum SD should also be calculated. This should only be calculated if the variable is not only truncated (has a minimum and maximum possible/observable score) but also the variable is discrete/binned/granular: ie the response must be whole numbers (e.g., a 1-7 likert scale, where an indiviudal cannot provide a score of 1.5).
 #' @returns A ggplot object: the TIDES plot and results 
 #' @export 
-plot_tides <- function(mean, sd, n, min, max, calculate_min_sd = FALSE){
+plot_tides <- function(mean, sd, n, min, max, n_items = 1, digits = NULL, calculate_min_sd = TRUE){
   
   data_reported <- 
     tides_single(mean = mean, 
@@ -18,6 +19,8 @@ plot_tides <- function(mean, sd, n, min, max, calculate_min_sd = FALSE){
                  n = n, 
                  min = min, 
                  max = max, 
+                 n_items = n_items,
+                 digits = digits,
                  calculate_min_sd = calculate_min_sd,
                  verbose = TRUE)
   
@@ -26,11 +29,13 @@ plot_tides <- function(mean, sd, n, min, max, calculate_min_sd = FALSE){
                 max = max,
                 plotting_mean = seq(from = min, to = max, by = 0.01),
                 n = n) |>
-    mutate(results = pmap(list(plotting_mean, sd, n, min, max, calculate_min_sd, verbose = FALSE), tides_single)) |>
+    mutate(results = pmap(list(plotting_mean, sd, n, min, max, n_items, digits, calculate_min_sd, verbose = FALSE), 
+                          tides_single)) |>
     unnest(results) |>
     rename(x = plotting_mean,
            y_max = max_sd,
-           y_min = min_sd)
+           y_min = min_sd) |>
+    drop_na()
     
   data_polygon_above <- bind_rows(
     tibble(x = data_plot$x, y = data_plot$y_max),
@@ -58,10 +63,14 @@ plot_tides <- function(mean, sd, n, min, max, calculate_min_sd = FALSE){
     geom_polygon(data = data_polygon_left,  aes(x = x, y = y), fill = "grey10", alpha = 0.4) +
     geom_polygon(data = data_polygon_right, aes(x = x, y = y), fill = "grey10", alpha = 0.4) +
     geom_point(data = data_reported, aes(mean, sd)) +
-    geom_text(data = data_reported, aes(mean, sd, label = result), 
+    geom_text(data = data_reported, aes(mean, sd, label = tides_consistent), 
               vjust = -1, size = 7) +
-    scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +  
-    scale_x_continuous(expand = expansion(mult = c(0, 0)),
+    #scale_y_continuous(expand = expansion(mult = c(0, 0.1))) +  
+    scale_y_continuous(expand = c(0.01, 0.1)) +
+    # scale_x_continuous(expand = expansion(mult = c(0, 0)),
+    #                    labels = seq(from = min, to = max, by = 1),
+    #                    breaks = seq(from = min, to = max, by = 1)) +
+    scale_x_continuous(expand = c(0.01, 0.01),
                        labels = seq(from = min, to = max, by = 1),
                        breaks = seq(from = min, to = max, by = 1)) +
     labs(x = "Mean",

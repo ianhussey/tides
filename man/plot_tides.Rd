@@ -4,7 +4,16 @@
 \alias{plot_tides}
 \title{Calculate and plot a TIDES test for a single set of values}
 \usage{
-plot_tides(mean, sd, n, min, max, calculate_min_sd = FALSE)
+plot_tides(
+  mean,
+  sd,
+  n,
+  min,
+  max,
+  n_items = 1,
+  digits = NULL,
+  calculate_min_sd = TRUE
+)
 }
 \arguments{
 \item{mean}{numeric variable representing the reported mean.}
@@ -17,7 +26,9 @@ plot_tides(mean, sd, n, min, max, calculate_min_sd = FALSE)
 
 \item{max}{numeric variable representing the variable's maximum possible/observable score.}
 
-\item{calculate_min_sd}{logical variable representing whether a minimum SD should also be calculated. This should only be calculated if the varible is not only trucated (has a minimum and maximum possible/observable score) but also the variable is discrete/binned/granular: ie the response must be whole numbers (e.g., a 1-7 likert scale, where an indiviudal cannot provide a score of 1.5).}
+\item{n_items}{numeric variable representing how man items were averaged over at the participant level when creating the mean. I.e., when a single item Likert scale or a sum score of a multi-item Likert scale, no prior participant level averaging occured, only averaging across participants, so items = 1. If a multi item scale and mean score across items was used, enter the number of items here.}
+
+\item{calculate_min_sd}{logical variable representing whether a minimum SD should also be calculated. This should only be calculated if the variable is not only truncated (has a minimum and maximum possible/observable score) but also the variable is discrete/binned/granular: ie the response must be whole numbers (e.g., a 1-7 likert scale, where an indiviudal cannot provide a score of 1.5).}
 }
 \value{
 A ggplot object: the TIDES plot and results
