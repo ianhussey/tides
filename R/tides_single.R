@@ -11,6 +11,12 @@
 #' @param calculate_min_sd logical variable representing whether a minimum SD should also be calculated. This should only be calculated if the variable is not only truncated (has a minimum and maximum possible/observable score) but also the variable is discrete/binned/granular: ie the response must be whole numbers (e.g., a 1-7 likert scale, where an indiviudal cannot provide a score of 1.5).
 #' @param verbose logical variable representing whether the output should also contain the input values.
 #' @returns a tibble containing the max and min SD and a summary variable `tides` indicating if the tested values are consistent or not. ADD NOTES ON OTHER COLUMNS RETURNED.
+#' @examples
+#' \dontrun{
+#' tides_single(mean = 3.10, sd = 0.80, n = 1100, min = 1, max = 7, n_items = 1, digits = 2) |>
+#'   plot_tides_single()
+#' }
+#' 
 #' @export 
 tides_single <- function(mean, sd, n, min, max, n_items = 1, digits = NULL,
                          calculate_min_sd = TRUE, verbose = TRUE){
