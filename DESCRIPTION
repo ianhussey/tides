@@ -20,6 +20,7 @@ Imports:
 Suggests:
     knitr,
     kableExtra,
+    scrutiny,
     devtools,
     roxygen2
 VignetteBuilder: knitr

@@ -12,7 +12,7 @@
 #' @param min numeric variable representing the variable's minimum possible/observable score.
 #' @param max numeric variable representing the variable's maximum possible/observable score.
 #' @param n_items number of items averaged over
-#' @digits digits reported to
+#' @param digits reported to
 #' @param calculate_min_sd logical variable representing whether a minimum SD should also be calculated. This should only be calculated if the varible is not only trucated (has a minimum and maximum possible/observable score) but also the variable is discrete/binned/granular: ie the response must be whole numbers (e.g., a 1-7 likert scale, where an indiviudal cannot provide a score of 1.5).
 #' @returns a tibble containing the max and min SD and a summary variable `result` indicating if the tested values are consistent or not.
 #' @examples

@@ -12,4 +12,6 @@ Hussey, I., Norwood, S. F., Cummins, J., Arslan, R. A., & Elson, M. (2024). Trun
 
 ## TODO
 
+- how to get vignette to appear in documentation?
+- should tides function be renamed so package and function aren't identical
 - Differentiate mean based range violations from SD based violations in the output 

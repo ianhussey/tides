@@ -28,6 +28,8 @@ tides_multiple(
 
 \item{n_items}{number of items averaged over}
 
+\item{digits}{reported to}
+
 \item{calculate_min_sd}{logical variable representing whether a minimum SD should also be calculated. This should only be calculated if the varible is not only trucated (has a minimum and maximum possible/observable score) but also the variable is discrete/binned/granular: ie the response must be whole numbers (e.g., a 1-7 likert scale, where an indiviudal cannot provide a score of 1.5).}
 }
 \value{

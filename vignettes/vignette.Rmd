@@ -4,7 +4,7 @@ subtitle: "Vignette"
 author: "Ian Hussey"
 output: rmarkdown::html_vignette
 vignette: >
-%\VignetteIndexEntry{tides}
+  %\VignetteIndexEntry{tides}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -61,15 +61,15 @@ reported_results <- data.frame(
 
 reported_results |>
   # map the tides function onto each row's set of columns
-  mutate(res_tides = purrr::pmap(.l = list(mean = mean,
-                                           sd = sd,
-                                           n = n,
-                                           min = min,
-                                           max = max),
-                                 verbose = FALSE,
-                                 .f = tides)) |>
+  mutate(tides = purrr::pmap(.l = list(mean = mean,
+                                       sd = sd,
+                                       n = n,
+                                       min = min,
+                                       max = max),
+                             verbose = FALSE,
+                             .f = tides)) |>
   # unnest columns
-  unnest(res_tides) 
+  unnest(tides) 
 
 ```
 
@@ -78,27 +78,27 @@ reported_results |>
 ```{r}
 
 reported_results |>
-  mutate(res_grim = purrr::pmap(.l = list(x = as.character(mean), 
-                                          n = n),
-                                items = 1,
-                                .f = scrutiny::grim)) |>
-  mutate(res_grimmer = purrr::pmap(.l = list(x = as.character(mean), 
-                                             sd = as.character(sd), 
-                                             n = n),
-                                   items = 1,
-                                   .f = scrutiny::grimmer)) |>
+  mutate(grim = purrr::pmap(.l = list(x = as.character(mean), 
+                                      n = n),
+                            items = 1,
+                            .f = scrutiny::grim)) |>
+  mutate(grimmer = purrr::pmap(.l = list(x = as.character(mean), 
+                                         sd = as.character(sd), 
+                                         n = n),
+                               items = 1,
+                               .f = scrutiny::grimmer)) |>
   # map the tides function onto each row's set of columns
-  mutate(res_tides = purrr::pmap(.l = list(mean = mean,
-                                           sd = sd,
-                                           n = n,
-                                           min = min,
-                                           max = max),
-                                 verbose = FALSE,
-                                 .f = tides)) |>
+  mutate(tides = purrr::pmap(.l = list(mean = mean,
+                                       sd = sd,
+                                       n = n,
+                                       min = min,
+                                       max = max),
+                             verbose = FALSE,
+                             .f = tides)) |>
   # unnest columns
-  unnest(res_tides) |>
-  unnest(res_grim) |>
-  unnest(res_grimmer) |>
+  unnest(grim) |>
+  unnest(grimmer) |>
+  unnest(tides) |>
   # retain just the input summary statistics and the grim, grimmer and tides results
   select(timepoint, condition, n, mean, sd,
          grim_consistent = grim, grimmer_consistent = grimmer, tides_consistent) 
