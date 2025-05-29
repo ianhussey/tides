@@ -2,13 +2,19 @@
 #'
 #' Explanation to be added
 #' 
-#' @param res a data frame with one tides result on each row (e.g., created by tides_single() or tides_multiple()). Note that The parameters min, max, n_items, and digits must be idential on all rows for plot_tides_multiple() to run."
+#' @import dplyr
+#' @import tidyr
+#' @import tibble
+#' @import ggplot2
+#' @import scales
+#' @import purrr
+#' @param res a data frame with one tides result on each row (e.g., created by tides() or tides_multiple()). Note that The parameters min, max, n_items, and digits must be idential on all rows for plot_tides_multiple() to run."
 #' @returns A ggplot object: the TIDES plot 
 #' @examples
 #' \dontrun{
-#' res <- bind_rows(tides_single(mean = 3.10, sd = 0.80, n = 65, min = 1, max = 7, n_items = 1, digits = 2),
-#'                  tides_single(mean = 4.10, sd = 0.80, n = 65, min = 1, max = 7, n_items = 1, digits = 2),
-#'                  tides_single(mean = 5.06, sd = 0.83, n = 65, min = 1, max = 7, n_items = 1, digits = 2))
+#' res <- bind_rows(tides(mean = 3.10, sd = 0.80, n = 65, min = 1, max = 7, n_items = 1, digits = 2),
+#'                  tides(mean = 4.10, sd = 0.80, n = 65, min = 1, max = 7, n_items = 1, digits = 2),
+#'                  tides(mean = 5.06, sd = 0.83, n = 65, min = 1, max = 7, n_items = 1, digits = 2))
 #' 
 #' plot_tides_multiple(res)
 #' }
@@ -31,7 +37,7 @@ plot_tides_multiple <- function(res){
                 plotting_mean = seq(from = data_params$min, to = data_params$max, by = 0.01),
                 n = data_params$n) |>
     mutate(results = pmap(list(plotting_mean, data_params$sd, data_params$n, data_params$min, data_params$max, data_params$n_items, data_params$digits, data_params$calculate_min_sd, verbose = FALSE), 
-                          tides_single)) |>
+                          tides)) |>
     unnest(results) |>
     rename(x = plotting_mean,
            y_max = max_sd,

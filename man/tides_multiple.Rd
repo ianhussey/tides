@@ -26,6 +26,8 @@ tides_multiple(
 
 \item{max}{numeric variable representing the variable's maximum possible/observable score.}
 
+\item{n_items}{number of items averaged over}
+
 \item{calculate_min_sd}{logical variable representing whether a minimum SD should also be calculated. This should only be calculated if the varible is not only trucated (has a minimum and maximum possible/observable score) but also the variable is discrete/binned/granular: ie the response must be whole numbers (e.g., a 1-7 likert scale, where an indiviudal cannot provide a score of 1.5).}
 }
 \value{
@@ -33,4 +35,24 @@ a tibble containing the max and min SD and a summary variable \code{result} indi
 }
 \description{
 Explanation to be added
+}
+\examples{
+\dontrun{
+# check multiple results 
+dat <- tibble(mean = c(1, 1.2, 1.4), 
+              sd   = c(0.5, 0.5, 0.6),
+              n    = c(30, 30, 35),
+              min  = 1,
+              max  = c(7, 5, 7),
+              n_items = 1,
+              digits = 2,
+              calculate_min_sd = TRUE,
+              verbose = FALSE) 
+
+tides_multiple(mean = dat$mean,
+               sd = dat$sd,
+               n = dat$n,
+               min = dat$min,
+               max = dat$max)
+}
 }

@@ -7,7 +7,7 @@
 plot_tides_multiple(res)
 }
 \arguments{
-\item{res}{a data frame with one tides result on each row (e.g., created by tides_single() or tides_multiple()). Note that The parameters min, max, n_items, and digits must be idential on all rows for plot_tides_multiple() to run."}
+\item{res}{a data frame with one tides result on each row (e.g., created by tides() or tides_multiple()). Note that The parameters min, max, n_items, and digits must be idential on all rows for plot_tides_multiple() to run."}
 }
 \value{
 A ggplot object: the TIDES plot
@@ -17,9 +17,9 @@ Explanation to be added
 }
 \examples{
 \dontrun{
-res <- bind_rows(tides_single(mean = 3.10, sd = 0.80, n = 65, min = 1, max = 7, n_items = 1, digits = 2),
-                 tides_single(mean = 4.10, sd = 0.80, n = 65, min = 1, max = 7, n_items = 1, digits = 2),
-                 tides_single(mean = 5.06, sd = 0.83, n = 65, min = 1, max = 7, n_items = 1, digits = 2))
+res <- bind_rows(tides(mean = 3.10, sd = 0.80, n = 65, min = 1, max = 7, n_items = 1, digits = 2),
+                 tides(mean = 4.10, sd = 0.80, n = 65, min = 1, max = 7, n_items = 1, digits = 2),
+                 tides(mean = 5.06, sd = 0.83, n = 65, min = 1, max = 7, n_items = 1, digits = 2))
 
 plot_tides_multiple(res)
 }

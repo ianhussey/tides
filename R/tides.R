@@ -2,6 +2,13 @@
 #'
 #' Explanation to be added. TODO: consider use of round inside the function and in the result returned.
 #' 
+#' @import stats
+#' @import dplyr
+#' @import tidyr
+#' @import tibble
+#' @import ggplot2
+#' @import scales
+#' @import purrr
 #' @param mean numeric variable representing the reported mean.
 #' @param sd numeric variable representing the reported Standard Deviation.
 #' @param n numeric variable representing the reported sample size.
@@ -13,13 +20,38 @@
 #' @returns a tibble containing the max and min SD and a summary variable `tides` indicating if the tested values are consistent or not. ADD NOTES ON OTHER COLUMNS RETURNED.
 #' @examples
 #' \dontrun{
-#' tides_single(mean = 3.10, sd = 0.80, n = 1100, min = 1, max = 7, n_items = 1, digits = 2) |>
-#'   plot_tides_single()
+#' # table output
+#' tides(mean = 3.10, sd = 0.80, n = 1100, min = 1, max = 7, n_items = 1, digits = 2)
+#' 
+#' # plot output, using plot_tides()
+#' tides(mean = 3.10, sd = 0.80, n = 1100, min = 1, max = 7, n_items = 1, digits = 2) |>
+#'   plot_tides()
+#'   
+#' # table output checking multiple values with either a purrr workflow (eg below) or else using tides_multiple()
+#' dat <- tibble(mean = c(1, 1.2, 1.4), 
+#'               sd   = c(0.5, 0.5, 0.6),
+#'               n    = c(30, 30, 35),
+#'               min  = 1,
+#'               max  = c(7, 5, 7),
+#'               n_items = 1,
+#'               digits = 2,
+#'               calculate_min_sd = TRUE,
+#'               verbose = FALSE)
+#' 
+#' dat |>
+#'   mutate(res = purrr::pmap(list(mean = mean,
+#'                                 sd = sd,
+#'                                 n = n,
+#'                                 min = min,
+#'                                 max = max,
+#'                                 verbose = verbose),
+#'                            tides)) |>
+#'   unnest(res)
 #' }
 #' 
 #' @export 
-tides_single <- function(mean, sd, n, min, max, n_items = 1, digits = NULL,
-                         calculate_min_sd = TRUE, verbose = TRUE){
+tides <- function(mean, sd, n, min, max, n_items = 1, digits = NULL,
+                  calculate_min_sd = TRUE, verbose = TRUE){
   
   if (is.null(digits)) {
     digits <- max(nchar(sub("^[0-9]*", "", mean)) - 1, 0)
@@ -28,7 +60,7 @@ tides_single <- function(mean, sd, n, min, max, n_items = 1, digits = NULL,
   result <- c(-Inf, Inf)
   
   min_alpha <- min
-  max_alpha <- floor(mean*n_items)/n_items
+  max_alpha <- floor(mean * n_items)/n_items
   max_beta <- min(max(max, min + 1, max_alpha + 1), max)
   min_beta <- min(max_alpha + 1/n_items, max)
   total <- round(mean * n * n_items)/n_items
@@ -77,7 +109,6 @@ tides_single <- function(mean, sd, n, min, max, n_items = 1, digits = NULL,
   min_sd <- result[1]
   max_sd <- result[2]
   
-  
   # Percent Of Maximum Possible (POMP) mean and SD
   # calculated prior to rounding
   pomp_mean <- (mean - min)/(max - min)
@@ -86,10 +117,11 @@ tides_single <- function(mean, sd, n, min, max, n_items = 1, digits = NULL,
   if (is.infinite(pomp_sd) | is.nan(pomp_sd)) { pomp_sd <- 0 }
   
   # results
-  res <- data.frame(pomp_mean = janitor::round_half_up(pomp_mean, 4),
-                    pomp_sd = janitor::round_half_up(pomp_sd, 4),
-                    min_sd = janitor::round_half_up(min_sd, digits), 
-                    max_sd = janitor::round_half_up(max_sd, digits)) |>
+  res <- 
+    data.frame(pomp_mean = janitor::round_half_up(pomp_mean, 4),
+               pomp_sd = janitor::round_half_up(pomp_sd, 4),
+               min_sd = janitor::round_half_up(min_sd, digits), 
+               max_sd = janitor::round_half_up(max_sd, digits)) |>
     mutate(min_sd = case_when(calculate_min_sd ~ min_sd,
                               !calculate_min_sd ~ 0),
            sd_range_calculable = !is.na(min_sd) & !is.na(max_sd),

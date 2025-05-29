@@ -2,23 +2,29 @@
 #'
 #' Explanation to be added
 #' 
-#' @param res a data frame, the output of tides_single().
-#' @param base_size scaling for the text in the plot. 
+#' @import dplyr
+#' @import tidyr
+#' @import tibble
+#' @import ggplot2
+#' @import scales
+#' @import purrr
+#' @param res a data frame, the output of tides().
+#' @param text_size scaling for the text in the plot. 
 #' @returns A ggplot object: the TIDES plot 
 #' @examples
 #' \dontrun{
-#' tides_single(mean = 3.10, sd = 0.80, n = 1100, min = 1, max = 7, n_items = 1, digits = 2) |>
-#'   plot_tides_single()
+#' tides(mean = 3.10, sd = 0.80, n = 1100, min = 1, max = 7, n_items = 1, digits = 2) |>
+#'   plot_tides()
 #' 
-#' tides_single(mean = 5.07, sd = 2.92, n = 15, min = 1, max = 7, n_items = 1, digits = 2) |>
-#'   plot_tides_single()
+#' tides(mean = 5.07, sd = 2.92, n = 15, min = 1, max = 7, n_items = 1, digits = 2) |>
+#'   plot_tides()
 #' }
 #' 
 #' @export 
-plot_tides_single <- function(res, text_size = 0.6){
+plot_tides <- function(res, text_size = 0.6){
   
   if(res |> nrow() != 1){
-    stop("The input data frame must have one row, i.e., the output of tides_single().")
+    stop("The input data frame must have one row, i.e., the output of tides().")
   }
   
   data_reported <- res |>
@@ -28,10 +34,10 @@ plot_tides_single <- function(res, text_size = 0.6){
   data_plot <- 
     expand_grid(min = data_reported$min,
                 max = data_reported$max,
-                plotting_mean = seq(from = data_reported$min, to = data_reported$max, by = 0.01),
+                plotting_mean = seq(from = data_reported$min, to = data_reported$max, by = 10^-data_reported$digits),
                 n = data_reported$n) |>
     mutate(results = pmap(list(plotting_mean, data_reported$sd, data_reported$n, data_reported$min, data_reported$max, data_reported$n_items, data_reported$digits, data_reported$calculate_min_sd, verbose = FALSE), 
-                          tides_single)) |>
+                          tides)) |>
     unnest(results) |>
     rename(x = plotting_mean,
            y_max = max_sd,
