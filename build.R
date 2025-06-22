@@ -6,9 +6,6 @@ setwd("~/git/tides")
 
 devtools::document()
 
-#devtools::build_vignettes()
-#devtools::check()
-
 devtools::check(vignettes = FALSE)
 
 #devtools::install()
@@ -20,3 +17,8 @@ library(tides)
 ?tides
 
 detach("package:tides", unload=TRUE)
+
+# once you have the package updated, you can use it to build the vignettes, check the whole thing, and reinstall again
+devtools::build_vignettes()
+devtools::check()
+
