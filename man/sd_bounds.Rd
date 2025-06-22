@@ -35,7 +35,7 @@ achievable SD given the constraints; if \code{FALSE}, sets
 \code{min_sd = 0} without computation. Defaults to \code{TRUE}.}
 }
 \value{
-A numeric vector of length two:
+A single row data.frame with the columns min_sd and max_sd:
 \item{min_sd}{Minimum feasible standard deviation (or 0 if \code{calculate_min_sd=FALSE}).}
 \item{max_sd}{Maximum feasible standard deviation.}
 }

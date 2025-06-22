@@ -71,8 +71,10 @@ tides <- function(mean, sd, n, min, max,
                   verbose = TRUE) {
   
   # get the bounds
+  # nb sd_bounds() returns a one‐row data.frame with columns min_sd, max_sd
   bounds <- sd_bounds(mean, n, min, max, n_items, digits)
-  min_sd <- bounds[1]; max_sd <- bounds[2]
+  min_sd <- bounds$min_sd
+  max_sd <- bounds$max_sd
   
   # POMP transformations
   pomp_mean <- (mean - min) / (max - min)
