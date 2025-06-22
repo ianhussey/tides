@@ -1,152 +1,120 @@
-#' Calculate TIDES test for a single set of values
+#' TIDES consistency test for a single mean–SD report
 #'
-#' Explanation to be added. TODO: consider use of round inside the function and in the result returned.
-#' 
-#' @import stats
-#' @import dplyr
-#' @import tidyr
-#' @import tibble
-#' @import ggplot2
-#' @import scales
-#' @import purrr
-#' @param mean numeric variable representing the reported mean.
-#' @param sd numeric variable representing the reported Standard Deviation.
-#' @param n numeric variable representing the reported sample size.
-#' @param min numeric variable representing the variable's minimum possible/observable score.
-#' @param max numeric variable representing the variable's maximum possible/observable score.
-#' @param n_items numeric variable representing how man items were averaged over at the participant level when creating the mean. I.e., when a single item Likert scale or a sum score of a multi-item Likert scale, no prior participant level averaging occured, only averaging across participants, so items = 1. If a multi item scale and mean score across items was used, enter the number of items here.
-#' @param calculate_min_sd logical variable representing whether a minimum SD should also be calculated. This should only be calculated if the variable is not only truncated (has a minimum and maximum possible/observable score) but also the variable is discrete/binned/granular: ie the response must be whole numbers (e.g., a 1-7 likert scale, where an indiviudal cannot provide a score of 1.5).
-#' @param verbose logical variable representing whether the output should also contain the input values.
-#' @returns a tibble containing the max and min SD and a summary variable `tides` indicating if the tested values are consistent or not. ADD NOTES ON OTHER COLUMNS RETURNED.
+#' Given a reported mean, standard deviation and sample size on a bounded scale,
+#' \code{tides()} checks whether the observed SD is feasible under the known
+#' minimum/maximum of that scale (and optional item‐level discretization). It
+#' returns the theoretical minimum and maximum SD, the Percent Of Maximum
+#' Possible (POMP) transformations of the mean and SD, and logical flags
+#' indicating whether the reported values fall within the feasible range.
+#'
+#' @param mean           Numeric. Reported sample mean.
+#' @param sd             Numeric. Reported sample standard deviation.
+#' @param n              Integer. Sample size.
+#' @param min            Numeric. Minimum possible (or observed) score on the scale.
+#' @param max            Numeric. Maximum possible (or observed) score on the scale.
+#' @param n_items        Integer ≥ 1. Number of discrete “items” averaged at the
+#'                       participant level (e.g.\ a 5-item Likert mean → 5). Defaults to 1.
+#' @param digits         Integer or \code{NULL}. Decimal places to use when
+#'                       comparing means and rounding SD. If \code{NULL}, inferred
+#'                       from the precision of \code{mean}.
+#' @param calculate_min_sd
+#'                       Logical. If \code{TRUE}, computes the minimum feasible SD;
+#'                       if \code{FALSE}, sets \code{min_sd = 0}. Defaults to \code{TRUE}.
+#' @param verbose        Logical. If \code{TRUE}, prepends the input arguments to
+#'                       the output for easy reference. Defaults to \code{TRUE}.
+#'
+#' @return A data frame (or tibble) with these columns:
+#' \describe{
+#'   \item{pomp_mean}{Mean transformed to a 0–1 scale: \((\text{mean}-\text{min})/(\text{max}-\text{min})\).}
+#'   \item{pomp_sd}{Observed SD as a proportion of the achievable range: 
+#'                  \((\text{sd}-\text{min\_sd})/(\text{max\_sd}-\text{min\_sd})\), or 0 if undefined.}
+#'   \item{min_sd}{Minimum feasible SD (or 0 if \code{calculate_min_sd = FALSE}).}
+#'   \item{max_sd}{Maximum feasible SD.}
+#'   \item{sd_range_calculable}{\code{TRUE} if both \code{min_sd} and \code{max_sd} are non-\code{NA}.}
+#'   \item{mean_inside_range}{\code{TRUE} if \code{mean} lies between \code{min} and \code{max}.}
+#'   \item{sd_inside_range}{\code{TRUE} if \code{sd} lies within the computed SD bounds (lower
+#'                          bound only enforced when \code{calculate_min_sd = TRUE}).}
+#'   \item{inside_ranges}{\code{TRUE} if both \code{mean_inside_range} and \code{sd_inside_range}.}
+#'   \item{tides_consistent}{\code{TRUE} if \code{sd_range_calculable} and \code{inside_ranges}.}
+#' }
+#' If \code{verbose = TRUE}, the input arguments (\code{mean}, \code{sd}, \code{n}, \code{min}, 
+#' \code{max}, \code{n_items}, \code{digits}, \code{calculate_min_sd}) appear as leading columns.
+#'
 #' @examples
 #' \dontrun{
-#' # table output
-#' tides(mean = 3.10, sd = 0.80, n = 1100, min = 1, max = 7, n_items = 1, digits = 2)
-#' 
-#' # plot output, using plot_tides()
-#' tides(mean = 3.10, sd = 0.80, n = 1100, min = 1, max = 7, n_items = 1, digits = 2) |>
-#'   plot_tides()
-#'   
-#' # table output checking multiple values with either a purrr workflow (eg below) or else using tides_multiple()
-#' dat <- tibble(mean = c(1, 1.2, 1.4), 
-#'               sd   = c(0.5, 0.5, 0.6),
-#'               n    = c(30, 30, 35),
-#'               min  = 1,
-#'               max  = c(7, 5, 7),
-#'               n_items = 1,
-#'               digits = 2,
-#'               calculate_min_sd = TRUE,
-#'               verbose = FALSE)
-#' 
-#' dat |>
-#'   mutate(res = purrr::pmap(list(mean = mean,
-#'                                 sd = sd,
-#'                                 n = n,
-#'                                 min = min,
-#'                                 max = max,
-#'                                 verbose = verbose),
-#'                            tides)) |>
-#'   unnest(res)
+#' # Single case on a 1–5 scale
+#' tides(mean = 3.2, sd = 0.8, n = 30, min = 1, max = 5)
+#'
+#' # Only compute upper SD bound
+#' tides(3.2, 0.8, 30, 1, 5, calculate_min_sd = FALSE)
+#'
+#' # Use in a purrr workflow for multiple reports
+#' library(dplyr); library(purrr); library(tidyr)
+#' dat <- tibble(
+#'   mean = c(2.5, 4.0, 3.1),
+#'   sd   = c(0.6, 1.2, 0.9),
+#'   n    = c(50, 75, 60),
+#'   min  = 1, max = 7
+#' )
+#' dat %>%
+#'   mutate(results = pmap(list(mean, sd, n, min, max), tides)) %>%
+#'   unnest(results)
 #' }
+#'
+#' @importFrom dplyr mutate bind_cols
+#' @importFrom janitor round_half_up
 #' 
 #' @export 
-tides <- function(mean, sd, n, min, max, n_items = 1, digits = NULL,
-                  calculate_min_sd = TRUE, verbose = TRUE){
+tides <- function(mean, sd, n, min, max,
+                  n_items = 1, digits = NULL,
+                  calculate_min_sd = TRUE,
+                  verbose = TRUE) {
   
-  if (is.null(digits)) {
-    digits <- max(nchar(sub("^[0-9]*", "", mean)) - 1, 0)
+  # get the bounds
+  bounds <- sd_bounds(mean, n, min, max, n_items, digits)
+  min_sd <- bounds[1]; max_sd <- bounds[2]
+  
+  # POMP transformations
+  pomp_mean <- (mean - min) / (max - min)
+  pomp_sd   <- if (!is.na(min_sd) && !is.na(max_sd)) {
+    (sd - min_sd) / (max_sd - min_sd)
+  } else {
+    NA_real_
+  }
+  # avoid Inf/NaN
+  if (is.infinite(pomp_sd) || is.nan(pomp_sd)) pomp_sd <- 0
+  
+  # assemble result
+  df <- data.frame(
+    pomp_mean = janitor::round_half_up(pomp_mean, 4),
+    pomp_sd   = janitor::round_half_up(pomp_sd,   4),
+    min_sd    = janitor::round_half_up(min_sd,    digits),
+    max_sd    = janitor::round_half_up(max_sd,    digits)
+  )
+  
+  df <- dplyr::mutate(df,
+                      min_sd            = ifelse(calculate_min_sd, min_sd, 0),
+                      sd_range_calculable = !is.na(min_sd) & !is.na(max_sd),
+                      mean_inside_range = mean >= min & mean <= max,
+                      sd_inside_range   = case_when(
+                        calculate_min_sd & sd_range_calculable ~ sd >= min_sd & sd <= max_sd,
+                        !calculate_min_sd & sd_range_calculable ~ sd <= max_sd,
+                        TRUE                                    ~ FALSE
+                      ),
+                      inside_ranges     = mean_inside_range & sd_inside_range,
+                      tides_consistent  = sd_range_calculable & inside_ranges
+  )
+  
+  if (verbose) {
+    meta <- data.frame(
+      mean, sd, n, min, max, n_items,
+      digits = if (is.null(digits)) NA_integer_ else digits,
+      calculate_min_sd
+    )
+    df <- dplyr::bind_cols(meta, df)
   }
   
-  result <- c(-Inf, Inf)
-  
-  min_alpha <- min
-  max_alpha <- floor(mean * n_items)/n_items
-  max_beta <- min(max(max, min + 1, max_alpha + 1), max)
-  min_beta <- min(max_alpha + 1/n_items, max)
-  total <- round(mean * n * n_items)/n_items
-  
-  poss_values <- max
-  for (i in seq_len(n_items)) {
-    poss_values <- c(poss_values, min:(max-1) + (1 / n_items) * (i - 1))
-  }
-  poss_values <- sort(poss_values)
-  
-  for (abm in list(c(max_alpha, min_beta, 1), c(min_alpha, max_beta, 2))) {
-    
-    a <- abm[1]
-    b <- abm[2]
-    m <- abm[3]
-    
-    # Adjust a and b to be within min and max
-    a <- min(max(a, min), max)
-    b <- min(max(b, min), max)
-    
-    if (a == b) {
-      vec <- rep(a, n)
-    } else {
-      k <- round((total - (n * b)) / (a - b))
-      k <- min(max(k, 1), n - 1)
-      vec <- c(rep(a, k), rep(b, n - k))
-      diff <- sum(vec) - total
-      
-      if ((diff < 0)) {
-        vec <- c(rep(a, k - 1), a + abs(diff), rep(b, n - k))
-      } else if ((diff > 0)) {
-        vec <- c(rep(a, k), b - diff, rep(b, n - k - 1))
-      }
-    }
-    
-    # Check if the calculated mean and values match expected conditions
-    if (round(mean(vec), digits) == round(mean, digits) & all(floor(vec*10e9) %in% floor(poss_values*10e9))) {
-      result[m] <- round(sd(vec), digits)
-    }
-    
-  }
-  
-  # replace Inf or -Inf with NA
-  result[is.infinite(result)] <- NA
-  
-  min_sd <- result[1]
-  max_sd <- result[2]
-  
-  # Percent Of Maximum Possible (POMP) mean and SD
-  # calculated prior to rounding
-  pomp_mean <- (mean - min)/(max - min)
-  pomp_sd <- ifelse(!is.na(min_sd) & !is.na(max_sd), (sd - min_sd)/(max_sd - min_sd), NA)
-  # when SD is zero, this divides by zero and returns Inf. Replace these with 0 as a dummy value so that they are plotted rather than ignored.
-  if (is.infinite(pomp_sd) | is.nan(pomp_sd)) { pomp_sd <- 0 }
-  
-  # results
-  res <- 
-    data.frame(pomp_mean = janitor::round_half_up(pomp_mean, 4),
-               pomp_sd = janitor::round_half_up(pomp_sd, 4),
-               min_sd = janitor::round_half_up(min_sd, digits), 
-               max_sd = janitor::round_half_up(max_sd, digits)) |>
-    mutate(min_sd = case_when(calculate_min_sd ~ min_sd,
-                              !calculate_min_sd ~ 0),
-           sd_range_calculable = !is.na(min_sd) & !is.na(max_sd),
-           mean_inside_range = mean >= min & mean <= max,
-           sd_inside_range = case_when(calculate_min_sd & sd_range_calculable ~ sd >= min_sd & sd <= max_sd,
-                                       !calculate_min_sd & sd_range_calculable ~ sd <= max_sd,
-                                       TRUE ~ FALSE),
-           inside_ranges = mean_inside_range & sd_inside_range,
-           tides_consistent = sd_range_calculable & inside_ranges)
-  
-  if(verbose){
-    res2 <- data.frame(mean = mean,
-                       sd = sd,
-                       n = n,
-                       min = min,
-                       max = max,
-                       n_items = n_items, 
-                       digits = digits,
-                       calculate_min_sd = calculate_min_sd)
-    
-    res <- bind_cols(res2,
-                     res)
-  }
-  
-  return(res)
+  return(df)
 }
 
 
