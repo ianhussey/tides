@@ -34,7 +34,7 @@
 #' @importFrom purrr map map2
 #' @importFrom tibble tibble
 #' @importFrom tidyr unnest
-#' @importFrom scrutiny restore_zeros
+#' @importFrom scrutiny restore_zeros grimmer
 #' @importFrom dplyr filter mutate select
 #' @export
 umbrella <- function(n, min, max, n_items = 1, precision = 2){
@@ -81,7 +81,7 @@ umbrella <- function(n, min, max, n_items = 1, precision = 2){
                                n        = n,
                                items    = n_items,
                                rounding = rounding),
-                          grimmer)) |>
+                          scrutiny::grimmer)) |>
     unnest(grimmer) |>
     # drop GRIMMER inconsistent values, so that only GRIM+GRIMMER+TIDES consistent values remain
     filter(grimmer == TRUE) |>
