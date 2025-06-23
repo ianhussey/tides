@@ -36,6 +36,8 @@
 #' sd_bounds(mean = 3.2, n = 30, min = 1, max = 5,
 #'           calculate_min_sd = FALSE)
 #' }
+#' 
+#' @importFrom janitor round_half_up
 #'
 #' @export
 sd_bounds <- function(mean, n, min, max, n_items = 1, digits = NULL,
@@ -51,7 +53,7 @@ sd_bounds <- function(mean, n, min, max, n_items = 1, digits = NULL,
   max_alpha <- floor(mean * n_items) / n_items
   max_beta  <- min(max(max, min + 1, max_alpha + 1), max)
   min_beta  <- min(max_alpha + 1 / n_items, max)
-  total     <- round(mean * n * n_items) / n_items
+  total     <- janitor::round_half_up(mean * n * n_items) / n_items
   
   # # construct all possible discrete values - original loop method, slow
   # poss_values <- max
