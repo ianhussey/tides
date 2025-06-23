@@ -2,20 +2,40 @@
 % Please edit documentation in R/plot_tides.R
 \name{plot_tides}
 \alias{plot_tides}
-\title{Calculate and plot a TIDES test for a single set of values}
+\title{Plot a TIDES consistency test for a single summary}
 \usage{
 plot_tides(res, text_size = 0.6)
 }
 \arguments{
-\item{res}{a data frame, the output of tides().}
+\item{res}{A one‐row data frame, the output of \code{tides()}, containing
+at minimum the columns \code{mean}, \code{sd}, \code{n}, \code{min},
+\code{max}, \code{n_items}, \code{digits}, and \code{tides_consistent}.}
 
-\item{text_size}{scaling for the text in the plot.}
+\item{text_size}{A numeric scalar; scaling factor for all text elements
+in the plot (default: 0.6).}
 }
 \value{
-A ggplot object: the TIDES plot
+A \code{ggplot} object showing the TIDES consistency envelope,
+the observed point, and shaded regions where the SD is impossible
+given the mean.
 }
 \description{
-Explanation to be added
+\code{plot_tides} takes the output of \code{tides()} (a one‐row data frame)
+and produces a ggplot2 graphic showing:
+\itemize{
+\item The observed mean and standard deviation (SD) as a single point.
+\item An envelope of allowable SD values as a function of the mean,
+computed by \code{sd_bounds()}.
+\item Shaded regions where the reported SD falls outside those limits.
+}
+}
+\details{
+The TIDES (Test for Internal Data Error Sensitivity) plot helps you
+visualize whether a reported mean and SD for bounded data are
+internally consistent.  The upper and lower SD bounds are
+determined by sampling all possible response patterns on your
+measurement scale.  If the point lies outside the shaded area,
+it is flagged as inconsistent.
 }
 \examples{
 \dontrun{
