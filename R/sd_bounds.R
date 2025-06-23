@@ -43,10 +43,10 @@
 sd_bounds <- function(mean, n, min, max, n_items = 1, digits = NULL,
                       calculate_min_sd = TRUE) {
   
-  # 1. infer digits if not provided
+  # 1. infer precision if not specified
   if (is.null(digits)) {
     digits <- max(nchar(sub("^[0-9]*", "", mean)) - 1, 0)
-  }
+  } 
   
   # 2. precompute alphas, betas, and total
   min_alpha <- min
