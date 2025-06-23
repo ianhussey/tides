@@ -31,7 +31,7 @@
 #' }
 #'
 #' @importFrom janitor round_half_up
-#' @importFrom purrr map map2
+#' @importFrom purrr map map2 pmap
 #' @importFrom tibble tibble
 #' @importFrom tidyr unnest
 #' @importFrom scrutiny restore_zeros grimmer
@@ -76,12 +76,12 @@ umbrella <- function(n, min, max, n_items = 1, precision = 2){
            sd_char = as.character(sd),
            sd_char = scrutiny::restore_zeros(sd_char, width = precision)) |>
     ## apply GRIMMER to the reduced grid
-    mutate(grimmer = pmap(list(x        = mean_char,
-                               sd       = sd_char,
-                               n        = n,
-                               items    = n_items,
-                               rounding = rounding),
-                          scrutiny::grimmer)) |>
+    mutate(grimmer = purrr::pmap(list(x        = mean_char,
+                                      sd       = sd_char,
+                                      n        = n,
+                                      items    = n_items,
+                                      rounding = rounding),
+                                 scrutiny::grimmer)) |>
     unnest(grimmer) |>
     # drop GRIMMER inconsistent values, so that only GRIM+GRIMMER+TIDES consistent values remain
     filter(grimmer == TRUE) |>
