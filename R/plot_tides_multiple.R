@@ -36,7 +36,15 @@ plot_tides_multiple <- function(res){
                 max = data_params$max,
                 plotting_mean = seq(from = data_params$min, to = data_params$max, by = 0.01),
                 n = data_params$n) |>
-    mutate(results = pmap(list(plotting_mean, data_params$sd, data_params$n, data_params$min, data_params$max, data_params$n_items, data_params$digits, data_params$calculate_min_sd, verbose = FALSE), 
+    mutate(results = pmap(list(mean = plotting_mean,
+                               sd = data_params,
+                               n = data_params,
+                               min = data_params,
+                               max = data_params,
+                               n_items = data_params$n_items,
+                               digits = data_params$digits,
+                               calculate_min_sd = data_params$calculate_min_sd,
+                               verbose = FALSE), 
                           tides)) |>
     unnest(results) |>
     rename(x = plotting_mean,
