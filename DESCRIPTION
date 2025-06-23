@@ -16,7 +16,8 @@ Imports:
     purrr,
     ggplot2,
     janitor,
-    scales
+    scales,
+    scrutiny
 Suggests:
     knitr,
     kableExtra,
