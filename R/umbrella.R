@@ -64,7 +64,7 @@ umbrella <- function(n, min, max, n_items = 1, precision = 2){
     # test which of these SDs are GRIMMER consistent
     ## create variables needed for GRIMMER testing
     mutate(n         = n,
-           precision = digits,
+           precision = precision,
            n_items   = n_items,
            min       = min,
            max       = max,
