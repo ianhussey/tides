@@ -13,6 +13,7 @@ Hussey, I., Norwood, S. F., Cummins, J., Arslan, R. A., & Elson, M. (2024). Trun
 ## TODO
 
 - consider use of round() in sd_bounds() and tides().
+- n_items doesn't seem to work appropriately above 1.
 - how to get vignette to appear in documentation?
 - improve vignettes tables, either select columns or change output rendering format
 - should tides function be renamed so package and function aren't identical
