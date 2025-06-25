@@ -4,15 +4,29 @@
 \alias{plot_tides}
 \title{Plot a TIDES consistency test for a single summary}
 \usage{
-plot_tides(res, text_size = 0.6)
+plot_tides(
+  res,
+  liberal_bounds = FALSE,
+  text_size = 0.6,
+  color_true = "#43BF71FF",
+  color_false = "#35608DFF"
+)
 }
 \arguments{
 \item{res}{A one‐row data frame, the output of \code{tides()}, containing
 at minimum the columns \code{mean}, \code{sd}, \code{n}, \code{min},
 \code{max}, \code{n_items}, \code{digits}, and \code{tides_consistent}.}
 
+\item{liberal_bounds}{Logical. If \code{TRUE}, applies liberal SD bounds using
+\code{tides_multiple_liberal_bounds()}, which relaxes local discontinuities in
+\code{sd_bounds()} by downward and upward filling. Defaults to \code{FALSE}.}
+
 \item{text_size}{A numeric scalar; scaling factor for all text elements
 in the plot (default: 0.6).}
+
+\item{color_true}{The color of the point when values are tides consistent.}
+
+\item{color_false}{The color of the point when values are tides inconsistent.}
 }
 \value{
 A \code{ggplot} object showing the TIDES consistency envelope,
@@ -44,6 +58,9 @@ tides(mean = 3.10, sd = 0.80, n = 1100, min = 1, max = 7, n_items = 1, digits = 
 
 tides(mean = 5.07, sd = 2.92, n = 15, min = 1, max = 7, n_items = 1, digits = 2) |>
   plot_tides()
+  
+tides(mean = 5.07, sd = 2.92, n = 15, min = 1, max = 7, n_items = 1, digits = 2) |>
+  plot_tides(liberal_bounds = TRUE)
 }
 
 }
