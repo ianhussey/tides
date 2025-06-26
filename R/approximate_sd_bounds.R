@@ -1,6 +1,6 @@
-#' Compute Liberal TIDES Boundaries by Filling Discontinuities
+#' Compute approximate SD bounds by filling from nearby means' SD bounds
 #'
-#' \code{tides_multiple_liberal_bounds} applies an interpolation strategy to
+#' \code{approximate_sd_bounds} applies an interpolation strategy to
 #' relax discontinuities in SD boundary curves produced by \code{sd_bounds()}.
 #' It combines downward and upward filled versions of the SD limits from nearby 
 #' means and returns a smoothed boundary envelope for each mean value. This is 
@@ -15,7 +15,7 @@
 #'   \code{max_sd}).
 #'
 #' @export
-tides_multiple_liberal_bounds <- function(dat) {
+approximate_sd_bounds <- function(dat) {
   dat |>
     arrange(mean) |>
     # 1) make downward-filled versions
