@@ -13,7 +13,9 @@ tides(
   n_items = 1,
   digits = NULL,
   calculate_min_sd = TRUE,
-  verbose = TRUE
+  verbose = TRUE,
+  method = c("exact", "approximate"),
+  approximate_bounds_range = 10
 )
 }
 \arguments{
@@ -39,13 +41,22 @@ if \code{FALSE}, sets \code{min_sd = 0}. Defaults to \code{TRUE}.}
 
 \item{verbose}{Logical. If \code{TRUE}, prepends the input arguments to
 the output for easy reference. Defaults to \code{TRUE}.}
+
+\item{method}{Character string. Either \code{"exact"} (default) to only
+compute SD bounds for the reported mean, or \code{"approximate"}
+to allow fallback to a nearby mean with defined bounds if the
+requested mean has no valid SD bounds.}
+
+\item{approximate_bounds_range}{Integer. Number of steps (based on \code{digits}) in
+either direction to search for a nearby mean with valid SD bounds
+when \code{method = "approximate"}. Defaults to 10 (i.e., ±10 steps).}
 }
 \value{
-A data frame (or tibble) with these columns:
+A data frame (or tibble) with the following columns:
 \describe{
 \item{pomp_mean}{Mean transformed to a 0–1 scale: \((\text{mean}-\text{min})/(\text{max}-\text{min})\).}
 \item{pomp_sd}{Observed SD as a proportion of the achievable range:
-\((\text{sd}-\text{min\_sd})/(\text{max\_sd}-\text{min\_sd})\), or 0 if undefined.}
+\((\text{sd}-\text{min\_sd})/(\text{max\_sd}-\text{min\_sd})\), or \code{NA} if undefined.}
 \item{min_sd}{Minimum feasible SD (or 0 if \code{calculate_min_sd = FALSE}).}
 \item{max_sd}{Maximum feasible SD.}
 \item{sd_range_calculable}{\code{TRUE} if both \code{min_sd} and \code{max_sd} are non-\code{NA}.}
@@ -55,8 +66,10 @@ bound only enforced when \code{calculate_min_sd = TRUE}).}
 \item{inside_ranges}{\code{TRUE} if both \code{mean_inside_range} and \code{sd_inside_range}.}
 \item{tides_consistent}{\code{TRUE} if \code{sd_range_calculable} and \code{inside_ranges}.}
 }
-If \code{verbose = TRUE}, the input arguments (\code{mean}, \code{sd}, \code{n}, \code{min},
-\code{max}, \code{n_items}, \code{digits}, \code{calculate_min_sd}) appear as leading columns.
+If \code{verbose = TRUE}, the input arguments
+(\code{mean}, \code{sd}, \code{n}, \code{min}, \code{max},
+\code{n_items}, \code{digits}, \code{calculate_min_sd}, \code{method})
+appear as leading columns in the returned data frame.
 }
 \description{
 Given a reported mean, standard deviation and sample size on a bounded scale,
@@ -66,25 +79,8 @@ returns the theoretical minimum and maximum SD, the Percent Of Maximum
 Possible (POMP) transformations of the mean and SD, and logical flags
 indicating whether the reported values fall within the feasible range.
 }
-\examples{
-\dontrun{
-# Single case on a 1–5 scale
-tides(mean = 3.2, sd = 0.8, n = 30, min = 1, max = 5)
-
-# Only compute upper SD bound
-tides(3.2, 0.8, 30, 1, 5, calculate_min_sd = FALSE)
-
-# Use in a purrr workflow for multiple reports
-library(dplyr); library(purrr); library(tidyr)
-dat <- tibble(
-  mean = c(2.5, 4.0, 3.1),
-  sd   = c(0.6, 1.2, 0.9),
-  n    = c(50, 75, 60),
-  min  = 1, max = 7
-)
-dat \%>\%
-  mutate(results = pmap(list(mean, sd, n, min, max), tides)) \%>\%
-  unnest(results)
-}
-
+\details{
+If exact SD bounds cannot be computed for the specified mean, the function
+can optionally fall back to using bounds from the closest nearby mean with
+calculable SD bounds. This is controlled by the \code{method} argument.
 }
