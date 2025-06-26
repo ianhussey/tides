@@ -114,7 +114,7 @@ tides <- function(mean, sd, n, min, max,
     # fill nearest and more extreme bound to the missing ones
     filled <- grid |>
       filter(mean >= min, mean <= max) |>
-      tides_multiple_liberal_bounds()
+      approximate_sd_bounds()
     
     # return not the mean tested but the one that has a matching bound
     bounds_fallback <- filled |>

@@ -11,7 +11,7 @@ tides(
   min,
   max,
   n_items = 1,
-  digits = NULL,
+  digits = 2,
   calculate_min_sd = TRUE,
   verbose = TRUE,
   method = c("exact", "approximate"),
