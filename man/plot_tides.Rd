@@ -2,54 +2,49 @@
 % Please edit documentation in R/plot_tides.R
 \name{plot_tides}
 \alias{plot_tides}
-\title{Plot a TIDES consistency test for a single summary}
+\title{\code{plot_tides()} takes the output of \code{tides()} (a one-row data frame)
+and produces a \code{ggplot2} visualization showing:
+\itemize{
+\item The reported mean and SD as a single point.
+\item The TIDES-consistent region as an envelope of SD bounds across the range of means.
+\item Shaded regions where reported values would be inconsistent.
+}}
 \usage{
 plot_tides(
   res,
-  liberal_bounds = FALSE,
   text_size = 0.6,
   color_true = "#43BF71FF",
   color_false = "#35608DFF"
 )
 }
 \arguments{
-\item{res}{A one‐row data frame, the output of \code{tides()}, containing
-at minimum the columns \code{mean}, \code{sd}, \code{n}, \code{min},
-\code{max}, \code{n_items}, \code{digits}, and \code{tides_consistent}.}
+\item{res}{data.frame. A one-row data frame produced by \code{tides()}, containing at minimum
+the columns \code{mean}, \code{sd}, \code{n}, \code{min}, \code{max},
+\code{n_items}, \code{digits}, \code{calculate_min_sd}, \code{method}, and \code{tides_consistent}.}
 
-\item{liberal_bounds}{Logical. If \code{TRUE}, applies liberal SD bounds using
-\code{tides_multiple_liberal_bounds()}, which relaxes local discontinuities in
-\code{sd_bounds()} by downward and upward filling. Defaults to \code{FALSE}.}
+\item{text_size}{Numeric. Scaling factor for all text elements (default: 0.6).}
 
-\item{text_size}{A numeric scalar; scaling factor for all text elements
-in the plot (default: 0.6).}
+\item{color_true}{Character. Color used to plot the point if \code{tides_consistent = TRUE}.}
 
-\item{color_true}{The color of the point when values are tides consistent.}
-
-\item{color_false}{The color of the point when values are tides inconsistent.}
+\item{color_false}{Character. Color used to plot the point if \code{tides_consistent = FALSE}.}
 }
 \value{
-A \code{ggplot} object showing the TIDES consistency envelope,
-the observed point, and shaded regions where the SD is impossible
-given the mean.
+A \code{ggplot} object showing the TIDES SD boundary envelope, shaded
+inconsistency zones, and the reported mean–SD point.
 }
 \description{
-\code{plot_tides} takes the output of \code{tides()} (a one‐row data frame)
-and produces a ggplot2 graphic showing:
+\code{plot_tides()} takes the output of \code{tides()} (a one-row data frame)
+and produces a \code{ggplot2} visualization showing:
 \itemize{
-\item The observed mean and standard deviation (SD) as a single point.
-\item An envelope of allowable SD values as a function of the mean,
-computed by \code{sd_bounds()}.
-\item Shaded regions where the reported SD falls outside those limits.
+\item The reported mean and SD as a single point.
+\item The TIDES-consistent region as an envelope of SD bounds across the range of means.
+\item Shaded regions where reported values would be inconsistent.
 }
 }
 \details{
-The TIDES (Test for Internal Data Error Sensitivity) plot helps you
-visualize whether a reported mean and SD for bounded data are
-internally consistent.  The upper and lower SD bounds are
-determined by sampling all possible response patterns on your
-measurement scale.  If the point lies outside the shaded area,
-it is flagged as inconsistent.
+This plot helps visualize whether a reported mean and standard deviation
+are internally consistent with a bounded measurement scale, as defined
+by the TIDES method (Test for Internal Data Error Sensitivity).
 }
 \examples{
 \dontrun{
@@ -59,8 +54,8 @@ tides(mean = 3.10, sd = 0.80, n = 1100, min = 1, max = 7, n_items = 1, digits = 
 tides(mean = 5.07, sd = 2.92, n = 15, min = 1, max = 7, n_items = 1, digits = 2) |>
   plot_tides()
   
-tides(mean = 5.07, sd = 2.92, n = 15, min = 1, max = 7, n_items = 1, digits = 2) |>
-  plot_tides(liberal_bounds = TRUE)
+tides(mean = 5.07, sd = 2.92, n = 15, min = 1, max = 7, n_items = 1, digits = 2, method = "approximate") |>
+  plot_tides()
 }
 
 }
