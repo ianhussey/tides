@@ -89,11 +89,17 @@ plot_tides <- function(res, method = NULL, text_size = 0.6, color_true = "#43BF7
   
   if (method == "approximate") {
     boundary_data <- boundary_data |> filter(mean >= min, mean <= max) |> approximate_sd_bounds()
-  } else {
+    true_label <- "TIDES consistent"
+    false_label <- "TIDES inconsistent"
+  } else if (method == "exact"){
     boundary_data <- boundary_data |> drop_na(min_sd, max_sd)
     if (!data_params$calculate_min_sd) {
       boundary_data <- boundary_data |> mutate(min_sd = 0)
     }
+    true_label <- "GRIMMER-TIDES consistent"
+    false_label <- "GRIMMER-TIDES inconsistent"
+  } else {
+    stop("`method` must be one of c(NULL, 'exact', 'approximate')")
   }
   
   poly_above <- bind_rows(
@@ -116,7 +122,7 @@ plot_tides <- function(res, method = NULL, text_size = 0.6, color_true = "#43BF7
     geom_line(data = boundary_data, aes(x = mean, y = min_sd)) +
     geom_point(data = res, aes(mean, sd, color = tides_consistent)) +
     scale_color_manual(values = c("TRUE" = color_true, "FALSE" = color_false),
-                       labels = c("TRUE" = "TIDES consistent", "FALSE" = "TIDES inconsistent")) +
+                       labels = c("TRUE" = true_label, "FALSE" = false_label)) +
     scale_y_continuous(name = "Standard Deviation", 
                        limits = c(0, NA), 
                        expand = c(0.05, 0.05)) +

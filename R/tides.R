@@ -35,8 +35,8 @@
 #'
 #' @return A data frame (or tibble) with the following columns:
 #' \describe{
-#'   \item{pomp_mean}{Mean transformed to a 0–1 scale: \((\text{mean}-\text{min})/(\text{max}-\text{min})\).}
-#'   \item{pomp_sd}{Observed SD as a proportion of the achievable range: 
+#'   \item{relative_location}{Observed mean as a proportion of the possible range: \((\text{mean}-\text{min})/(\text{max}-\text{min})\).}
+#'   \item{relative_dispersion}{Observed SD as a proportion of the possible range: 
 #'                  \((\text{sd}-\text{min\_sd})/(\text{max\_sd}-\text{min\_sd})\), or \code{NA} if undefined.}
 #'   \item{min_sd}{Minimum feasible SD (or 0 if \code{calculate_min_sd = FALSE}).}
 #'   \item{max_sd}{Maximum feasible SD.}
@@ -148,8 +148,8 @@ tides <- function(mean, sd, n, min, max,
   
   # combine results
   df <- data.frame(
-    pomp_mean = janitor::round_half_up(pomp_mean, digits+2),
-    pomp_sd   = janitor::round_half_up(pomp_sd,   digits+2),
+    relative_location = janitor::round_half_up(pomp_mean, digits+2),
+    relative_dispersion   = janitor::round_half_up(pomp_sd,   digits+2),
     min_sd    = janitor::round_half_up(min_sd,    digits),
     max_sd    = janitor::round_half_up(max_sd,    digits)
   ) |>

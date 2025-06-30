@@ -54,8 +54,8 @@ when \code{method = "approximate"}. Defaults to 10 (i.e., ±10 steps).}
 \value{
 A data frame (or tibble) with the following columns:
 \describe{
-\item{pomp_mean}{Mean transformed to a 0–1 scale: \((\text{mean}-\text{min})/(\text{max}-\text{min})\).}
-\item{pomp_sd}{Observed SD as a proportion of the achievable range:
+\item{relative_location}{Observed mean as a proportion of the possible range: \((\text{mean}-\text{min})/(\text{max}-\text{min})\).}
+\item{relative_dispersion}{Observed SD as a proportion of the possible range:
 \((\text{sd}-\text{min\_sd})/(\text{max\_sd}-\text{min\_sd})\), or \code{NA} if undefined.}
 \item{min_sd}{Minimum feasible SD (or 0 if \code{calculate_min_sd = FALSE}).}
 \item{max_sd}{Maximum feasible SD.}
