@@ -2,49 +2,40 @@
 % Please edit documentation in R/plot_tides.R
 \name{plot_tides}
 \alias{plot_tides}
-\title{\code{plot_tides()} takes the output of \code{tides()} (a one-row data frame)
-and produces a \code{ggplot2} visualization showing:
-\itemize{
-\item The reported mean and SD as a single point.
-\item The TIDES-consistent region as an envelope of SD bounds across the range of means.
-\item Shaded regions where reported values would be inconsistent.
-}}
+\title{Plot TIDES consistency check}
 \usage{
 plot_tides(
   res,
+  method = NULL,
   text_size = 0.6,
   color_true = "#43BF71FF",
   color_false = "#35608DFF"
 )
 }
 \arguments{
-\item{res}{data.frame. A one-row data frame produced by \code{tides()}, containing at minimum
-the columns \code{mean}, \code{sd}, \code{n}, \code{min}, \code{max},
-\code{n_items}, \code{digits}, \code{calculate_min_sd}, \code{method}, and \code{tides_consistent}.}
+\item{res}{data.frame. Output of tides(), containing at minimum the columns mean, sd, n, min, max, n_items, digits, calculate_min_sd, method, and tides_consistent.}
 
-\item{text_size}{Numeric. Scaling factor for all text elements (default: 0.6).}
+\item{method}{Character. Method to use for boundary calculation (optional).}
 
-\item{color_true}{Character. Color used to plot the point if \code{tides_consistent = TRUE}.}
+\item{text_size}{Numeric. Scaling factor for text elements (default: 0.6).}
 
-\item{color_false}{Character. Color used to plot the point if \code{tides_consistent = FALSE}.}
+\item{color_true}{Character. Color for consistent points (default: green).}
+
+\item{color_false}{Character. Color for inconsistent points (default: blue).}
 }
 \value{
-A \code{ggplot} object showing the TIDES SD boundary envelope, shaded
-inconsistency zones, and the reported mean–SD point.
+A ggplot object showing the TIDES boundary envelope, shaded inconsistency zones, and reported mean–SD points with legend reversed.
 }
 \description{
-\code{plot_tides()} takes the output of \code{tides()} (a one-row data frame)
-and produces a \code{ggplot2} visualization showing:
+Depending on the input, this function either plots a single reported mean/SD value with the TIDES envelope or multiple reported values sharing the same parameters. It shows:
 \itemize{
-\item The reported mean and SD as a single point.
+\item The reported mean and SD values.
 \item The TIDES-consistent region as an envelope of SD bounds across the range of means.
 \item Shaded regions where reported values would be inconsistent.
 }
 }
 \details{
-This plot helps visualize whether a reported mean and standard deviation
-are internally consistent with a bounded measurement scale, as defined
-by the TIDES method (Test for Internal Data Error Sensitivity).
+This plot helps visualize whether reported mean and standard deviation values are internally consistent with bounded measurement scales, using the TIDES (Test for Internal Data Error Sensitivity) method.
 }
 \examples{
 \dontrun{
@@ -55,6 +46,30 @@ tides(mean = 5.07, sd = 2.92, n = 15, min = 1, max = 7, n_items = 1, digits = 2)
   plot_tides()
   
 tides(mean = 5.07, sd = 2.92, n = 15, min = 1, max = 7, n_items = 1, digits = 2, method = "approximate") |>
+  plot_tides()
+
+tibble(mean    = round_half_up(runif(n = 20, min = 1, max = 7), 2), 
+       sd      = round_half_up(runif(n = 20, min = 0, max = 4), 2), 
+       n       = 30,
+       min     = 1,
+       max     = 7,
+       n_items = 1,
+       digits  = 2,
+       calculate_min_sd = TRUE,
+       verbose = FALSE,
+       method = "approximate") |>
+  mutate(results = pmap_dfr(list(mean = mean, 
+                                 sd = sd, 
+                                 n = n, 
+                                 min = min, 
+                                 max = max, 
+                                 n_items = n_items, 
+                                 digits = digits, 
+                                 calculate_min_sd = calculate_min_sd, 
+                                 verbose = verbose,
+                                 method = method),
+                            tides)) |>
+  unnest(results) |>
   plot_tides()
 }
 
