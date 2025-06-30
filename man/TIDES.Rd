@@ -84,3 +84,20 @@ If exact SD bounds cannot be computed for the specified mean, the function
 can optionally fall back to using bounds from the closest nearby mean with
 calculable SD bounds. This is controlled by the \code{method} argument.
 }
+\examples{
+\dontrun{
+# Single case on a 1–5 scale
+tides(mean = 3.20, sd = 0.80, n = 30, min = 1, max = 5)
+
+# Results can be inside the bounds of a tides plot and still inconsistent because they are (implicitly) GRIM or GRIMMER inconsistent.
+# See plot_tides() for an illustration.
+tides(mean = 3.21, sd = 0.80, n = 30, min = 1, max = 5)
+
+# A more liberal test against the extreme bounds of SD for nearby means is also possible, i.e., a TIDES-only test ignoring GRIM/MER inconsistencies.
+tides(mean = 3.21, sd = 0.80, n = 30, min = 1, max = 5, method = "approximate")
+
+# Only compute upper SD bound, eg if measurement instrument has arbitrary granularity
+tides(mean = 3.2, sd = 0.8, n = 30, min = 1, max = 5, calculate_min_sd = FALSE)
+}
+
+}

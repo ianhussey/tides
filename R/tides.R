@@ -66,11 +66,12 @@
 #'
 #' # Only compute upper SD bound, eg if measurement instrument has arbitrary granularity
 #' tides(mean = 3.2, sd = 0.8, n = 30, min = 1, max = 5, calculate_min_sd = FALSE)
-#'
+#' }
+#' 
 #' @importFrom dplyr mutate bind_cols slice_min
-#' @importFrom tidyr expand_grid
+#' @importFrom tidyr expand_grid unnest
 #' @importFrom janitor round_half_up
-#' @importFrom purrr pmap unnest
+#' @importFrom purrr pmap 
 #' 
 #' @export 
 tides <- function(mean, sd, n, min, max,
