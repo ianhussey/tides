@@ -54,9 +54,10 @@ when \code{method = "approximate"}. Defaults to 10 (i.e., ±10 steps).}
 \value{
 A data frame (or tibble) with the following columns:
 \describe{
-\item{relative_location}{Observed mean as a proportion of the possible range: \((\text{mean}-\text{min})/(\text{max}-\text{min})\).}
+\item{relative_location}{Observed mean as a proportion of the possible range:
+\eqn{(mean - min)/(max - min)}.}
 \item{relative_dispersion}{Observed SD as a proportion of the possible range:
-\((\text{sd}-\text{min\_sd})/(\text{max\_sd}-\text{min\_sd})\), or \code{NA} if undefined.}
+\eqn{(sd - min\_sd)/(max\_sd - min\_sd)}, or \code{NA} if undefined.}
 \item{min_sd}{Minimum feasible SD (or 0 if \code{calculate_min_sd = FALSE}).}
 \item{max_sd}{Maximum feasible SD.}
 \item{sd_range_calculable}{\code{TRUE} if both \code{min_sd} and \code{max_sd} are non-\code{NA}.}
