@@ -122,6 +122,14 @@
 #' @export
 plot_tides_relative <- function(res, color_true = "#43BF71FF", color_false = "#35608DFF", color_region = "turquoise4"){
   
+  # check for "method" column and its values
+  if (!"method" %in% names(res)) {
+    stop("Relative TIDES plot requires a `method` column in the input data.")
+  }
+  if (any(res$method != "approximate", na.rm = TRUE)) {
+    stop("Relative TIDES plot requires `method = 'approximate'` for all rows.")
+  }
+  
   signed_log10_trans <- scales::trans_new(
     name = "signed_log10",
     transform = function(x) sign(x) * log10(abs(x) + 1),
@@ -177,7 +185,7 @@ plot_tides_relative <- function(res, color_true = "#43BF71FF", color_false = "#3
     # data points
     geom_point(alpha = 0.7) + # shape = 15,  size = 2, 
     # axes and theme
-    scale_x_continuous(breaks = scales::breaks_pretty(n = 5),
+    scale_x_continuous(breaks = scales::breaks_pretty(n = 10),
                        labels = scales::label_percent(),
                        #name = "Percent-Of-Maximum-Possible Mean") +
                        name = "Relative location") +
