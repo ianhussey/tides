@@ -138,12 +138,32 @@ tides <- function(mean, sd, n, min, max,
   # proportion of maximum possible transformation
   pomp_mean <- (mean - min) / (max - min)
   
-  pomp_sd <- if(!is.na(min_sd) && !is.na(max_sd)) {
-    (sd - min_sd) / (max_sd - min_sd)
+  # compute relative_dispersion (pomp_sd)
+  # with special case when both bounds = 0
+  # pomp_sd <- if(!is.na(min_sd) && !is.na(max_sd)) {
+  #   (sd - min_sd) / (max_sd - min_sd)
+  # } else {
+  #   NA_real_
+  # }
+  # if(is.infinite(pomp_sd) || is.nan(pomp_sd)) {
+  #   pomp_sd <- NA_real_
+  # }
+  if (!is.na(min_sd) && !is.na(max_sd) && min_sd == 0 && max_sd == 0) {
+    # when no dispersion range is possible…
+    pomp_sd <- if (sd == 0) {
+      0
+    } else if (sd > 0) {
+      10
+    } else {
+      -10
+    }
+  } else if (!is.na(min_sd) && !is.na(max_sd)) {
+    # usual scaling
+    pomp_sd <- (sd - min_sd) / (max_sd - min_sd)
+    if (is.infinite(pomp_sd) || is.nan(pomp_sd)) {
+      pomp_sd <- NA_real_
+    }
   } else {
-    NA_real_
-  }
-  if(is.infinite(pomp_sd) || is.nan(pomp_sd)) {
     pomp_sd <- NA_real_
   }
   
