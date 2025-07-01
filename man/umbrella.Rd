@@ -4,7 +4,7 @@
 \alias{umbrella}
 \title{Generate all GRIM+GRIMMER+TIDES–consistent means and SDs for an umbrella plot}
 \usage{
-umbrella(n, min, max, n_items = 1, precision = 2)
+umbrella(n, min, max, n_items = 1, digits = 2)
 }
 \arguments{
 \item{n}{Integer. Sample size.}
@@ -16,7 +16,7 @@ umbrella(n, min, max, n_items = 1, precision = 2)
 \item{n_items}{Integer(1). Number of discrete items per participant
 (e.g. Likert‐scale items). Defaults to 1.}
 
-\item{precision}{Integer. Number of decimal places in reported means/SDs;
+\item{digits}{Integer. Number of decimal places in reported means/SDs;
 used to define the mean‐grid and to restore trailing zeros.
 Defaults to 2.}
 }
@@ -41,7 +41,7 @@ that simultaneously satisfy:
 \examples{
 \dontrun{
 # All possible means and SDs for N=14, scale 1–7, two decimal places:
-df <- umbrella(n = 14, min = 1, max = 7, n_items = 1, precision = 2)
+df <- umbrella(n = 14, min = 1, max = 7, n_items = 1, digits = 2)
 head(df)
 }
 
