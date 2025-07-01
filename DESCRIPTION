@@ -17,6 +17,7 @@ Imports:
     ggplot2,
     janitor,
     scales,
+    rlang,
     scrutiny
 Suggests:
     knitr,
