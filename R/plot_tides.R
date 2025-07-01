@@ -125,11 +125,12 @@ plot_tides <- function(res, method = NULL, text_size = 0.6, color_true = "#43BF7
                        labels = c("TRUE" = true_label, "FALSE" = false_label)) +
     scale_y_continuous(name = "Standard Deviation", 
                        limits = c(0, NA), 
+                       breaks = scales::breaks_pretty(n = 8),
                        expand = c(0.05, 0.05)) +
     scale_x_continuous(name = "Mean", 
                        expand = c(0.05, 0.05),
-                       labels = seq(from = data_params$min, to = data_params$max, by = 1),
-                       breaks = seq(from = data_params$min, to = data_params$max, by = 1)) +
+                       #labels = scales::breaks_pretty(n = 10), # seq(from = data_params$min, to = data_params$max, by = 1),
+                       breaks = scales::breaks_pretty(n = 10)) + # seq(from = data_params$min, to = data_params$max, by = 1)) +
     theme_minimal(base_size = text_size * 20) +
     theme(legend.position = "top") +
     guides(color = guide_legend(reverse = TRUE, 
