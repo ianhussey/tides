@@ -8,7 +8,7 @@
 #'              \describe{
 #'                \item{mean}{Numeric: a feasible reported mean.}
 #'                \item{sd}{Numeric: a feasible reported standard deviation.}
-#'                \item{precision}{Integer: number of decimal places used,
+#'                \item{digits}{Integer: number of decimal places used,
 #'                                  for setting axis expansion.}
 #'              }
 #' @param size  Numeric. Point size (in mm) passed to \code{\link[ggplot2]{geom_point}()};
@@ -19,7 +19,7 @@
 #'
 #' @examples
 #' \dontrun{
-#' df <- umbrella(n = 14, min = 1, max = 7, n_items = 1, precision = 2)
+#' df <- umbrella(n = 14, min = 1, max = 7, n_items = 1, digits = 2)
 #' umbrella_plot(df)
 #' umbrella_plot(df, size = 1)
 #' }
@@ -33,11 +33,11 @@ umbrella_plot <- function(dat, size = 0.5){
     scale_y_continuous(breaks = scales::breaks_pretty(n = 8),
                        name   = "Standard Deviation",
                        limits = c(min(dat$sd), max(dat$sd)),
-                       expand = c(10^-min(dat$precision), 10^-min(dat$precision))) +
+                       expand = c(10^-min(dat$digits), 10^-min(dat$digits))) +
     scale_x_continuous(breaks = scales::breaks_pretty(n = 7),
                        name   = "Mean",
                        limits = c(min(dat$mean), max(dat$mean)),
-                       expand = c(10^-min(dat$precision), 10^-min(dat$precision))) +
+                       expand = c(10^-min(dat$digits), 10^-min(dat$digits))) +
     theme_linedraw()
 }
 
