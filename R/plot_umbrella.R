@@ -20,24 +20,24 @@
 #' @examples
 #' \dontrun{
 #' df <- umbrella(n = 14, min = 1, max = 7, n_items = 1, digits = 2)
-#' umbrella_plot(df)
-#' umbrella_plot(df, size = 1)
+#' plot_umbrella(df)
+#' plot_umbrella(df, size = 1)
 #' }
 #'
 #' @importFrom ggplot2 ggplot aes geom_point scale_y_continuous scale_x_continuous theme_linedraw
 #' @importFrom scales breaks_pretty
 #' @export
-umbrella_plot <- function(dat, size = 0.5){
+plot_umbrella <- function(dat, size = 0.5){
   ggplot(dat, aes(x = mean, y = sd)) +
     geom_point(shape = 15, size = size, alpha = 0.8) +
     scale_y_continuous(breaks = scales::breaks_pretty(n = 8),
                        name   = "Standard Deviation",
                        limits = c(min(dat$sd), max(dat$sd)),
-                       expand = c(10^-min(dat$digits), 10^-min(dat$digits))) +
+                       expand = c(10^-min(dat$digits)*5, 10^-min(dat$digits)*5)) +
     scale_x_continuous(breaks = scales::breaks_pretty(n = 7),
                        name   = "Mean",
                        limits = c(min(dat$mean), max(dat$mean)),
-                       expand = c(10^-min(dat$digits), 10^-min(dat$digits))) +
+                       expand = c(10^-min(dat$digits)*5, 10^-min(dat$digits)*5)) +
     theme_linedraw()
 }
 
