@@ -39,6 +39,14 @@
 #' @export
 umbrella <- function(n, min, max, n_items = 1, digits = 2){
   
+  # testing
+  # mean = 1.14
+  # sd = 0.53
+  # n = 14
+  # min = 1
+  # max = 7
+  # digits = 2
+  
   res <- 
     # 1. find all GRIM consistent means and the min/max of their SD
     
@@ -85,7 +93,8 @@ umbrella <- function(n, min, max, n_items = 1, digits = 2){
     unnest(grimmer) |>
     # drop GRIMMER inconsistent values, so that only GRIM+GRIMMER+TIDES consistent values remain
     filter(grimmer == TRUE) |>
-    select(-mean_char, -sd_char, -rounding, -grimmer)
+    select(-mean_char, -sd_char, -rounding, -grimmer) |>
+    mutate_if(is.numeric, janitor::round_half_up, digits = digits)
   
   return(res)
 }
