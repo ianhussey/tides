@@ -58,7 +58,7 @@ umbrella <- function(n, min, max, n_items = 1, digits = 2){
     # 2. find all GRIMMER consistent SDs
     
     # for each remaining mean, generate all SDs between the min and max bound in increments of digits
-    mutate(sd = map2(min_sd, max_sd, ~ seq(.x, .y, by = 0.01))) |>
+    mutate(sd = purrr::map2(min_sd, max_sd, ~ seq(.x, .y, by = 0.01))) |>
     unnest(sd) |>
     select(mean, sd) |>
     # test which of these SDs are GRIMMER consistent
