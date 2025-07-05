@@ -8,43 +8,83 @@ plot_tides_relative(
   res,
   color_true = "#43BF71FF",
   color_false = "#35608DFF",
-  color_region = "turquoise4"
+  color_region = "turquoise4",
+  alpha = 0.7,
+  shade_improbable = FALSE
 )
 }
 \arguments{
 \item{res}{A \code{data.frame} or \code{tibble} containing at minimum:
 \describe{
 \item{\code{relative_location}}{Numeric in \link{0,1}: POMP mean.}
-\item{\code{relative_dispersion}}{Numeric: POMP SD on a signed log₁₀ scale.}
+\item{\code{relative_dispersion}}{Numeric: POMP SD as a proportion of max SD.}
 \item{\code{tides_consistent}}{Logical: consistency flag.}
+\item{\code{method}}{Character: must be \code{"approximate"} for all rows.}
 }}
 
 \item{color_true}{Colour for points with \code{tides_consistent == TRUE}.
-Defaults to \code{"\#43BF71FF"}.}
+Defaults to \code{"#43BF71FF"}.}
 
 \item{color_false}{Colour for points with \code{tides_consistent == FALSE}.
-Defaults to \code{"\#35608DFF"}.}
+Defaults to \code{"#35608DFF"}.}
 
 \item{color_region}{Colour used to outline the feasible 0–1 square and to
 shade the four “infeasible” quadrants. Defaults to \code{"turquoise4"}.}
+
+\item{alpha}{Transparency level for plotted points. Defaults to \code{0.7}.}
+
+\item{shade_improbable}{Logical. If \code{TRUE}, highlights regions with
+implausibly low or high relative dispersion or extreme means.}
 }
 \value{
 A \code{ggplot} object showing:
 \itemize{
-\item Shaded regions outside the unit square.
-\item A black border and separator lines demarcating the 0–1 square.
-\item Points coloured by consistency, with a signed log₁₀ transform on the
-y-axis for dispersion.
+\item Shaded infeasible regions beyond the unit square.
+\item A black-bordered central feasible region (0–1 for both axes).
+\item Points colored by TIDES consistency.
+\item A y-axis transformed using a signed log₁₀ scale that stretches
+negative values 10× more than positive ones for visual clarity.
 }
 }
 \description{
 Given a data frame of TIDES outcomes (with percent-of-maximum-possible
-transformed mean and SD), \code{plot_tides_relative()} draws each
-point’s relative location (\\% of maximum possible mean) on the x-axis
-against its relative dispersion (\\% of maximum possible SD) on the
-y-axis (signed log₁₀ scale).  Regions outside the feasible 0–1 square
-are shaded, and points are coloured by whether they passed the TIDES
-consistency check.
+transformed mean and SD), \code{plot_tides_relative()} draws each point’s
+relative location (proportion of maximum possible mean) on the x-axis
+against its relative dispersion (proportion of maximum possible SD)
+on the y-axis, transformed using an \emph{asymmetric signed log₁₀ scale}.
+}
+\details{
+Regions outside the feasible 0–1 square are shaded to indicate
+infeasible value combinations. Points are colored by whether they passed
+the TIDES consistency check.
+\subsection{Y-Axis Transformation}{
+
+The y-axis applies a \strong{custom signed log₁₀ transformation} that stretches
+negative values by a factor of 10 to enhance interpretability and visual
+separation of implausibly low dispersions. Specifically:
+
+\deqn{
+  y = 
+  \begin{cases}
+    \log_{10}(x + 1) & \text{if } x \geq 0 \\
+    -10 \cdot \log_{10}(|x| + 1) & \text{if } x < 0
+  \end{cases}
+}
+
+The inverse transformation is:
+
+\deqn{
+  x = 
+  \begin{cases}
+    10^y - 1 & \text{if } y \geq 0 \\
+    -(10^{-y / 10} - 1) & \text{if } y < 0
+  \end{cases}
+}
+
+This scaling preserves 0 as a fixed point and stretches the range of
+negative values, helping to distinguish near-zero and implausibly low
+dispersions that would otherwise be visually compressed.
+}
 }
 \examples{
 \dontrun{

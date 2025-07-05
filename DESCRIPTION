@@ -18,6 +18,7 @@ Imports:
     janitor,
     scales,
     rlang,
+    forcats,
     scrutiny
 Suggests:
     knitr,
