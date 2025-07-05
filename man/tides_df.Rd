@@ -45,7 +45,7 @@ in \code{.data} providing the observed maxima.  Defaults to
 
 \item{n_items}{Optional.  A numeric vector or a column
 reference for the number of items in the scale.  Defaults
-to \code{.data$n_items}.}
+to \code{.data$n_items}. CURRENTLY DOES NOT WORK AND HARD CODED TO 1.}
 
 \item{digits}{Optional.  An integer vector or a column
 reference indicating how many decimal places to display.

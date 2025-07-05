@@ -27,7 +27,7 @@
 #'   `.data$max`.
 #' @param n_items Optional.  A numeric vector or a column
 #'   reference for the number of items in the scale.  Defaults
-#'   to `.data$n_items`.
+#'   to `.data$n_items`. CURRENTLY DOES NOT WORK AND HARD CODED TO 1.
 #' @param digits Optional.  An integer vector or a column
 #'   reference indicating how many decimal places to display.
 #'   Defaults to `.data$digits`.
@@ -91,6 +91,9 @@ tides_df <- function(.data,
                      calculate_min_sd = NULL,
                      method           = NULL,
                      approximate_bounds_range = 10) {
+  
+  # currently n_items is hard coded to 1 while i figure out how to implement it
+  n_items <- 1
   
   # capture each argument as a quosure
   mean_q   <- enquo(mean)

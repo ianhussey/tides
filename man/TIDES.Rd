@@ -30,7 +30,7 @@ tides(
 \item{max}{Numeric. Maximum possible (or observed) score on the scale.}
 
 \item{n_items}{Integer ≥ 1. Number of discrete “items” averaged at the
-participant level (e.g.\ a 5-item Likert mean → 5). Defaults to 1.}
+participant level (e.g.\ a 5-item Likert mean → 5). Defaults to 1. CURRENTLY DOES NOT WORK AND HARD CODED TO 1.}
 
 \item{digits}{Integer or \code{NULL}. Decimal places to use when
 comparing means and rounding SD. If \code{NULL}, inferred

@@ -17,7 +17,7 @@
 #' @param min            Numeric. Minimum possible (or observed) score on the scale.
 #' @param max            Numeric. Maximum possible (or observed) score on the scale.
 #' @param n_items        Integer ≥ 1. Number of discrete “items” averaged at the
-#'                       participant level (e.g.\ a 5-item Likert mean → 5). Defaults to 1.
+#'                       participant level (e.g.\ a 5-item Likert mean → 5). Defaults to 1. CURRENTLY DOES NOT WORK AND HARD CODED TO 1.
 #' @param digits         Integer or \code{NULL}. Decimal places to use when
 #'                       comparing means and rounding SD. If \code{NULL}, inferred
 #'                       from the precision of \code{mean}.
@@ -82,6 +82,9 @@ tides <- function(mean, sd, n, min, max,
                   verbose = TRUE,
                   method = c("exact", "approximate"),
                   approximate_bounds_range = 10) {
+  
+  # currently n_items is hard coded to 1 while i figure out how to implement it
+  n_items <- 1
   
   # check inputs
   method <- match.arg(method)
