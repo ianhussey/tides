@@ -11,7 +11,8 @@ sd_bounds(
   max,
   n_items = 1,
   digits = NULL,
-  calculate_min_sd = TRUE
+  calculate_min_sd = TRUE,
+  return_distributions = FALSE
 )
 }
 \arguments{
@@ -33,6 +34,9 @@ from the decimal precision of \code{mean}.}
 \item{calculate_min_sd}{Logical. If \code{TRUE}, computes the minimum
 achievable SD given the constraints; if \code{FALSE}, sets
 \code{min_sd = 0} without computation. Defaults to \code{TRUE}.}
+
+\item{return_distributions}{Logical. If \code{TRUE}, returns the vectors that
+achieve the min and max SDs in columns \code{min_dist} and \code{max_dist}.}
 }
 \value{
 A single row data.frame with the columns min_sd and max_sd:

@@ -22,6 +22,8 @@
 #' @param calculate_min_sd  Logical. If \code{TRUE}, computes the minimum
 #'                 achievable SD given the constraints; if \code{FALSE}, sets
 #'                 \code{min_sd = 0} without computation. Defaults to \code{TRUE}.
+#' @param return_distributions Logical. If \code{TRUE}, returns the vectors that
+#'                 achieve the min and max SDs in columns `min_dist` and `max_dist`.
 #'
 #' @return A single row data.frame with the columns min_sd and max_sd:  
 #'   \item{min_sd}{Minimum feasible standard deviation (or 0 if \code{calculate_min_sd=FALSE}).}  
@@ -41,7 +43,7 @@
 #'
 #' @export
 sd_bounds <- function(mean, n, min, max, n_items = 1, digits = NULL,
-                      calculate_min_sd = TRUE) {
+                      calculate_min_sd = TRUE, return_distributions = FALSE) {
   
   # 1. infer precision if not specified
   if (is.null(digits)) {
@@ -80,15 +82,18 @@ sd_bounds <- function(mean, n, min, max, n_items = 1, digits = NULL,
     NA_real_
   )
   
+  # store vectors used to calculate SDs (optional)
+  distributions <- list(min_dist = NULL, max_dist = NULL)
+  
   # 5. set up the scenarios to run
   scenarios <- list(
     # always compute the upper‐bound of SD (idx = 2)
-    list(a = min_alpha, b = max_beta, idx = 2L)
+    list(a = min_alpha, b = max_beta, idx = 2L, name = "max_dist")
   )
   if (calculate_min_sd) {
     # only include the lower‐bound scenario if requested
     scenarios <- c(
-      list(list(a = max_alpha, b = min_beta, idx = 1L)),
+      list(list(a = max_alpha, b = min_beta, idx = 1L, name = "min_dist")),
       scenarios
     )
   }
@@ -96,7 +101,7 @@ sd_bounds <- function(mean, n, min, max, n_items = 1, digits = NULL,
   # 6. loop over whichever scenarios we’ve decided to run
   # note that in the loop, `a` and `b` only refer to scenario-specific bounds, not the values set above
   for (sc in scenarios) {
-    a <- sc$a; b <- sc$b; m <- sc$idx
+    a <- sc$a; b <- sc$b; m <- sc$idx; name <- sc$name
     # clamp to [min, max]
     a <- min(max(a, min), max)
     b <- min(max(b, min), max)
@@ -121,14 +126,17 @@ sd_bounds <- function(mean, n, min, max, n_items = 1, digits = NULL,
     if (janitor::round_half_up(mean(vec), digits) == janitor::round_half_up(mean, digits) &&
         all(floor(vec * 10e9) %in% floor(poss_values * 10e9))) {
       result[m] <- janitor::round_half_up(sd(vec), digits)
+      distributions[[name]] <- vec
     }
   }
   
   result_df <- data.frame(min_sd = result[1],
                           max_sd = result[2])
   
+  if (return_distributions) {
+    result_df$min_dist <- list(distributions$min_dist)
+    result_df$max_dist <- list(distributions$max_dist)
+  }
+  
   return(result_df)
 }
-
-
-
