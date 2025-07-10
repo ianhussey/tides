@@ -39,14 +39,6 @@
 #' @export
 umbrella <- function(n, min, max, n_items = 1, digits = 2){
   
-  # testing
-  # mean = 1.14
-  # sd = 0.53
-  # n = 14
-  # min = 1
-  # max = 7
-  # digits = 2
-  
   res <- 
     # 1. find all GRIM consistent means and the min/max of their SD
     
