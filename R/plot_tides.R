@@ -88,13 +88,19 @@ plot_tides <- function(res, method = NULL, text_size = 0.6, color_true = "#43BF7
     unnest(sd_bounds)
   
   if (method == "approximate") {
-    boundary_data <- boundary_data |> filter(mean >= min, mean <= max) |> approximate_sd_bounds()
+    boundary_data <- boundary_data |> 
+      filter(mean >= min, mean <= max) |> 
+      approximate_sd_bounds()
+    
     true_label <- "TIDES consistent"
     false_label <- "TIDES inconsistent"
   } else if (method == "exact"){
-    boundary_data <- boundary_data |> drop_na(min_sd, max_sd)
+    boundary_data <- boundary_data |> 
+      drop_na(min_sd, max_sd)
+    
     if (!data_params$calculate_min_sd) {
-      boundary_data <- boundary_data |> mutate(min_sd = 0)
+      boundary_data <- boundary_data |> 
+        mutate(min_sd = 0)
     }
     true_label <- "GRIMMER-TIDES consistent"
     false_label <- "GRIMMER-TIDES inconsistent"
@@ -126,10 +132,10 @@ plot_tides <- function(res, method = NULL, text_size = 0.6, color_true = "#43BF7
     scale_y_continuous(name = "Standard Deviation", 
                        limits = c(0, NA), 
                        breaks = scales::breaks_pretty(n = 8),
-                       expand = c(10^-min(dat$digits)*5, 10^-min(dat$digits)*5)) +
+                       expand = c(10^-min(data_params$digits)*5, 10^-min(data_params$digits)*5)) +
     scale_x_continuous(name = "Mean",
                        breaks = scales::breaks_pretty(n = 10),
-                       expand = c(10^-min(dat$digits)*5, 10^-min(dat$digits)*5)) + 
+                       expand = c(10^-min(data_params$digits)*5, 10^-min(data_params$digits)*5)) + 
     theme_minimal(base_size = text_size * 20) +
     theme(legend.position = "top") +
     guides(color = guide_legend(reverse = TRUE, 
