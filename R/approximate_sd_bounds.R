@@ -2,8 +2,8 @@
 #'
 #' \code{approximate_sd_bounds} applies an interpolation strategy to
 #' relax discontinuities in SD boundary curves produced by \code{sd_bounds()}.
-#' It combines downward and upward filled versions of the SD limits from nearby 
-#' means and returns a smoothed boundary envelope for each mean value. This is 
+#' It combines downward and upward filled versions of the SD limits from nearby
+#' means and returns a smoothed boundary envelope for each mean value. This is
 #' intended to be an internal function mostly for use inside \code{plot_tides}.
 #'
 #' @param dat A data frame containing the variables \code{mean}, \code{min_sd},
@@ -19,19 +19,21 @@ approximate_sd_bounds <- function(dat) {
   dat |>
     arrange(mean) |>
     # 1) make downward-filled versions
-    mutate(min_sd_down = min_sd,
-           max_sd_down = max_sd) |>
+    mutate(min_sd_down = min_sd, max_sd_down = max_sd) |>
     tidyr::fill(min_sd_down, max_sd_down, .direction = "down") |>
     # 2) make upward-filled versions
-    mutate(min_sd_up = min_sd,
-           max_sd_up = max_sd) |>
+    mutate(min_sd_up = min_sd, max_sd_up = max_sd) |>
     tidyr::fill(min_sd_up, max_sd_up, .direction = "up") |>
     # 3) take the strictest lower bound and the loosest upper bound
-    mutate(min_sd_filled = pmin(min_sd_down, min_sd_up, na.rm = TRUE),
-           max_sd_filled = pmax(max_sd_down, max_sd_up, na.rm = TRUE)) |>
+    mutate(
+      min_sd_filled = pmin(min_sd_down, min_sd_up, na.rm = TRUE),
+      max_sd_filled = pmax(max_sd_down, max_sd_up, na.rm = TRUE)
+    ) |>
     # 4) collapse back to one row per unique mean (and its metadata)
     group_by(mean, min, max, n, n_items) |>
-    summarize(min_sd = min(min_sd_filled, na.rm = TRUE),
-              max_sd = max(max_sd_filled, na.rm = TRUE),
-              .groups = "drop")
+    summarize(
+      min_sd = min(min_sd_filled, na.rm = TRUE),
+      max_sd = max(max_sd_filled, na.rm = TRUE),
+      .groups = "drop"
+    )
 }
