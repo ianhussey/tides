@@ -40,10 +40,12 @@
 # digits <- 2
 
 umbrella <- function(n, min, max, n_items = 1, digits = 2) {
+  step_size <- 10^-digits
+
   # 1. find all GRIM consistent means and the min/max of their SD
 
   # define all possible values of mean from min to max in increments of digits
-  tibble::tibble(mean = seq(from = min, to = max, by = 10^-digits)) |>
+  tibble::tibble(mean = seq(from = min, to = max, by = step_size)) |>
     # generate min and max SD for each mean, which may ba NA. This generates only TIDES consistent values within the bounds.
     dplyr::mutate(
       sd_bounds = purrr::map(
@@ -69,7 +71,7 @@ umbrella <- function(n, min, max, n_items = 1, digits = 2) {
     # for each remaining mean, generate all SDs between the min and max bound in increments of digits
     dplyr::mutate(
       sd = purrr::map2(min_sd, max_sd, function(x, y) {
-        seq(from = x, to = y, by = 0.01)
+        seq(from = x, to = y, by = step_size)
       })
     ) |>
     tidyr::unnest(sd) |>
