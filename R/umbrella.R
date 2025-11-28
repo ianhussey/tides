@@ -30,66 +30,89 @@
 #' head(df)
 #' }
 #'
-#' @importFrom janitor round_half_up
-#' @importFrom purrr map map2 pmap
-#' @importFrom tibble tibble
-#' @importFrom tidyr unnest
-#' @importFrom scrutiny restore_zeros grimmer
-#' @importFrom dplyr filter mutate select
 #' @export
-umbrella <- function(n, min, max, n_items = 1, digits = 2){
-  
-  res <- 
-    # 1. find all GRIM consistent means and the min/max of their SD
-    
-    # define all possible values of mean from min to max in increments of digits
-    tibble(mean = seq(from = min, to = max, by = 10^-digits)) |> 
+
+# # Example inputs
+# n <- 14
+# min <- 1
+# max <- 7
+# n_items <- 1
+# digits <- 2
+
+umbrella <- function(n, min, max, n_items = 1, digits = 2) {
+  step_size <- 10^-digits
+
+  # 1. find all GRIM consistent means and the min/max of their SD
+
+  # define all possible values of mean from min to max in increments of digits
+  tibble::tibble(mean = seq(from = min, to = max, by = step_size)) |>
     # generate min and max SD for each mean, which may ba NA. This generates only TIDES consistent values within the bounds.
-    mutate(sd_bounds = map(mean, ~ sd_bounds(mean    = .x,
-                                             n       = n,
-                                             min     = min,
-                                             max     = max,
-                                             n_items = n_items,
-                                             digits  = digits))) |>
-    unnest(sd_bounds) |>
-    # drop means for which no feasible SD‐range exists, so that your remaining means are now GRIM consistent with at least the min and max also being GRIMMER consistent 
-    filter(!is.na(min_sd), !is.na(max_sd)) |>
-    
+    dplyr::mutate(
+      sd_bounds = purrr::map(
+        mean,
+        function(x) {
+          sd_bounds(
+            mean = x,
+            n = n,
+            min = min,
+            max = max,
+            n_items = n_items,
+            digits = digits
+          )
+        }
+      )
+    ) |>
+    tidyr::unnest(sd_bounds) |>
+    # drop means for which no feasible SD‐range exists, so that your remaining means are now GRIM consistent with at least the min and max also being GRIMMER consistent
+    dplyr::filter(!is.na(min_sd), !is.na(max_sd)) |>
+
     # 2. find all GRIMMER consistent SDs
-    
+
     # for each remaining mean, generate all SDs between the min and max bound in increments of digits
-    mutate(sd = purrr::map2(min_sd, max_sd, ~ seq(.x, .y, by = 0.01))) |>
-    unnest(sd) |>
-    select(mean, sd) |>
+    dplyr::mutate(
+      sd = purrr::map2(min_sd, max_sd, function(x, y) {
+        seq(from = x, to = y, by = step_size)
+      })
+    ) |>
+    tidyr::unnest(sd) |>
+    dplyr::select(mean, sd) |>
     # test which of these SDs are GRIMMER consistent
     ## create variables needed for GRIMMER testing
-    mutate(n         = n,
-           digits    = digits,
-           n_items   = n_items,
-           min       = min,
-           max       = max,
-           # define one rounding method to not inflate baseline pass rate
-           rounding = "up") |>
+    dplyr::mutate(
+      n = n,
+      digits = digits,
+      n_items = n_items,
+      min = min,
+      max = max,
+      # define one rounding method to not inflate baseline pass rate
+      rounding = "up"
+    ) |>
     ## convert M and SD to character and then restore trailing zero, as required for GRIM/MER
-    mutate(mean_char = as.character(mean),
-           mean_char = scrutiny::restore_zeros(mean_char, width = digits),
-           sd_char = as.character(sd),
-           sd_char = scrutiny::restore_zeros(sd_char, width = digits)) |>
+    dplyr::mutate(
+      mean_char = as.character(mean),
+      mean_char = scrutiny::restore_zeros(mean_char, width = digits),
+      sd_char = as.character(sd),
+      sd_char = scrutiny::restore_zeros(sd_char, width = digits)
+    ) |>
     ## apply GRIMMER to the reduced grid
-    mutate(grimmer = purrr::pmap(list(x        = mean_char,
-                                      sd       = sd_char,
-                                      n        = n,
-                                      items    = n_items,
-                                      rounding = rounding),
-                                 scrutiny::grimmer)) |>
-    unnest(grimmer) |>
+    dplyr::mutate(
+      grimmer = purrr::pmap(
+        list(
+          x = mean_char,
+          sd = sd_char,
+          n = n,
+          items = n_items,
+          rounding = rounding
+        ),
+        scrutiny::grimmer
+      )
+    ) |>
+    tidyr::unnest(grimmer) |>
     # drop GRIMMER inconsistent values, so that only GRIM+GRIMMER+TIDES consistent values remain
-    filter(grimmer == TRUE) |>
-    select(-mean_char, -sd_char, -rounding, -grimmer) |>
-    mutate_if(is.numeric, janitor::round_half_up, digits = digits)
-  
-  return(res)
+    dplyr::filter(grimmer) |>
+    dplyr::select(-mean_char, -sd_char, -rounding, -grimmer) |>
+    dplyr::mutate(dplyr::across(
+      .cols = is.numeric,
+      .fns = function(x) janitor::round_half_up(x, digits = digits)
+    ))
 }
-
-
-
