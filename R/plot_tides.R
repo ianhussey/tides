@@ -64,6 +64,7 @@
 plot_tides <- function(
   res,
   method = NULL,
+  point_size = 1.5,
   text_size = 0.6,
   color_true = "#43BF71FF",
   color_false = "#35608DFF"
@@ -148,7 +149,8 @@ plot_tides <- function(
     geom_line(data = boundary_data, aes(x = mean, y = min_sd)) +
     geom_point(
       data = res,
-      aes(mean, sd, color = tides_consistent)
+      aes(mean, sd, color = tides_consistent),
+      size = point_size
     ) +
     scale_color_manual(
       values = c("TRUE" = color_true, "FALSE" = color_false),
