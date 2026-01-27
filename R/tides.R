@@ -197,7 +197,7 @@ tides <- function(
     mutate(
       sd_range_calculable = !is.na(min_sd) & !is.na(max_sd),
       mean_inside_range = mean >= min & mean <= max,
-      sd_inside_range = case_when(
+      sd_inside_range = dplyr::case_when(
         calculate_min_sd & !is.na(min_sd) & !is.na(max_sd) ~ sd >= min_sd &
           sd <= max_sd,
         !calculate_min_sd & !is.na(max_sd) ~ sd <= max_sd,
@@ -207,25 +207,26 @@ tides <- function(
       tides_consistent = sd_range_calculable & inside_ranges
     )
 
-  # add metadata if verbose
-  if (verbose) {
-    meta <- data.frame(
-      mean = mean,
-      sd = sd,
-      n = n,
-      min = min,
-      max = max,
-      n_items = n_items,
-      digits = if (is.null(digits)) {
-        NA_integer_
-      } else {
-        digits
-      },
-      calculate_min_sd = calculate_min_sd,
-      method = method
-    )
-    df <- dplyr::bind_cols(meta, df)
+  if (!verbose) {
+    return(df)
   }
 
-  return(df)
+  # Add metadata if verbose
+  meta <- tibble(
+    mean = mean,
+    sd = sd,
+    n = n,
+    min = min,
+    max = max,
+    n_items = n_items,
+    digits = if (is.null(digits)) {
+      NA_integer_
+    } else {
+      digits
+    },
+    calculate_min_sd = calculate_min_sd,
+    method = method
+  )
+
+  dplyr::bind_cols(meta, df)
 }

@@ -121,11 +121,11 @@ plot_tides <- function(
     stop("`method` must be one of c(NULL, 'exact', 'approximate')")
   }
 
-  poly_above <- bind_rows(
+  poly_above <- dplyr::bind_rows(
     tibble(x = boundary_data$mean, y = boundary_data$max_sd),
     tibble(x = rev(boundary_data$mean), y = rep(Inf, nrow(boundary_data)))
   )
-  poly_below <- bind_rows(
+  poly_below <- dplyr::bind_rows(
     tibble(x = boundary_data$mean, y = boundary_data$min_sd),
     tibble(x = rev(boundary_data$mean), y = rep(-Inf, nrow(boundary_data)))
   )
@@ -138,14 +138,18 @@ plot_tides <- function(
     y = c(-Inf, -Inf, Inf, Inf)
   )
 
-  p <- ggplot() +
+  # Build and return the plot
+  ggplot() +
     geom_polygon(data = poly_above, aes(x, y), fill = "grey10", alpha = 0.3) +
     geom_polygon(data = poly_below, aes(x, y), fill = "grey10", alpha = 0.3) +
     geom_polygon(data = poly_left, aes(x, y), fill = "grey10", alpha = 0.3) +
     geom_polygon(data = poly_right, aes(x, y), fill = "grey10", alpha = 0.3) +
     geom_line(data = boundary_data, aes(x = mean, y = max_sd)) +
     geom_line(data = boundary_data, aes(x = mean, y = min_sd)) +
-    geom_point(data = res, aes(mean, sd, color = tides_consistent)) +
+    geom_point(
+      data = res,
+      aes(mean, sd, color = tides_consistent)
+    ) +
     scale_color_manual(
       values = c("TRUE" = color_true, "FALSE" = color_false),
       labels = c("TRUE" = true_label, "FALSE" = false_label)
@@ -176,6 +180,4 @@ plot_tides <- function(
         title = NULL
       )
     )
-
-  return(p)
 }
