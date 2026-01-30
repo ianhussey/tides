@@ -170,7 +170,7 @@ plot_tides_relative <- function(
   if (!"method" %in% names(res)) {
     stop("Relative TIDES plot requires a `method` column in the input data.")
   }
-  if (any(res$method != "approximate", na.rm = TRUE)) {
+  if (!all(res$method == "approximate", na.rm = TRUE)) {
     stop("Relative TIDES plot requires `method = 'approximate'` for all rows.")
   }
 
@@ -190,6 +190,29 @@ plot_tides_relative <- function(
     }
   )
 
+  # Define helper functions
+
+  geom_rect_shade <- function(..., .fill = "grey10") {
+    geom_rect(
+      data = tibble::tibble(...),
+      aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+      inherit.aes = FALSE,
+      fill = .fill,
+      alpha = 0.3
+    )
+  }
+
+  geom_segment_separator <- function(...) {
+    geom_segment(
+      data = tibble(...),
+      aes(x = x, y = y, xend = xend, yend = yend),
+      inherit.aes = FALSE,
+      linewidth = 0.25,
+      color = "black"
+    )
+  }
+
+  # Initial plotting
   p <- res |>
     mutate(
       tides_consistent = fct_relevel(
@@ -203,73 +226,23 @@ plot_tides_relative <- function(
       relative_dispersion,
       color = tides_consistent
     )) +
-    # shaded areas
-    geom_rect(
-      data = tibble(xmin = -Inf, xmax = 0, ymin = -Inf, ymax = Inf),
-      aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-      inherit.aes = FALSE,
-      fill = "grey10",
-      alpha = 0.3
-    ) +
-    geom_rect(
-      data = tibble(xmin = 1, xmax = Inf, ymin = -Inf, ymax = Inf),
-      aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-      inherit.aes = FALSE,
-      fill = "grey10",
-      alpha = 0.3
-    ) +
-    geom_rect(
-      data = tibble(xmin = 0, xmax = 1, ymin = 1, ymax = Inf),
-      aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-      inherit.aes = FALSE,
-      fill = "grey10",
-      alpha = 0.3
-    ) +
-    geom_rect(
-      data = tibble(xmin = 0, xmax = 1, ymin = -Inf, ymax = 0),
-      aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-      inherit.aes = FALSE,
-      fill = "grey10",
-      alpha = 0.3
-    ) +
-    # # black line separating shaded and unshaded areas - not working
-    # geom_rect(aes(xmin = 0, xmax = 1, ymin = 0, ymax = 1),
-    #           fill = NA,
-    #           inherit.aes = FALSE,
-    #           linewidth = 0.01,
-    #           color = "black") +
-    # black line separating shaded and unshaded areas
-    geom_segment(
-      data = tibble(x = 0, y = 0, xend = 1, yend = 0),
-      aes(x = x, y = y, xend = xend, yend = yend),
-      inherit.aes = FALSE,
-      linewidth = 0.25,
-      color = "black"
-    ) + # bottom
-    geom_segment(
-      data = tibble(x = 1, y = 0, xend = 1, yend = 1),
-      aes(x = x, y = y, xend = xend, yend = yend),
-      inherit.aes = FALSE,
-      linewidth = 0.25,
-      color = "black"
-    ) + # right
-    geom_segment(
-      data = tibble(x = 1, y = 1, xend = 0, yend = 1),
-      aes(x = x, y = y, xend = xend, yend = yend),
-      inherit.aes = FALSE,
-      linewidth = 0.25,
-      color = "black"
-    ) + # top
-    geom_segment(
-      data = tibble(x = 0, y = 1, xend = 0, yend = 0),
-      aes(x = x, y = y, xend = xend, yend = yend),
-      inherit.aes = FALSE,
-      linewidth = 0.25,
-      color = "black"
-    ) + # left
-    # data points
+
+    # Shade the impossible areas in grey
+    geom_rect_shade(xmin = -Inf, xmax = 0, ymin = -Inf, ymax = Inf) +
+    geom_rect_shade(xmin = 1, xmax = Inf, ymin = -Inf, ymax = Inf) +
+    geom_rect_shade(xmin = 0, xmax = 1, ymin = 1, ymax = Inf) +
+    geom_rect_shade(xmin = 0, xmax = 1, ymin = -Inf, ymax = 0) +
+
+    # Black line separating shaded and unshaded areas
+    geom_segment_separator(x = 0, y = 0, xend = 1, yend = 0) + # bottom
+    geom_segment_separator(x = 1, y = 0, xend = 1, yend = 1) + # right
+    geom_segment_separator(x = 1, y = 1, xend = 0, yend = 1) + # top
+    geom_segment_separator(x = 0, y = 1, xend = 0, yend = 0) + # left
+
+    # Data points
     geom_point(alpha = alpha) + # shape = 15,  size = 2,
-    # axes and theme
+
+    # Axes and theme
     scale_x_continuous(
       breaks = scales::breaks_pretty(n = 10),
       labels = scales::label_percent(),
@@ -297,38 +270,16 @@ plot_tides_relative <- function(
       )
     )
 
-  # improbable region
-  if (shade_improbable) {
-    p <- p +
-      geom_rect(
-        data = tibble(xmin = 0, xmax = 1, ymin = 0, ymax = 0.05),
-        aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-        inherit.aes = FALSE,
-        fill = "darkred",
-        alpha = 0.3
-      ) +
-      geom_rect(
-        data = tibble(xmin = 0, xmax = 1, ymin = 0.70, ymax = 1),
-        aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-        inherit.aes = FALSE,
-        fill = "darkred",
-        alpha = 0.3
-      ) +
-      geom_rect(
-        data = tibble(xmin = 0, xmax = 0.05, ymin = 0.05, ymax = 0.70),
-        aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-        inherit.aes = FALSE,
-        fill = "darkred",
-        alpha = 0.3
-      ) +
-      geom_rect(
-        data = tibble(xmin = 0.95, xmax = 1, ymin = 0.05, ymax = 0.70),
-        aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-        inherit.aes = FALSE,
-        fill = "darkred",
-        alpha = 0.3
-      )
+  if (!shade_improbable) {
+    return(p)
   }
 
-  return(p)
+  # Shade the improbable areas in red, not in grey
+  formals(geom_rect_shade)$.fill <- "darkred"
+
+  p +
+    geom_rect_shade(xmin = 0, xmax = 1, ymin = 0, ymax = 0.05) +
+    geom_rect_shade(xmin = 0, xmax = 1, ymin = 0.70, ymax = 1) +
+    geom_rect_shade(xmin = 0, xmax = 0.05, ymin = 0.05, ymax = 0.70) +
+    geom_rect_shade(xmin = 0.95, xmax = 1, ymin = 0.05, ymax = 0.70)
 }
