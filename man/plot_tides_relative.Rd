@@ -64,7 +64,7 @@ negative values by a factor of 10 to enhance interpretability and visual
 separation of implausibly low dispersions. Specifically:
 
 \deqn{
-  y = 
+  y =
   \begin{cases}
     \log_{10}(x + 1) & \text{if } x \geq 0 \\
     -10 \cdot \log_{10}(|x| + 1) & \text{if } x < 0
@@ -74,7 +74,7 @@ separation of implausibly low dispersions. Specifically:
 The inverse transformation is:
 
 \deqn{
-  x = 
+  x =
   \begin{cases}
     10^y - 1 & \text{if } y \geq 0 \\
     -(10^{-y / 10} - 1) & \text{if } y < 0
@@ -88,12 +88,12 @@ dispersions that would otherwise be visually compressed.
 }
 \examples{
 \dontrun{
-# multiple M-SD pairs which have identical N, min, and mean too 
+# multiple M-SD pairs which have identical N, min, and mean too
 set.seed(12)
 
-res <- 
-  tibble(mean    = round_half_up(runif(n = 20, min = 1, max = 7), 2), 
-         sd      = round_half_up(runif(n = 20, min = 0, max = 4), 2), 
+res <-
+  tibble(mean    = round_half_up(runif(n = 20, min = 1, max = 7), 2),
+         sd      = round_half_up(runif(n = 20, min = 0, max = 4), 2),
          n       = 11,
          min     = 1,
          max     = 7,
@@ -102,28 +102,28 @@ res <-
          calculate_min_sd = TRUE,
          verbose = FALSE,
          method = "approximate") |>
-  mutate(results = pmap_dfr(list(mean = mean, 
-                                 sd = sd, 
-                                 n = n, 
-                                 min = min, 
-                                 max = max, 
-                                 n_items = n_items, 
-                                 digits = digits, 
-                                 calculate_min_sd = calculate_min_sd, 
+  mutate(results = pmap_dfr(list(mean = mean,
+                                 sd = sd,
+                                 n = n,
+                                 min = min,
+                                 max = max,
+                                 n_items = n_items,
+                                 digits = digits,
+                                 calculate_min_sd = calculate_min_sd,
                                  verbose = verbose,
                                  method = method),
                             tides)) |>
   unnest(results)
-  
+
 plot_tides_relative(res)
 
 # More likely in real life: different M-SD pairs that also differ in their N, min and max
 set.seed(12)
 
-res <- 
+res <-
   bind_rows(
-    tibble(mean    = round_half_up(runif(n = 20, min = 1, max = 5), 2), 
-           sd      = round_half_up(runif(n = 20, min = 0, max = 3), 2), 
+    tibble(mean    = round_half_up(runif(n = 20, min = 1, max = 5), 2),
+           sd      = round_half_up(runif(n = 20, min = 0, max = 3), 2),
            n       = 11,
            min     = 1,
            max     = 5,
@@ -132,8 +132,8 @@ res <-
            calculate_min_sd = TRUE,
            verbose = FALSE,
            method = "approximate"),
-    tibble(mean    = round_half_up(runif(n = 20, min = 1, max = 7), 2), 
-           sd      = round_half_up(runif(n = 20, min = 0, max = 4), 2), 
+    tibble(mean    = round_half_up(runif(n = 20, min = 1, max = 7), 2),
+           sd      = round_half_up(runif(n = 20, min = 0, max = 4), 2),
            n       = 29,
            min     = 1,
            max     = 7,
@@ -142,8 +142,8 @@ res <-
            calculate_min_sd = TRUE,
            verbose = FALSE,
            method = "approximate"),
-    tibble(mean    = round_half_up(runif(n = 20, min = 1, max = 10), 2), 
-           sd      = round_half_up(runif(n = 20, min = 0, max = 5), 2), 
+    tibble(mean    = round_half_up(runif(n = 20, min = 1, max = 10), 2),
+           sd      = round_half_up(runif(n = 20, min = 0, max = 5), 2),
            n       = 41,
            min     = 1,
            max     = 10,
@@ -153,14 +153,14 @@ res <-
            verbose = FALSE,
            method = "approximate")
   ) |>
-  mutate(results = pmap_dfr(list(mean = mean, 
-                                 sd = sd, 
-                                 n = n, 
-                                 min = min, 
-                                 max = max, 
-                                 n_items = n_items, 
-                                 digits = digits, 
-                                 calculate_min_sd = calculate_min_sd, 
+  mutate(results = pmap_dfr(list(mean = mean,
+                                 sd = sd,
+                                 n = n,
+                                 min = min,
+                                 max = max,
+                                 n_items = n_items,
+                                 digits = digits,
+                                 calculate_min_sd = calculate_min_sd,
                                  verbose = verbose,
                                  method = method),
                             tides)) |>
@@ -170,7 +170,7 @@ res <-
 # plot_tides(res) # throws an error
 
 # relative plot allows combining of these different results
-plot_tides_relative(res) 
+plot_tides_relative(res)
 }
 
 }
