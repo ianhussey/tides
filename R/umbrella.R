@@ -70,37 +70,20 @@ umbrella <- function(n, min, max, n_items = 1, digits = 2) {
     ) |>
     tidyr::unnest(sd) |>
     dplyr::select(mean, sd) |>
-    # test which of these SDs are GRIMMER consistent
-    ## create variables needed for GRIMMER testing
+    # keep only the GRIMMER-consistent SDs, so that only GRIM + GRIMMER + TIDES
+    # consistent values remain (rounding = "up" avoids inflating the pass rate)
     dplyr::mutate(
-      n = n,
-      digits = digits,
-      n_items = n_items,
-      min = min,
-      max = max,
-      # define one rounding method to not inflate baseline pass rate
-      rounding = "up"
-    ) |>
-    ## apply GRIMMER to the reduced grid. scrutiny (>= 0.6) takes the mean and SD
-    ## as numbers together with their reported decimal places (digits_x/digits_sd).
-    dplyr::mutate(
-      grimmer = purrr::pmap(
-        list(
-          x = mean,
-          sd = sd,
-          n = n,
-          digits_x = digits,
-          digits_sd = digits,
-          items = n_items,
-          rounding = rounding
-        ),
-        scrutiny::grimmer
+      grimmer = grimmer_consistent(
+        mean = mean,
+        sd = sd,
+        n = n,
+        digits = digits,
+        n_items = n_items,
+        rounding = "up"
       )
     ) |>
-    tidyr::unnest(grimmer) |>
-    # drop GRIMMER inconsistent values, so that only GRIM+GRIMMER+TIDES consistent values remain
     dplyr::filter(grimmer) |>
-    dplyr::select(-rounding, -grimmer) |>
+    dplyr::select(mean, sd) |>
     dplyr::mutate(dplyr::across(
       .cols = dplyr::where(is.numeric),
       .fns = function(x) janitor::round_half_up(x, digits = digits)
