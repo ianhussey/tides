@@ -14,7 +14,7 @@
 #' @param n      Integer. The sample size.
 #' @param min    Numeric. The minimum possible (or observed) value.
 #' @param max    Numeric. The maximum possible (or observed) value.
-#' @param n_items  Integer(1). Number of discrete “items” averaged at participant level
+#' @param n_items  Integer(1). Number of discrete "items" averaged at participant level
 #'                (e.g.\ number of Likert items). Defaults to 1 (no within-participant averaging).
 #' @param digits   Integer or \code{NULL}. Number of decimal places used when
 #'                 comparing means or rounding SD. If \code{NULL}, it is inferred
@@ -91,18 +91,18 @@ sd_bounds <- function(
 
   # 5. set up the scenarios to run
   scenarios <- list(
-    # always compute the upper‐bound of SD (idx = 2)
+    # always compute the upper-bound of SD (idx = 2)
     list(a = min_alpha, b = max_beta, idx = 2L, name = "max_dist")
   )
   if (calculate_min_sd) {
-    # only include the lower‐bound scenario if requested
+    # only include the lower-bound scenario if requested
     scenarios <- c(
       list(list(a = max_alpha, b = min_beta, idx = 1L, name = "min_dist")),
       scenarios
     )
   }
 
-  # 6. loop over whichever scenarios we’ve decided to run
+  # 6. loop over whichever scenarios we've decided to run
   # note that in the loop, `a` and `b` only refer to scenario-specific bounds, not the values set above
   for (sc in scenarios) {
     a <- sc$a

@@ -1,8 +1,8 @@
-#' TIDES consistency test for a single mean–SD report
+#' TIDES consistency test for a single mean-SD report
 #'
 #' Given a reported mean, standard deviation and sample size on a bounded scale,
 #' \code{tides()} checks whether the observed SD is feasible under the known
-#' minimum/maximum of that scale (and optional item‐level discretization). It
+#' minimum/maximum of that scale (and optional item-level discretization). It
 #' returns the theoretical minimum and maximum SD, the Percent Of Maximum
 #' Possible (POMP) transformations of the mean and SD, and logical flags
 #' indicating whether the reported values fall within the feasible range.
@@ -34,7 +34,7 @@
 #'                       requested mean has no valid SD bounds.
 #' @param approximate_bounds_range Integer. Number of steps (based on \code{digits}) in
 #'                       either direction to search for a nearby mean with valid SD bounds
-#'                       when \code{method = "approximate"}. Defaults to 10 (i.e., ±10 steps).
+#'                       when \code{method = "approximate"}. Defaults to 10 (i.e., +/-10 steps).
 #'
 #' @return A data frame (or tibble) with the following columns:
 #' \describe{
@@ -171,7 +171,7 @@ tides <- function(
   #   pomp_sd <- NA_real_
   # }
   if (!is.na(min_sd) && !is.na(max_sd) && min_sd == 0 && max_sd == 0) {
-    # when no dispersion range is possible…
+    # when no dispersion range is possible...
     pomp_sd <- if (sd == 0) {
       0
     } else if (sd > 0) {

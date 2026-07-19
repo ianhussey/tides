@@ -1,17 +1,17 @@
 #' Plot TIDES consistency on a standardized relative scale
 #'
 #' Given a data frame of TIDES outcomes (with percent-of-maximum-possible
-#' transformed mean and SD), `plot_tides_relative()` draws each point’s
+#' transformed mean and SD), `plot_tides_relative()` draws each point's
 #' relative location (proportion of maximum possible mean) on the x-axis
 #' against its relative dispersion (proportion of maximum possible SD)
-#' on the y-axis, transformed using an *asymmetric signed log₁₀ scale*.
+#' on the y-axis, transformed using an *asymmetric signed log10 scale*.
 #'
-#' Regions outside the feasible 0–1 square are shaded to indicate
+#' Regions outside the feasible 0-1 square are shaded to indicate
 #' infeasible value combinations. Points are colored by whether they passed
 #' the TIDES consistency check.
 #'
 #' ## Y-Axis Transformation
-#' The y-axis applies a **custom signed log₁₀ transformation** that stretches
+#' The y-axis applies a **custom signed log10 transformation** that stretches
 #' negative values by a factor of 10 to enhance interpretability and visual
 #' separation of implausibly low dispersions. Specifically:
 #'
@@ -48,8 +48,8 @@
 #'   Defaults to \code{"#43BF71FF"}.
 #' @param color_false Colour for points with \code{tides_consistent == FALSE}.
 #'   Defaults to \code{"#35608DFF"}.
-#' @param color_region Colour used to outline the feasible 0–1 square and to
-#'   shade the four “infeasible” quadrants. Defaults to \code{"turquoise4"}.
+#' @param color_region Colour used to outline the feasible 0-1 square and to
+#'   shade the four "infeasible" quadrants. Defaults to \code{"turquoise4"}.
 #' @param alpha Transparency level for plotted points. Defaults to \code{0.7}.
 #' @param shade_improbable Logical. If \code{TRUE}, highlights regions with
 #'   implausibly low or high relative dispersion or extreme means.
@@ -57,10 +57,10 @@
 #' @return A \code{ggplot} object showing:
 #' \itemize{
 #'   \item Shaded infeasible regions beyond the unit square.
-#'   \item A black-bordered central feasible region (0–1 for both axes).
+#'   \item A black-bordered central feasible region (0-1 for both axes).
 #'   \item Points colored by TIDES consistency.
-#'   \item A y-axis transformed using a signed log₁₀ scale that stretches
-#'         negative values 10× more than positive ones for visual clarity.
+#'   \item A y-axis transformed using a signed log10 scale that stretches
+#'         negative values 10x more than positive ones for visual clarity.
 #' }
 #'
 #' @import ggplot2

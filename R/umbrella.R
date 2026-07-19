@@ -1,20 +1,20 @@
-#' Generate all GRIM+GRIMMER+TIDES–consistent means and SDs for an umbrella plot
+#' Generate all GRIM+GRIMMER+TIDES-consistent means and SDs for an umbrella plot
 #'
-#' Given a sample size, scale bounds, response‐item count, and decimal precision,
+#' Given a sample size, scale bounds, response-item count, and decimal precision,
 #' this function builds the full grid of reported means and standard deviations
 #' that simultaneously satisfy:
-#'   1. GRIM (integer‐mean) constraints,
-#'   2. GRIMMER (decimal‐SD) constraints, and
-#'   3. TIDES (bounds‐test) constraints.
+#'   1. GRIM (integer-mean) constraints,
+#'   2. GRIMMER (decimal-SD) constraints, and
+#'   3. TIDES (bounds-test) constraints.
 #'
 #' @param n         Integer. Sample size.
 #' @param min       Numeric. Minimum possible (or observed) score.
 #' @param max       Numeric. Maximum possible (or observed) score.
 #' @param n_items   Integer(1). Number of discrete items per participant
-#'                  (e.g. Likert‐scale items). Defaults to 1. Note: values above
+#'                  (e.g. Likert-scale items). Defaults to 1. Note: values above
 #'                  1 are not yet supported (see "Limitations" in the README).
 #' @param digits    Integer. Number of decimal places in reported means/SDs;
-#'                  used to define the mean‐ and SD‐grids. Defaults to 2.
+#'                  used to define the mean- and SD-grids. Defaults to 2.
 #'
 #' @return A tibble with columns:
 #'   \describe{
@@ -57,7 +57,7 @@ umbrella <- function(n, min, max, n_items = 1, digits = 2) {
       )
     ) |>
     tidyr::unnest(sd_bounds) |>
-    # drop means for which no feasible SD‐range exists, so that your remaining means are now GRIM consistent with at least the min and max also being GRIMMER consistent
+    # drop means for which no feasible SD-range exists, so that your remaining means are now GRIM consistent with at least the min and max also being GRIMMER consistent
     dplyr::filter(!is.na(min_sd), !is.na(max_sd)) |>
 
     # 2. find all GRIMMER consistent SDs

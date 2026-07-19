@@ -15,7 +15,7 @@
 #' @param color_true Character. Color for consistent points (default: green).
 #' @param color_false Character. Color for inconsistent points (default: blue).
 #'
-#' @return A ggplot object showing the TIDES boundary envelope, shaded inconsistency zones, and reported mean–SD points with legend reversed.
+#' @return A ggplot object showing the TIDES boundary envelope, shaded inconsistency zones, and reported mean-SD points with legend reversed.
 #'
 #' @examples
 #' \donttest{

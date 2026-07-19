@@ -2,7 +2,7 @@
 #'
 #' Given a tibble of (mean, SD) pairs that pass GRIM, GRIMMER, and TIDES
 #' consistency tests (as returned by \code{\link{umbrella}()}), produce
-#' a square‐point scatterplot of SD vs. mean.
+#' a square-point scatterplot of SD vs. mean.
 #'
 #' @param dat   A tibble containing at least the columns
 #'              \describe{
