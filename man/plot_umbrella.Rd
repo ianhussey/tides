@@ -4,19 +4,22 @@
 \alias{plot_umbrella}
 \title{Create an umbrella plot of feasible means and SDs}
 \usage{
-plot_umbrella(dat, size = 0.5)
+plot_umbrella(dat, size = 0.5, digits = NULL)
 }
 \arguments{
 \item{dat}{A tibble containing at least the columns
 \describe{
 \item{mean}{Numeric: a feasible reported mean.}
 \item{sd}{Numeric: a feasible reported standard deviation.}
-\item{digits}{Integer: number of decimal places used,
-for setting axis expansion.}
-}}
+}
+(typically the output of \code{\link{umbrella}()}).}
 
 \item{size}{Numeric. Point size (in mm) passed to \code{\link[ggplot2]{geom_point}()};
 defaults to 0.5.}
+
+\item{digits}{Integer. Decimal precision of the reported values, used only to
+set the axis expansion. If \code{NULL} (default), taken from a
+\code{digits} column in \code{dat} when present, otherwise 2.}
 }
 \value{
 A \code{\link[ggplot2]{ggplot}} object: a scatterplot of \code{sd} vs.\ \code{mean}

@@ -9,7 +9,14 @@
 # regardless of the scrutiny version a user has installed.
 #
 # Returns a logical vector, one element per (mean, sd) pair.
-grimmer_consistent <- function(mean, sd, n, digits, n_items = 1, rounding = "up") {
+grimmer_consistent <- function(
+  mean,
+  sd,
+  n,
+  digits,
+  n_items = 1,
+  rounding = "up"
+) {
   has_digits <- "digits_x" %in% names(formals(scrutiny::grimmer))
 
   if (has_digits) {

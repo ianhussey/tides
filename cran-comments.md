@@ -26,3 +26,8 @@ The one NOTE is the standard "New submission" flag.
 * Examples that build ggplot objects or enumerate feasibility grids are wrapped
   in `\donttest{}` to keep the per-example runtime within CRAN limits; they run
   in full locally and in CI.
+* `umbrella()` and the vignette call the `scrutiny` package's GRIM/GRIMMER
+  functions, whose argument interface has changed across scrutiny releases. The
+  package detects the installed interface at run time (see
+  `R/scrutiny-compat.R`), so it works with both current CRAN scrutiny and newer
+  versions.
