@@ -6,6 +6,7 @@ setwd("~/git/tides")
 devtools::document()
 
 devtools::check()
+# rcmdcheck::rcmdcheck(args = "--as-cran") 
 
 # once you have the package updated, you can use it to build the vignettes, check the whole thing, and reinstall again
 devtools::build_vignettes()
