@@ -7,9 +7,11 @@
 #' your existing `tides()` function to each row and binds the
 #' results into the original data frame.
 #'
-#' @param .data A data frame or tibble.  Must contain columns named
-#'   “mean”, “sd”, “n”, “min”, “max”, “n_items”, “digits” and
-#'   “calculate_min_sd” if you do not override them below.
+#' @param .data A data frame or tibble.  Must contain the columns "mean",
+#'   "sd", "n", "min" and "max" (unless supplied via the arguments below).
+#'   The optional columns "n_items", "digits", "calculate_min_sd" and "method"
+#'   are used when present and otherwise fall back to the \code{tides()}
+#'   defaults, so they need not be included.
 #' @param mean Optional.  A numeric vector or a column reference
 #'   in `.data` providing the group means.  Defaults to the
 #'   `.data$mean` column.
@@ -27,7 +29,8 @@
 #'   `.data$max`.
 #' @param n_items Optional.  A numeric vector or a column
 #'   reference for the number of items in the scale.  Defaults
-#'   to `.data$n_items`. CURRENTLY DOES NOT WORK AND HARD CODED TO 1.
+#'   to `.data$n_items`. Note: values above 1 are not yet supported and are
+#'   currently forced to 1 internally (see "Limitations" in the README).
 #' @param digits Optional.  An integer vector or a column
 #'   reference indicating how many decimal places to display.
 #'   Defaults to `.data$digits`.
@@ -36,12 +39,15 @@
 #'   a minimum standard deviation.  Defaults to
 #'   `.data$calculate_min_sd`.
 #' @param method Optional.  A string vector or a
-#'   column reference indicating whether `tides()` should test the
-#'   strict SD bounds for only the supplied mean (i.e., implicitly
-#'   test for GRIM and GRIMMER consistency, when argument is set to
-#'   'exact'), or whether in the case of undefined SD bounds the
-#'   bounds of nearby means should be used (when argument is set to
+#'   column reference indicating whether `tides()` should test the 
+#'   strict SD bounds for only the supplied mean (i.e., implicitly 
+#'   test for GRIM and GRIMMER consistency, when argument is set to 
+#'   'exact'), or whether in the case of undefined SD bounds the 
+#'   bounds of nearby means should be used (when argument is set to 
 #'   'approximate').
+#' @param approximate_bounds_range Integer. Passed to `tides()`; the number of
+#'   precision steps in either direction to search for a nearby mean with valid
+#'   SD bounds when `method = "approximate"`. Defaults to 10.
 #'
 #' @return A tibble combining the original `.data` with the
 #'   output of `tides()` for each row.  The result will include
@@ -58,7 +64,6 @@
 #' data-frame form.
 #'
 #' @examples
-#' \dontrun{
 #' dat <- data.frame(
 #'   mean             = c(4.2, 4.2, 1.2, 1.4),
 #'   sd               = c(0.5, 0.5, 0.5, 0.6),
@@ -71,92 +76,78 @@
 #'   method           = c("exact", "approximate", "exact", "exact")
 #' )
 #'
-#' res <- dat |> tides_df()
+#' res <- tides_df(dat)
 #' print(res)
-#' }
 #'
 #' @importFrom dplyr mutate
 #' @importFrom purrr pmap_dfr
 #' @importFrom tidyr unnest
 #' @importFrom rlang enquo quo_is_null quo
 #' @export
-tides_df <- function(
-  .data,
-  mean = NULL,
-  sd = NULL,
-  n = NULL,
-  min = NULL,
-  max = NULL,
-  n_items = NULL,
-  digits = NULL,
-  calculate_min_sd = NULL,
-  method = NULL,
-  approximate_bounds_range = 10
-) {
+tides_df <- function(.data,
+                     mean             = NULL,
+                     sd               = NULL,
+                     n                = NULL,
+                     min              = NULL,
+                     max              = NULL,
+                     n_items          = NULL,
+                     digits           = NULL,
+                     calculate_min_sd = NULL,
+                     method           = NULL,
+                     approximate_bounds_range = 10) {
+  
   # currently n_items is hard coded to 1 while i figure out how to implement it
   n_items <- 1
-
+  
   # capture each argument as a quosure
-  mean_q <- enquo(mean)
-  sd_q <- enquo(sd)
-  n_q <- enquo(n)
-  min_q <- enquo(min)
-  max_q <- enquo(max)
-  items_q <- enquo(n_items)
-  digs_q <- enquo(digits)
-  calc_q <- enquo(calculate_min_sd)
+  mean_q   <- enquo(mean)
+  sd_q     <- enquo(sd)
+  n_q      <- enquo(n)
+  min_q    <- enquo(min)
+  max_q    <- enquo(max)
+  items_q  <- enquo(n_items)
+  digs_q   <- enquo(digits)
+  calc_q   <- enquo(calculate_min_sd)
   method_q <- enquo(method)
 
-  # if the user did not supply that argument,
-  # replace its quosure with one pointing to the column of the same name
-  if (quo_is_null(mean_q)) {
-    mean_q <- quo(mean)
-  }
-  if (quo_is_null(sd_q)) {
-    sd_q <- quo(sd)
-  }
-  if (quo_is_null(n_q)) {
-    n_q <- quo(n)
-  }
-  if (quo_is_null(min_q)) {
-    min_q <- quo(min)
-  }
-  if (quo_is_null(max_q)) {
-    max_q <- quo(max)
-  }
+  # If the user did not supply a required argument, point its quosure at the
+  # column of the same name (an error is raised later if it is absent).
+  if (quo_is_null(mean_q)) mean_q <- quo(mean)
+  if (quo_is_null(sd_q))   sd_q   <- quo(sd)
+  if (quo_is_null(n_q))    n_q    <- quo(n)
+  if (quo_is_null(min_q))  min_q  <- quo(min)
+  if (quo_is_null(max_q))  max_q  <- quo(max)
+
+  # For optional arguments, fall back to the column of the same name when it
+  # exists, otherwise to the tides() default, so a data frame need not carry
+  # these columns.
   if (quo_is_null(items_q)) {
-    items_q <- quo(n_items)
+    items_q <- if ("n_items" %in% names(.data)) quo(n_items) else quo(1)
   }
   if (quo_is_null(digs_q)) {
-    digs_q <- quo(digits)
+    digs_q <- if ("digits" %in% names(.data)) quo(digits) else quo(2)
   }
   if (quo_is_null(calc_q)) {
-    calc_q <- quo(calculate_min_sd)
+    calc_q <- if ("calculate_min_sd" %in% names(.data)) quo(calculate_min_sd) else quo(TRUE)
   }
   if (quo_is_null(method_q)) {
-    method_q <- quo(method)
+    method_q <- if ("method" %in% names(.data)) quo(method) else quo("exact")
   }
 
   res <- .data |>
-    mutate(
-      results = pmap_dfr(
-        .l = list(
-          mean = !!mean_q,
-          sd = !!sd_q,
-          n = !!n_q,
-          min = !!min_q,
-          max = !!max_q,
-          n_items = !!items_q,
-          digits = !!digs_q,
-          calculate_min_sd = !!calc_q,
-          method = !!method_q,
-          approximate_bounds_range = approximate_bounds_range
-        ),
-        verbose = FALSE,
-        .f = tides
-      )
-    ) |>
+    mutate(results = pmap_dfr(.l = list(mean             = !!mean_q,
+                                        sd               = !!sd_q,
+                                        n                = !!n_q,
+                                        min              = !!min_q,
+                                        max              = !!max_q,
+                                        n_items          = !!items_q,
+                                        digits           = !!digs_q,
+                                        calculate_min_sd = !!calc_q,
+                                        method           = !!method_q,
+                                        approximate_bounds_range = approximate_bounds_range),
+                              verbose = FALSE,
+                              .f = tides)) |>
     unnest(results)
-
+  
   return(res)
 }

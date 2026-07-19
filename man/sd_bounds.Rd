@@ -56,13 +56,10 @@ The upper bound (max_sd) is always computed. Rounding precision is inferred
 from the decimals in \code{mean} unless \code{digits} is specified.
 }
 \examples{
-\dontrun{
-# Suppose a 5-point scale (1–5), mean = 3.2, n = 30, no within-person averaging:
+# A 5-point scale (1-5), mean = 3.2, n = 30, no within-person averaging:
 sd_bounds(mean = 3.2, n = 30, min = 1, max = 5)
 
 # If you only care about the upper bound:
-sd_bounds(mean = 3.2, n = 30, min = 1, max = 5,
-          calculate_min_sd = FALSE)
-}
+sd_bounds(mean = 3.2, n = 30, min = 1, max = 5, calculate_min_sd = FALSE)
 
 }

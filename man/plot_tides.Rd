@@ -38,39 +38,32 @@ Depending on the input, this function either plots a single reported mean/SD val
 This plot helps visualize whether reported mean and standard deviation values are internally consistent with bounded measurement scales, using the TIDES (Test for Internal Data Error Sensitivity) method.
 }
 \examples{
-\dontrun{
-tides(mean = 3.10, sd = 0.80, n = 1100, min = 1, max = 7, n_items = 1, digits = 2) |>
+\donttest{
+# A single reported mean-SD pair
+tides(mean = 3.10, sd = 0.80, n = 1100, min = 1, max = 7) |>
   plot_tides()
 
-tides(mean = 5.07, sd = 2.92, n = 15, min = 1, max = 7, n_items = 1, digits = 2) |>
-  plot_tides()
-  
-tides(mean = 5.07, sd = 2.92, n = 15, min = 1, max = 7, n_items = 1, digits = 2, method = "approximate") |>
+# An SD near the upper bound
+tides(mean = 5.07, sd = 2.92, n = 15, min = 1, max = 7) |>
   plot_tides()
 
-tibble(mean    = round_half_up(runif(n = 20, min = 1, max = 7), 2), 
-       sd      = round_half_up(runif(n = 20, min = 0, max = 4), 2), 
-       n       = 30,
-       min     = 1,
-       max     = 7,
-       n_items = 1,
-       digits  = 2,
-       calculate_min_sd = TRUE,
-       verbose = FALSE,
-       method = "approximate") |>
-  mutate(results = pmap_dfr(list(mean = mean, 
-                                 sd = sd, 
-                                 n = n, 
-                                 min = min, 
-                                 max = max, 
-                                 n_items = n_items, 
-                                 digits = digits, 
-                                 calculate_min_sd = calculate_min_sd, 
-                                 verbose = verbose,
-                                 method = method),
-                            tides)) |>
-  unnest(results) |>
+# The more liberal "approximate" envelope
+tides(mean = 5.07, sd = 2.92, n = 15, min = 1, max = 7, method = "approximate") |>
   plot_tides()
+
+# Multiple reported values that share the same n, scale and precision
+dat <- data.frame(
+  mean    = c(3.1, 4.0, 5.5, 6.2),
+  sd      = c(0.8, 1.4, 2.9, 0.6),
+  n       = 30,
+  min     = 1,
+  max     = 7,
+  n_items = 1,
+  digits  = 2,
+  calculate_min_sd = TRUE,
+  method  = "approximate"
+)
+plot_tides(tides_df(dat))
 }
 
 }

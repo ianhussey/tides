@@ -19,9 +19,11 @@ tides_df(
 )
 }
 \arguments{
-\item{.data}{A data frame or tibble.  Must contain columns named
-“mean”, “sd”, “n”, “min”, “max”, “n_items”, “digits” and
-“calculate_min_sd” if you do not override them below.}
+\item{.data}{A data frame or tibble.  Must contain the columns "mean",
+"sd", "n", "min" and "max" (unless supplied via the arguments below).
+The optional columns "n_items", "digits", "calculate_min_sd" and "method"
+are used when present and otherwise fall back to the \code{tides()}
+defaults, so they need not be included.}
 
 \item{mean}{Optional.  A numeric vector or a column reference
 in \code{.data} providing the group means.  Defaults to the
@@ -45,7 +47,8 @@ in \code{.data} providing the observed maxima.  Defaults to
 
 \item{n_items}{Optional.  A numeric vector or a column
 reference for the number of items in the scale.  Defaults
-to \code{.data$n_items}. CURRENTLY DOES NOT WORK AND HARD CODED TO 1.}
+to \code{.data$n_items}. Note: values above 1 are not yet supported and are
+currently forced to 1 internally (see "Limitations" in the README).}
 
 \item{digits}{Optional.  An integer vector or a column
 reference indicating how many decimal places to display.
@@ -63,6 +66,10 @@ test for GRIM and GRIMMER consistency, when argument is set to
 'exact'), or whether in the case of undefined SD bounds the
 bounds of nearby means should be used (when argument is set to
 'approximate').}
+
+\item{approximate_bounds_range}{Integer. Passed to \code{tides()}; the number of
+precision steps in either direction to search for a nearby mean with valid
+SD bounds when \code{method = "approximate"}. Defaults to 10.}
 }
 \value{
 A tibble combining the original \code{.data} with the
@@ -88,7 +95,6 @@ then \code{tidyr::unnest()} expands the results into a standard
 data-frame form.
 }
 \examples{
-\dontrun{
 dat <- data.frame(
   mean             = c(4.2, 4.2, 1.2, 1.4),
   sd               = c(0.5, 0.5, 0.5, 0.6),
@@ -101,8 +107,7 @@ dat <- data.frame(
   method           = c("exact", "approximate", "exact", "exact")
 )
 
-res <- dat |> tides_df()
+res <- tides_df(dat)
 print(res)
-}
 
 }

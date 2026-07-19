@@ -29,8 +29,11 @@ tides(
 
 \item{max}{Numeric. Maximum possible (or observed) score on the scale.}
 
-\item{n_items}{Integer ≥ 1. Number of discrete “items” averaged at the
-participant level (e.g.\ a 5-item Likert mean → 5). Defaults to 1. CURRENTLY DOES NOT WORK AND HARD CODED TO 1.}
+\item{n_items}{Integer >= 1. Number of discrete items averaged at the
+participant level (e.g. a 5-item Likert mean uses 5).
+Defaults to 1. Note: values above 1 are not yet
+supported and are currently forced to 1 internally (see
+"Limitations" in the package README).}
 
 \item{digits}{Integer or \code{NULL}. Decimal places to use when
 comparing means and rounding SD. If \code{NULL}, inferred
@@ -86,19 +89,18 @@ can optionally fall back to using bounds from the closest nearby mean with
 calculable SD bounds. This is controlled by the \code{method} argument.
 }
 \examples{
-\dontrun{
-# Single case on a 1–5 scale
+# Single case on a 1-5 scale
 tides(mean = 3.20, sd = 0.80, n = 30, min = 1, max = 5)
 
-# Results can be inside the bounds of a tides plot and still inconsistent because they are (implicitly) GRIM or GRIMMER inconsistent.
-# See plot_tides() for an illustration.
+# Results can sit inside the TIDES envelope and still be inconsistent because
+# they are (implicitly) GRIM or GRIMMER inconsistent. See plot_tides().
 tides(mean = 3.21, sd = 0.80, n = 30, min = 1, max = 5)
 
-# A more liberal test against the extreme bounds of SD for nearby means is also possible, i.e., a TIDES-only test ignoring GRIM/MER inconsistencies.
+# A more liberal test against the extreme SD bounds of nearby means is also
+# possible, i.e. a TIDES-only test ignoring GRIM/GRIMMER inconsistencies.
 tides(mean = 3.21, sd = 0.80, n = 30, min = 1, max = 5, method = "approximate")
 
-# Only compute upper SD bound, eg if measurement instrument has arbitrary granularity
+# Only compute the upper SD bound, e.g. if the instrument has arbitrary granularity
 tides(mean = 3.2, sd = 0.8, n = 30, min = 1, max = 5, calculate_min_sd = FALSE)
-}
 
 }

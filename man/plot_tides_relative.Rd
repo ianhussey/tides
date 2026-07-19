@@ -16,7 +16,7 @@ plot_tides_relative(
 \arguments{
 \item{res}{A \code{data.frame} or \code{tibble} containing at minimum:
 \describe{
-\item{\code{relative_location}}{Numeric in \link{0,1}: POMP mean.}
+\item{\code{relative_location}}{Numeric in \eqn{[0, 1]}: POMP mean.}
 \item{\code{relative_dispersion}}{Numeric: POMP SD as a proportion of max SD.}
 \item{\code{tides_consistent}}{Logical: consistency flag.}
 \item{\code{method}}{Character: must be \code{"approximate"} for all rows.}
@@ -87,90 +87,37 @@ dispersions that would otherwise be visually compressed.
 }
 }
 \examples{
-\dontrun{
-# multiple M-SD pairs which have identical N, min, and mean too 
+\donttest{
+# Multiple mean-SD pairs sharing the same n, min and max
 set.seed(12)
+dat <- data.frame(
+  mean    = round(runif(20, 1, 7), 2),
+  sd      = round(runif(20, 0, 4), 2),
+  n       = 11,
+  min     = 1,
+  max     = 7,
+  n_items = 1,
+  digits  = 2,
+  calculate_min_sd = TRUE,
+  method  = "approximate"
+)
+plot_tides_relative(tides_df(dat))
 
-res <- 
-  tibble(mean    = round_half_up(runif(n = 20, min = 1, max = 7), 2), 
-         sd      = round_half_up(runif(n = 20, min = 0, max = 4), 2), 
-         n       = 11,
-         min     = 1,
-         max     = 7,
-         n_items = 1,
-         digits  = 2,
-         calculate_min_sd = TRUE,
-         verbose = FALSE,
-         method = "approximate") |>
-  mutate(results = pmap_dfr(list(mean = mean, 
-                                 sd = sd, 
-                                 n = n, 
-                                 min = min, 
-                                 max = max, 
-                                 n_items = n_items, 
-                                 digits = digits, 
-                                 calculate_min_sd = calculate_min_sd, 
-                                 verbose = verbose,
-                                 method = method),
-                            tides)) |>
-  unnest(results)
-  
-plot_tides_relative(res)
-
-# More likely in real life: different M-SD pairs that also differ in their N, min and max
+# The relative scale also lets you combine results that differ in n, min and max
+# (which plot_tides() cannot). Here three scales are pooled on one plot.
 set.seed(12)
-
-res <- 
-  bind_rows(
-    tibble(mean    = round_half_up(runif(n = 20, min = 1, max = 5), 2), 
-           sd      = round_half_up(runif(n = 20, min = 0, max = 3), 2), 
-           n       = 11,
-           min     = 1,
-           max     = 5,
-           n_items = 1,
-           digits  = 2,
-           calculate_min_sd = TRUE,
-           verbose = FALSE,
-           method = "approximate"),
-    tibble(mean    = round_half_up(runif(n = 20, min = 1, max = 7), 2), 
-           sd      = round_half_up(runif(n = 20, min = 0, max = 4), 2), 
-           n       = 29,
-           min     = 1,
-           max     = 7,
-           n_items = 1,
-           digits  = 2,
-           calculate_min_sd = TRUE,
-           verbose = FALSE,
-           method = "approximate"),
-    tibble(mean    = round_half_up(runif(n = 20, min = 1, max = 10), 2), 
-           sd      = round_half_up(runif(n = 20, min = 0, max = 5), 2), 
-           n       = 41,
-           min     = 1,
-           max     = 10,
-           n_items = 1,
-           digits  = 2,
-           calculate_min_sd = TRUE,
-           verbose = FALSE,
-           method = "approximate")
-  ) |>
-  mutate(results = pmap_dfr(list(mean = mean, 
-                                 sd = sd, 
-                                 n = n, 
-                                 min = min, 
-                                 max = max, 
-                                 n_items = n_items, 
-                                 digits = digits, 
-                                 calculate_min_sd = calculate_min_sd, 
-                                 verbose = verbose,
-                                 method = method),
-                            tides)) |>
-  unnest(results)
-
-# # note that the standard tides plot won't run, as N/min/max differ
-# plot_tides(res) # throws an error
-
-# relative plot allows combining of these different results
-plot_tides_relative(res) 
+dat2 <- rbind(
+  data.frame(mean = round(runif(20, 1, 5), 2), sd = round(runif(20, 0, 3), 2),
+             n = 11, min = 1, max = 5,  n_items = 1, digits = 2,
+             calculate_min_sd = TRUE, method = "approximate"),
+  data.frame(mean = round(runif(20, 1, 7), 2), sd = round(runif(20, 0, 4), 2),
+             n = 29, min = 1, max = 7,  n_items = 1, digits = 2,
+             calculate_min_sd = TRUE, method = "approximate"),
+  data.frame(mean = round(runif(20, 1, 10), 2), sd = round(runif(20, 0, 5), 2),
+             n = 41, min = 1, max = 10, n_items = 1, digits = 2,
+             calculate_min_sd = TRUE, method = "approximate")
+)
+plot_tides_relative(tides_df(dat2))
 }
 
 }

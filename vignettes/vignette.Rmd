@@ -1,6 +1,6 @@
 ---
-title: "TIDES"
-subtitle: "Vignette"
+title: "tides"
+subtitle: "Checking reported summary statistics from truncated data"
 author: "Ian Hussey"
 output: rmarkdown::html_vignette
 vignette: >
@@ -8,40 +8,42 @@ vignette: >
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
-  
+
 ```{r include=FALSE}
-  
-knitr::opts_chunk$set(message = FALSE, warning = FALSE)
-  
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 7,
+  fig.height = 4.5
+)
+options(scipen = 999) # disable scientific notation
 ```
-  
+
 ```{r}
-  
-# dependencies of the TIDES package
-library(tibble)
 library(dplyr)
 library(tidyr)
 library(purrr)
-library(ggplot2)
-library(scales)
 library(tides)
 
-# used in vignette but not required by TIDES
-library(scrutiny) 
-library(knitr)
-library(kableExtra)
-
-# disable scientific notation
-options(scipen = 999) 
-
+# used in the vignette but not required by tides itself
+library(scrutiny)
 ```
 
-# Consistency checking of Zemestani & Mozaffari (2020)
+## What tides does
 
-## Summary statistics from article
+When a measure is bounded (truncated) — a Likert item, a symptom inventory, a
+percentage — the reported mean constrains the standard deviation that is
+arithmetically possible. `tides()` computes the smallest and largest SD that a
+reported mean, sample size and scale range could have produced, and flags a
+report as inconsistent when the reported SD falls outside that range.
+
+We illustrate with the summary statistics reported by Zemestani & Mozaffari
+(2020), where the outcome is the BDI-II depression inventory (possible scores
+0–63).
+
+## Summary statistics from the article
 
 ```{r}
-
 # data manually extracted from the article
 reported_results <- data.frame(
   timepoint = c(          "t1",           "t2",           "t3",      "t1",      "t2",      "t3"),
@@ -49,61 +51,75 @@ reported_results <- data.frame(
   n         = c(         23.00,          23.00,          23.00,     29.00,     29.00,     29.00),
   mean      = c(         31.09,          20.70,          24.09,     31.92,     32.57,     33.40),
   sd        = c(          6.03,           3.40,           3.77,      4.83,      5.15,      4.45),
-  min       = 0,  # BDI-II minimum score
-  max       = 63  # BDI-II maximum score
-) 
+  min       = 0,   # BDI-II minimum score
+  max       = 63,  # BDI-II maximum score
+  n_items   = 1,
+  digits    = 2
+)
 
+reported_results
 ```
 
-## TIDES
+## Running TIDES over a table
+
+`tides_df()` applies `tides()` to each row, taking its arguments from the
+columns of the same name.
 
 ```{r}
+tides_results <- reported_results |>
+  tides_df()
 
-reported_results |>
-  # map the tides function onto each row's set of columns
-  mutate(tides = purrr::pmap(.l = list(mean = mean,
-                                       sd = sd,
-                                       n = n,
-                                       min = min,
-                                       max = max),
-                             verbose = FALSE,
-                             .f = tides)) |>
-  # unnest columns
-  unnest(tides) 
-
-```
-
-## GRIM, GRIMMER and TIDES
-
-```{r}
-
-reported_results |>
-  mutate(grim = purrr::pmap(.l = list(x = as.character(mean), 
-                                      n = n),
-                            items = 1,
-                            .f = scrutiny::grim)) |>
-  mutate(grimmer = purrr::pmap(.l = list(x = as.character(mean), 
-                                         sd = as.character(sd), 
-                                         n = n),
-                               items = 1,
-                               .f = scrutiny::grimmer)) |>
-  # map the tides function onto each row's set of columns
-  mutate(tides = purrr::pmap(.l = list(mean = mean,
-                                       sd = sd,
-                                       n = n,
-                                       min = min,
-                                       max = max),
-                             verbose = FALSE,
-                             .f = tides)) |>
-  # unnest columns
-  unnest(grim) |>
-  unnest(grimmer) |>
-  unnest(tides) |>
-  # retain just the input summary statistics and the grim, grimmer and tides results
+tides_results |>
   select(timepoint, condition, n, mean, sd,
-         grim_consistent = grim, grimmer_consistent = grimmer, tides_consistent) 
-
+         min_sd, max_sd, tides_consistent)
 ```
 
+Every reported SD here sits inside its feasible `[min_sd, max_sd]` range, so
+none of these values are TIDES-inconsistent.
 
+## Comparing TIDES with GRIM and GRIMMER
 
+TIDES is complementary to the granularity-based checks GRIM and GRIMMER (from
+the `scrutiny` package). GRIM checks whether a reported mean is possible given
+the sample size and number of items; GRIMMER extends this to the SD. TIDES adds
+the constraint imposed by the scale bounds.
+
+```{r}
+reported_results |>
+  mutate(
+    grim = pmap_lgl(list(x = mean, n = n, digits_x = digits, items = n_items),
+                    scrutiny::grim),
+    grimmer = pmap_lgl(list(x = mean, sd = sd, n = n,
+                            digits_x = digits, digits_sd = digits, items = n_items),
+                       scrutiny::grimmer)
+  ) |>
+  tides_df() |>
+  select(timepoint, condition, n, mean, sd,
+         grim_consistent = grim,
+         grimmer_consistent = grimmer,
+         tides_consistent)
+```
+
+## Visualising the feasible envelope
+
+For values that share the same sample size, scale range and precision,
+`plot_tides()` draws the TIDES envelope with the reported points overlaid.
+Here we plot the three intervention-group timepoints.
+
+```{r}
+reported_results |>
+  filter(condition == "intervention") |>
+  mutate(calculate_min_sd = TRUE, method = "approximate") |>
+  tides_df() |>
+  plot_tides()
+```
+
+## References
+
+Brown, N. J. L., & Heathers, J. A. J. (2017). The GRIM test: A simple technique
+detects numerous anomalies in the reporting of results in psychology. *Social
+Psychological and Personality Science, 8*(4), 363–369.
+
+Zemestani, M., & Mozaffari, S. (2020). Acceptance and commitment therapy for
+the treatment of depression in persons with physical disability. *(as cited for
+illustration only).*

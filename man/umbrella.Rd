@@ -14,11 +14,11 @@ umbrella(n, min, max, n_items = 1, digits = 2)
 \item{max}{Numeric. Maximum possible (or observed) score.}
 
 \item{n_items}{Integer(1). Number of discrete items per participant
-(e.g. Likert‐scale items). Defaults to 1.}
+(e.g. Likert‐scale items). Defaults to 1. Note: values above
+1 are not yet supported (see "Limitations" in the README).}
 
 \item{digits}{Integer. Number of decimal places in reported means/SDs;
-used to define the mean‐grid and to restore trailing zeros.
-Defaults to 2.}
+used to define the mean‐ and SD‐grids. Defaults to 2.}
 }
 \value{
 A tibble with columns:
@@ -39,8 +39,9 @@ that simultaneously satisfy:
 }
 }
 \examples{
-\dontrun{
-# All possible means and SDs for N=14, scale 1–7, two decimal places:
+\donttest{
+# All GRIM + GRIMMER + TIDES consistent means and SDs for
+# N = 14, scale 1-7, two decimal places:
 df <- umbrella(n = 14, min = 1, max = 7, n_items = 1, digits = 2)
 head(df)
 }

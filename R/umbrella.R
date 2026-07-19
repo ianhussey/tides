@@ -11,10 +11,10 @@
 #' @param min       Numeric. Minimum possible (or observed) score.
 #' @param max       Numeric. Maximum possible (or observed) score.
 #' @param n_items   Integer(1). Number of discrete items per participant
-#'                  (e.g. Likert‐scale items). Defaults to 1.
+#'                  (e.g. Likert‐scale items). Defaults to 1. Note: values above
+#'                  1 are not yet supported (see "Limitations" in the README).
 #' @param digits    Integer. Number of decimal places in reported means/SDs;
-#'                  used to define the mean‐grid and to restore trailing zeros.
-#'                  Defaults to 2.
+#'                  used to define the mean‐ and SD‐grids. Defaults to 2.
 #'
 #' @return A tibble with columns:
 #'   \describe{
@@ -24,21 +24,15 @@
 #'   Each row corresponds to one (mean, SD) pair that passes GRIM, GRIMMER, and TIDES.
 #'
 #' @examples
-#' \dontrun{
-#' # All possible means and SDs for N=14, scale 1–7, two decimal places:
+#' \donttest{
+#' # All GRIM + GRIMMER + TIDES consistent means and SDs for
+#' # N = 14, scale 1-7, two decimal places:
 #' df <- umbrella(n = 14, min = 1, max = 7, n_items = 1, digits = 2)
 #' head(df)
 #' }
 #'
+#' @importFrom scrutiny grimmer
 #' @export
-
-# # Example inputs
-# n <- 14
-# min <- 1
-# max <- 7
-# n_items <- 1
-# digits <- 2
-
 umbrella <- function(n, min, max, n_items = 1, digits = 2) {
   step_size <- 10^-digits
 
@@ -87,20 +81,16 @@ umbrella <- function(n, min, max, n_items = 1, digits = 2) {
       # define one rounding method to not inflate baseline pass rate
       rounding = "up"
     ) |>
-    ## convert M and SD to character and then restore trailing zero, as required for GRIM/MER
-    dplyr::mutate(
-      mean_char = as.character(mean),
-      mean_char = scrutiny::restore_zeros(mean_char, width = digits),
-      sd_char = as.character(sd),
-      sd_char = scrutiny::restore_zeros(sd_char, width = digits)
-    ) |>
-    ## apply GRIMMER to the reduced grid
+    ## apply GRIMMER to the reduced grid. scrutiny (>= 0.6) takes the mean and SD
+    ## as numbers together with their reported decimal places (digits_x/digits_sd).
     dplyr::mutate(
       grimmer = purrr::pmap(
         list(
-          x = mean_char,
-          sd = sd_char,
+          x = mean,
+          sd = sd,
           n = n,
+          digits_x = digits,
+          digits_sd = digits,
           items = n_items,
           rounding = rounding
         ),
@@ -110,9 +100,9 @@ umbrella <- function(n, min, max, n_items = 1, digits = 2) {
     tidyr::unnest(grimmer) |>
     # drop GRIMMER inconsistent values, so that only GRIM+GRIMMER+TIDES consistent values remain
     dplyr::filter(grimmer) |>
-    dplyr::select(-mean_char, -sd_char, -rounding, -grimmer) |>
+    dplyr::select(-rounding, -grimmer) |>
     dplyr::mutate(dplyr::across(
-      .cols = is.numeric,
+      .cols = dplyr::where(is.numeric),
       .fns = function(x) janitor::round_half_up(x, digits = digits)
     ))
 }

@@ -18,71 +18,56 @@
 #' @return A ggplot object showing the TIDES boundary envelope, shaded inconsistency zones, and reported mean–SD points with legend reversed.
 #'
 #' @examples
-#' \dontrun{
-#' tides(mean = 3.10, sd = 0.80, n = 1100, min = 1, max = 7, n_items = 1, digits = 2) |>
+#' \donttest{
+#' # A single reported mean-SD pair
+#' tides(mean = 3.10, sd = 0.80, n = 1100, min = 1, max = 7) |>
 #'   plot_tides()
 #'
-#' tides(mean = 5.07, sd = 2.92, n = 15, min = 1, max = 7, n_items = 1, digits = 2) |>
+#' # An SD near the upper bound
+#' tides(mean = 5.07, sd = 2.92, n = 15, min = 1, max = 7) |>
 #'   plot_tides()
 #'
-#' tides(mean = 5.07, sd = 2.92, n = 15, min = 1, max = 7, n_items = 1, digits = 2, method = "approximate") |>
+#' # The more liberal "approximate" envelope
+#' tides(mean = 5.07, sd = 2.92, n = 15, min = 1, max = 7, method = "approximate") |>
 #'   plot_tides()
 #'
-#' tibble(mean    = round_half_up(runif(n = 20, min = 1, max = 7), 2),
-#'        sd      = round_half_up(runif(n = 20, min = 0, max = 4), 2),
-#'        n       = 30,
-#'        min     = 1,
-#'        max     = 7,
-#'        n_items = 1,
-#'        digits  = 2,
-#'        calculate_min_sd = TRUE,
-#'        verbose = FALSE,
-#'        method = "approximate") |>
-#'   mutate(results = pmap_dfr(list(mean = mean,
-#'                                  sd = sd,
-#'                                  n = n,
-#'                                  min = min,
-#'                                  max = max,
-#'                                  n_items = n_items,
-#'                                  digits = digits,
-#'                                  calculate_min_sd = calculate_min_sd,
-#'                                  verbose = verbose,
-#'                                  method = method),
-#'                             tides)) |>
-#'   unnest(results) |>
-#'   plot_tides()
+#' # Multiple reported values that share the same n, scale and precision
+#' dat <- data.frame(
+#'   mean    = c(3.1, 4.0, 5.5, 6.2),
+#'   sd      = c(0.8, 1.4, 2.9, 0.6),
+#'   n       = 30,
+#'   min     = 1,
+#'   max     = 7,
+#'   n_items = 1,
+#'   digits  = 2,
+#'   calculate_min_sd = TRUE,
+#'   method  = "approximate"
+#' )
+#' plot_tides(tides_df(dat))
 #' }
 #'
 #' @importFrom ggplot2 ggplot geom_polygon geom_line geom_point scale_color_manual scale_y_continuous scale_x_continuous theme_minimal theme guides guide_legend
-#' @importFrom dplyr distinct filter mutate slice
+#' @importFrom dplyr distinct filter mutate slice bind_rows
 #' @importFrom tidyr unnest expand_grid drop_na
 #' @importFrom tibble tibble
 #' @importFrom purrr pmap
 #' @importFrom scales breaks_pretty
 #'
 #' @export
-plot_tides <- function(
-  res,
-  method = NULL,
-  text_size = 0.6,
-  color_true = "#43BF71FF",
-  color_false = "#35608DFF"
-) {
+plot_tides <- function(res, method = NULL, text_size = 0.6, color_true = "#43BF71FF", color_false = "#35608DFF") {
   if (nrow(res) == 1) {
     data_params <- res
   } else {
     if (res |> distinct(min, max, n_items, digits, method) |> nrow() != 1) {
-      stop(
-        "The parameters min, max, n_items, digits, and method must be identical on all rows."
-      )
+      stop("The parameters min, max, n_items, digits, and method must be identical on all rows.")
     }
     data_params <- res |> slice(1)
   }
-
+  
   if (is.null(method)) {
     method <- data_params$method
   }
-
+  
   boundary_data <- expand_grid(
     mean = seq(data_params$min, data_params$max, by = 10^-data_params$digits),
     n = data_params$n,
@@ -91,28 +76,23 @@ plot_tides <- function(
     min = data_params$min,
     max = data_params$max,
     calculate_min_sd = data_params$calculate_min_sd
-  ) |>
-    mutate(
-      sd_bounds = purrr::pmap(
-        list(mean, n, min, max, n_items, digits, calculate_min_sd),
-        sd_bounds
-      )
-    ) |>
+  ) |> 
+    mutate(sd_bounds = purrr::pmap(list(mean, n, min, max, n_items, digits, calculate_min_sd), sd_bounds)) |> 
     unnest(sd_bounds)
-
+  
   if (method == "approximate") {
-    boundary_data <- boundary_data |>
-      filter(mean >= min, mean <= max) |>
+    boundary_data <- boundary_data |> 
+      filter(mean >= min, mean <= max) |> 
       approximate_sd_bounds()
-
+    
     true_label <- "TIDES consistent"
     false_label <- "TIDES inconsistent"
-  } else if (method == "exact") {
-    boundary_data <- boundary_data |>
+  } else if (method == "exact"){
+    boundary_data <- boundary_data |> 
       drop_na(min_sd, max_sd)
-
+    
     if (!data_params$calculate_min_sd) {
-      boundary_data <- boundary_data |>
+      boundary_data <- boundary_data |> 
         mutate(min_sd = 0)
     }
     true_label <- "GRIMMER-TIDES consistent"
@@ -120,7 +100,7 @@ plot_tides <- function(
   } else {
     stop("`method` must be one of c(NULL, 'exact', 'approximate')")
   }
-
+  
   poly_above <- bind_rows(
     tibble(x = boundary_data$mean, y = boundary_data$max_sd),
     tibble(x = rev(boundary_data$mean), y = rep(Inf, nrow(boundary_data)))
@@ -129,15 +109,9 @@ plot_tides <- function(
     tibble(x = boundary_data$mean, y = boundary_data$min_sd),
     tibble(x = rev(boundary_data$mean), y = rep(-Inf, nrow(boundary_data)))
   )
-  poly_left <- tibble(
-    x = c(-Inf, data_params$min, data_params$min, -Inf),
-    y = c(-Inf, -Inf, Inf, Inf)
-  )
-  poly_right <- tibble(
-    x = c(data_params$max, Inf, Inf, data_params$max),
-    y = c(-Inf, -Inf, Inf, Inf)
-  )
-
+  poly_left <- tibble(x = c(-Inf, data_params$min, data_params$min, -Inf), y = c(-Inf, -Inf, Inf, Inf))
+  poly_right <- tibble(x = c(data_params$max, Inf, Inf, data_params$max), y = c(-Inf, -Inf, Inf, Inf))
+  
   p <- ggplot() +
     geom_polygon(data = poly_above, aes(x, y), fill = "grey10", alpha = 0.3) +
     geom_polygon(data = poly_below, aes(x, y), fill = "grey10", alpha = 0.3) +
@@ -146,36 +120,23 @@ plot_tides <- function(
     geom_line(data = boundary_data, aes(x = mean, y = max_sd)) +
     geom_line(data = boundary_data, aes(x = mean, y = min_sd)) +
     geom_point(data = res, aes(mean, sd, color = tides_consistent)) +
-    scale_color_manual(
-      values = c("TRUE" = color_true, "FALSE" = color_false),
-      labels = c("TRUE" = true_label, "FALSE" = false_label)
-    ) +
-    scale_y_continuous(
-      name = "Standard Deviation",
-      limits = c(0, NA),
-      breaks = scales::breaks_pretty(n = 8),
-      expand = c(
-        10^-min(data_params$digits) * 5,
-        10^-min(data_params$digits) * 5
-      )
-    ) +
-    scale_x_continuous(
-      name = "Mean",
-      breaks = scales::breaks_pretty(n = 10),
-      expand = c(
-        10^-min(data_params$digits) * 5,
-        10^-min(data_params$digits) * 5
-      )
-    ) +
+    scale_color_manual(values = c("TRUE" = color_true, "FALSE" = color_false),
+                       labels = c("TRUE" = true_label, "FALSE" = false_label)) +
+    scale_y_continuous(name = "Standard Deviation", 
+                       limits = c(0, NA), 
+                       breaks = scales::breaks_pretty(n = 8),
+                       expand = c(10^-min(data_params$digits)*5, 10^-min(data_params$digits)*5)) +
+    scale_x_continuous(name = "Mean",
+                       breaks = scales::breaks_pretty(n = 10),
+                       expand = c(10^-min(data_params$digits)*5, 10^-min(data_params$digits)*5)) + 
     theme_minimal(base_size = text_size * 20) +
     theme(legend.position = "top") +
-    guides(
-      color = guide_legend(
-        reverse = TRUE,
-        override.aes = list(size = 4, ncol = 1),
-        title = NULL
-      )
-    )
+    guides(color = guide_legend(reverse = TRUE, 
+                                override.aes = list(size = 4, ncol = 1), 
+                                title = NULL)) 
 
   return(p)
 }
+
+
+

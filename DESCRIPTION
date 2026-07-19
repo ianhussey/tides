@@ -1,30 +1,46 @@
 Package: tides
-Title: Truncation-Induced Dependency among Summary Statistics
+Title: Truncation-Induced Dependency Among Summary Statistics
 Version: 0.3.2
-Authors@R: 
+Authors@R:
     person("Ian", "Hussey", , "ian.hussey@unibe.ch", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-8906-7559"))
-Description: Check reported Means, SDs and Ns from truncated data (data where the measure has a min and max score) for inconsistencies.
+Description: Forensic meta-science tools for checking reported summary
+    statistics measured on a bounded (truncated) scale. When a measure has a
+    known minimum and maximum, the reported mean constrains the standard
+    deviation that is arithmetically possible, so the two are not independent.
+    The package computes the smallest and largest standard deviations that a
+    reported mean, sample size and scale range could have produced and flags
+    reports that fall outside those bounds as inconsistent. The idea extends
+    granularity-based consistency checks such as GRIM and GRIMMER (Brown and
+    Heathers (2017) <doi:10.1177/1948550616673876>) to the dispersion of
+    truncated data. Helpers apply the check across a data frame, visualise the
+    feasible envelope of means and standard deviations, and enumerate the grid
+    of jointly GRIM-, GRIMMER- and truncation-consistent values.
+URL: https://github.com/ianhussey/TIDES
+BugReports: https://github.com/ianhussey/TIDES/issues
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.3
-Imports: 
-    tibble,
+RoxygenNote: 7.3.2
+Depends:
+    R (>= 4.1)
+Imports:
     dplyr,
-    tidyr,
-    purrr,
+    forcats,
     ggplot2,
     janitor,
-    scales,
+    purrr,
     rlang,
-    forcats,
-    scrutiny
+    scales,
+    scrutiny,
+    tibble,
+    tidyr
 Suggests:
     knitr,
+    rmarkdown,
     kableExtra,
-    scrutiny,
-    devtools,
-    roxygen2
+    spelling,
+    testthat (>= 3.0.0)
 VignetteBuilder: knitr
-BuildVignettes: true
+Language: en-US
+Config/testthat/edition: 3

@@ -23,3 +23,13 @@ It combines downward and upward filled versions of the SD limits from nearby
 means and returns a smoothed boundary envelope for each mean value. This is
 intended to be an internal function mostly for use inside \code{plot_tides}.
 }
+\examples{
+# Build SD bounds across a grid of means, then relax the discontinuities
+grid <- do.call(rbind, lapply(seq(1, 5, by = 0.01), function(m) {
+  b <- sd_bounds(mean = m, n = 30, min = 1, max = 5)
+  data.frame(mean = m, min_sd = b$min_sd, max_sd = b$max_sd,
+             min = 1, max = 5, n = 30, n_items = 1)
+}))
+head(approximate_sd_bounds(grid))
+
+}

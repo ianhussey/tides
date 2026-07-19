@@ -28,7 +28,7 @@ consistency tests (as returned by \code{\link{umbrella}()}), produce
 a square‐point scatterplot of SD vs. mean.
 }
 \examples{
-\dontrun{
+\donttest{
 df <- umbrella(n = 14, min = 1, max = 7, n_items = 1, digits = 2)
 plot_umbrella(df)
 plot_umbrella(df, size = 1)
