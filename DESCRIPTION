@@ -16,7 +16,7 @@ Description: Forensic meta-science tools for checking reported summary
     truncated data. Helpers apply the check across a data frame, visualise the
     feasible envelope of means and standard deviations, and enumerate the grid
     of jointly GRIM-, GRIMMER- and truncation-consistent values.
-URL: https://github.com/ianhussey/TIDES, https://doi.org/10.5281/zenodo.21439905
+URL: https://doi.org/10.5281/zenodo.21439905
 BugReports: https://github.com/ianhussey/TIDES/issues
 License: MIT + file LICENSE
 Encoding: UTF-8
