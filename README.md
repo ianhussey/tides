@@ -1,3 +1,5 @@
+<img src="man/figures/logo.png" width="30%" alt="tides logo" />
+
 # tides: Truncation-Induced Dependency among Summary Statistics
 
 <!-- badges: start -->
@@ -10,13 +12,13 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21439905.svg)](https://doi.org/10.5281/zenodo.21439905)
 <!-- badges: end -->
 
-`tides` is a trustworthiness-assessment / forensic-metascience tool for checking whether reported summary statistics measured on a bounded (truncated) scale are mutually consistent.
+`tides` is a forensic meta-science R package for conducting trustworthiness assessments on reported rounded summary statistics using bounds checks. 
 
-When a measure has a known minimum and maximum score, the reported mean constrains the standard deviation that is arithmetically possible: the two summary statistics are **not** independent. Given a reported mean, standard deviation and sample size, `tides()` computes the smallest and largest standard deviations that could have produced that mean under the scale's bounds, and flags a report as **inconsistent** when the reported SD falls outside that feasible range (following the terminology used by related forensic-metascience methods such as GRIM and GRIMMER).
+When a measure has a known minimum and maximum score, the reported mean constrains the standard deviation that is arithmetically possible: the two summary statistics are not independent. Given a reported mean, standard deviation and sample size, `tides()` computes the smallest and largest standard deviations that could have produced that mean under the scale's bounds, and flags a report as inconsistent when the reported SD falls outside that feasible range (following the terminology used by related forensic-metascience methods such as GRIM and GRIMMER).
 
 ## The problem
 
-A measure is *truncated* when its scores are confined to a known interval `[min, max]` — for example a 1–7 Likert item, a 0–63 depression inventory, or a percentage bounded at 0 and 100. For a sample of size `n` with reported mean `M`, only certain standard deviations are attainable:
+A measure is truncated when its scores are confined to a known interval `[min, max]` — for example a 1–7 Likert item, a 0–63 depression inventory, or a percentage bounded at 0 and 100. For a sample of size `n` with reported mean `M`, only certain standard deviations are attainable:
 
 - the **largest** SD comes from pushing observations toward the two extremes (`min` and `max`) while still averaging to `M`;
 - the **smallest** SD comes from concentrating observations as tightly as possible around `M`.
@@ -116,7 +118,6 @@ umbrella(n = 14, min = 1, max = 7, digits = 2) |>
 ## Limitations
 
 - **`n_items` above 1 is not yet supported.** The multi-item (within-participant averaging) path is still under development; `n_items` is currently forced to `1` internally by `tides()`, `tides_df()` and `umbrella()`. Treat the tools as applying to single-item / participant-level means for now.
-- The package is at an **experimental** lifecycle stage; function names and outputs may still change.
 
 ## Suggested citation
 
