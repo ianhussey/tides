@@ -24,7 +24,7 @@ plot_tides(
 \item{color_false}{Character. Color for inconsistent points (default: blue).}
 }
 \value{
-A ggplot object showing the TIDES boundary envelope, shaded inconsistency zones, and reported mean–SD points with legend reversed.
+A ggplot object showing the TIDES boundary envelope, shaded inconsistency zones, and reported mean-SD points with legend reversed.
 }
 \description{
 Depending on the input, this function either plots a single reported mean/SD value with the TIDES envelope or multiple reported values sharing the same parameters. It shows:

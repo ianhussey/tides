@@ -2,7 +2,7 @@
 % Please edit documentation in R/umbrella.R
 \name{umbrella}
 \alias{umbrella}
-\title{Generate all GRIM+GRIMMER+TIDES–consistent means and SDs for an umbrella plot}
+\title{Generate all GRIM+GRIMMER+TIDES-consistent means and SDs for an umbrella plot}
 \usage{
 umbrella(n, min, max, n_items = 1, digits = 2)
 }
@@ -14,11 +14,11 @@ umbrella(n, min, max, n_items = 1, digits = 2)
 \item{max}{Numeric. Maximum possible (or observed) score.}
 
 \item{n_items}{Integer(1). Number of discrete items per participant
-(e.g. Likert‐scale items). Defaults to 1. Note: values above
+(e.g. Likert-scale items). Defaults to 1. Note: values above
 1 are not yet supported (see "Limitations" in the README).}
 
 \item{digits}{Integer. Number of decimal places in reported means/SDs;
-used to define the mean‐ and SD‐grids. Defaults to 2.}
+used to define the mean- and SD-grids. Defaults to 2.}
 }
 \value{
 A tibble with columns:
@@ -29,13 +29,13 @@ A tibble with columns:
 Each row corresponds to one (mean, SD) pair that passes GRIM, GRIMMER, and TIDES.
 }
 \description{
-Given a sample size, scale bounds, response‐item count, and decimal precision,
+Given a sample size, scale bounds, response-item count, and decimal precision,
 this function builds the full grid of reported means and standard deviations
 that simultaneously satisfy:
 \enumerate{
-\item GRIM (integer‐mean) constraints,
-\item GRIMMER (decimal‐SD) constraints, and
-\item TIDES (bounds‐test) constraints.
+\item GRIM (integer-mean) constraints,
+\item GRIMMER (decimal-SD) constraints, and
+\item TIDES (bounds-test) constraints.
 }
 }
 \examples{

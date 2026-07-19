@@ -84,14 +84,38 @@ the `scrutiny` package). GRIM checks whether a reported mean is possible given
 the sample size and number of items; GRIMMER extends this to the SD. TIDES adds
 the constraint imposed by the scale bounds.
 
+The `scrutiny` GRIM/GRIMMER interface has changed across releases (older
+versions take zero-padded strings; newer ones take numbers plus their decimal
+places), so we wrap each in a small helper that works with either.
+
 ```{r}
+grim_ok <- function(x, n, digits, items = 1) {
+  if ("digits_x" %in% names(formals(scrutiny::grim))) {
+    scrutiny::grim(x = x, n = n, digits_x = digits, items = items)
+  } else {
+    scrutiny::grim(x = scrutiny::restore_zeros(x, width = digits),
+                   n = n, items = items)
+  }
+}
+
+grimmer_ok <- function(x, sd, n, digits, items = 1) {
+  if ("digits_x" %in% names(formals(scrutiny::grimmer))) {
+    scrutiny::grimmer(x = x, sd = sd, n = n,
+                      digits_x = digits, digits_sd = digits, items = items)
+  } else {
+    scrutiny::grimmer(x = scrutiny::restore_zeros(x, width = digits),
+                      sd = scrutiny::restore_zeros(sd, width = digits),
+                      n = n, items = items)
+  }
+}
+
 reported_results |>
   mutate(
-    grim = pmap_lgl(list(x = mean, n = n, digits_x = digits, items = n_items),
-                    scrutiny::grim),
+    grim = pmap_lgl(list(x = mean, n = n, digits = digits, items = n_items),
+                    grim_ok),
     grimmer = pmap_lgl(list(x = mean, sd = sd, n = n,
-                            digits_x = digits, digits_sd = digits, items = n_items),
-                       scrutiny::grimmer)
+                            digits = digits, items = n_items),
+                       grimmer_ok)
   ) |>
   tides_df() |>
   select(timepoint, condition, n, mean, sd,

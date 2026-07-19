@@ -24,7 +24,7 @@ sd_bounds(
 
 \item{max}{Numeric. The maximum possible (or observed) value.}
 
-\item{n_items}{Integer(1). Number of discrete “items” averaged at participant level
+\item{n_items}{Integer(1). Number of discrete "items" averaged at participant level
 (e.g.\ number of Likert items). Defaults to 1 (no within-participant averaging).}
 
 \item{digits}{Integer or \code{NULL}. Number of decimal places used when

@@ -31,7 +31,6 @@
 #' head(df)
 #' }
 #'
-#' @importFrom scrutiny grimmer
 #' @export
 umbrella <- function(n, min, max, n_items = 1, digits = 2) {
   step_size <- 10^-digits

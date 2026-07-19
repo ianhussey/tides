@@ -25,7 +25,7 @@ with square markers, appropriately scaled axes, and a linedraw theme.
 \description{
 Given a tibble of (mean, SD) pairs that pass GRIM, GRIMMER, and TIDES
 consistency tests (as returned by \code{\link{umbrella}()}), produce
-a square‐point scatterplot of SD vs. mean.
+a square-point scatterplot of SD vs. mean.
 }
 \examples{
 \donttest{

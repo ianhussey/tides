@@ -2,7 +2,7 @@
 % Please edit documentation in R/tides.R
 \name{tides}
 \alias{tides}
-\title{TIDES consistency test for a single mean–SD report}
+\title{TIDES consistency test for a single mean-SD report}
 \usage{
 tides(
   mean,
@@ -52,7 +52,7 @@ requested mean has no valid SD bounds.}
 
 \item{approximate_bounds_range}{Integer. Number of steps (based on \code{digits}) in
 either direction to search for a nearby mean with valid SD bounds
-when \code{method = "approximate"}. Defaults to 10 (i.e., ±10 steps).}
+when \code{method = "approximate"}. Defaults to 10 (i.e., +/-10 steps).}
 }
 \value{
 A data frame (or tibble) with the following columns:
@@ -78,7 +78,7 @@ appear as leading columns in the returned data frame.
 \description{
 Given a reported mean, standard deviation and sample size on a bounded scale,
 \code{tides()} checks whether the observed SD is feasible under the known
-minimum/maximum of that scale (and optional item‐level discretization). It
+minimum/maximum of that scale (and optional item-level discretization). It
 returns the theoretical minimum and maximum SD, the Percent Of Maximum
 Possible (POMP) transformations of the mean and SD, and logical flags
 indicating whether the reported values fall within the feasible range.
