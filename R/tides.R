@@ -38,9 +38,9 @@
 #'
 #' @return A data frame (or tibble) with the following columns:
 #' \describe{
-#'   \item{relative_location}{Observed mean as a proportion of the possible range: 
+#'   \item{relative_location}{Observed mean as a proportion of the possible range:
 #'     \eqn{(mean - min)/(max - min)}.}
-#'   \item{relative_dispersion}{Observed SD as a proportion of the possible range: 
+#'   \item{relative_dispersion}{Observed SD as a proportion of the possible range:
 #'     \eqn{(sd - min\_sd)/(max\_sd - min\_sd)}, or \code{NA} if undefined.}
 #'   \item{min_sd}{Minimum feasible SD (or 0 if \code{calculate_min_sd = FALSE}).}
 #'   \item{max_sd}{Maximum feasible SD.}
@@ -77,20 +77,25 @@
 #' @importFrom purrr pmap
 #'
 #' @export
-tides <- function(mean, sd, n, min, max,
-                  n_items = 1, 
-                  digits = 2,
-                  calculate_min_sd = TRUE,
-                  verbose = TRUE,
-                  method = c("exact", "approximate"),
-                  approximate_bounds_range = 10) {
-  
+tides <- function(
+  mean,
+  sd,
+  n,
+  min,
+  max,
+  n_items = 1,
+  digits = 2,
+  calculate_min_sd = TRUE,
+  verbose = TRUE,
+  method = c("exact", "approximate"),
+  approximate_bounds_range = 10
+) {
   # currently n_items is hard coded to 1 while i figure out how to implement it
   n_items <- 1
-  
+
   # check inputs
   method <- match.arg(method)
-  
+
   # try exact bounds first
   bounds <- sd_bounds(mean, n, min, max, n_items, digits)
   min_sd <- bounds$min_sd
@@ -98,10 +103,10 @@ tides <- function(mean, sd, n, min, max,
 
   # optionally fallback to liberal bounds if strict ones are NA
   if (method == "approximate" & is.na(max_sd)) {
-    step <- 10^(-digits) 
+    step <- 10^(-digits)
     range <- approximate_bounds_range * step
     mean_grid <- seq(mean - range, mean + range, by = step)
-    
+
     # search nearby means for SD bounds
     grid <- expand_grid(
       mean = mean_grid,
@@ -112,37 +117,49 @@ tides <- function(mean, sd, n, min, max,
       precision = digits,
       calculate_min_sd = calculate_min_sd
     ) |>
-      mutate(sd_bounds = purrr::pmap(list(mean = mean, n = n, min = min, max = max,
-                                          n_items = n_items, digits = precision,
-                                          calculate_min_sd = calculate_min_sd),
-                                     sd_bounds)) |>
+      mutate(
+        sd_bounds = purrr::pmap(
+          list(
+            mean = mean,
+            n = n,
+            min = min,
+            max = max,
+            n_items = n_items,
+            digits = precision,
+            calculate_min_sd = calculate_min_sd
+          ),
+          sd_bounds
+        )
+      ) |>
       tidyr::unnest(sd_bounds)
-    
+
     # fill nearest and more extreme bound to the missing ones
     filled <- grid |>
       filter(mean >= min, mean <= max) |>
       approximate_sd_bounds()
-    
+
     # return not the mean tested but the one that has a matching bound
     bounds_fallback <- filled |>
       slice_min(abs(mean - !!mean), n = 1)
-    
+
     min_sd <- bounds_fallback$min_sd
     max_sd <- bounds_fallback$max_sd
-    
-    if(is.na(max_sd)) {
-      stop("No approximate bounds found for nearby means. Try increasing approximate_bounds_range to widen the search for means with defined SD bounds.")
+
+    if (is.na(max_sd)) {
+      stop(
+        "No approximate bounds found for nearby means. Try increasing approximate_bounds_range to widen the search for means with defined SD bounds."
+      )
     }
   }
-  
+
   # always override lower bound if calculate_min_sd is FALSE
   if (!calculate_min_sd && !is.na(max_sd)) {
     min_sd <- 0
   }
-  
+
   # proportion of maximum possible transformation
   pomp_mean <- (mean - min) / (max - min)
-  
+
   # compute relative_dispersion (pomp_sd)
   # with special case when both bounds = 0
   # pomp_sd <- if(!is.na(min_sd) && !is.na(max_sd)) {
@@ -171,36 +188,39 @@ tides <- function(mean, sd, n, min, max,
   } else {
     pomp_sd <- NA_real_
   }
-  
+
   # combine results
   df <- data.frame(
-    relative_location = janitor::round_half_up(pomp_mean, digits+2),
-    relative_dispersion   = janitor::round_half_up(pomp_sd,   digits+2),
-    min_sd    = janitor::round_half_up(min_sd,    digits),
-    max_sd    = janitor::round_half_up(max_sd,    digits)
+    relative_location = janitor::round_half_up(pomp_mean, digits + 2),
+    relative_dispersion = janitor::round_half_up(pomp_sd, digits + 2),
+    min_sd = janitor::round_half_up(min_sd, digits),
+    max_sd = janitor::round_half_up(max_sd, digits)
   ) |>
-    mutate(sd_range_calculable = !is.na(min_sd) & !is.na(max_sd),
-           mean_inside_range = mean >= min & mean <= max,
-           sd_inside_range = case_when(
-             calculate_min_sd & !is.na(min_sd) & !is.na(max_sd) ~ sd >= min_sd & sd <= max_sd,
-             !calculate_min_sd & !is.na(max_sd) ~ sd <= max_sd,
-             TRUE ~ FALSE
-           ),
-           inside_ranges = mean_inside_range & sd_inside_range,
-           tides_consistent = sd_range_calculable & inside_ranges)
-  
+    mutate(
+      sd_range_calculable = !is.na(min_sd) & !is.na(max_sd),
+      mean_inside_range = mean >= min & mean <= max,
+      sd_inside_range = case_when(
+        calculate_min_sd & !is.na(min_sd) & !is.na(max_sd) ~ sd >= min_sd &
+          sd <= max_sd,
+        !calculate_min_sd & !is.na(max_sd) ~ sd <= max_sd,
+        TRUE ~ FALSE
+      ),
+      inside_ranges = mean_inside_range & sd_inside_range,
+      tides_consistent = sd_range_calculable & inside_ranges
+    )
+
   # add metadata if verbose
   if (verbose) {
     meta <- data.frame(
-      mean = mean, 
-      sd = sd, 
-      n = n, 
-      min = min, 
-      max = max, 
+      mean = mean,
+      sd = sd,
+      n = n,
+      min = min,
+      max = max,
       n_items = n_items,
       digits = if (is.null(digits)) {
         NA_integer_
-      } else { 
+      } else {
         digits
       },
       calculate_min_sd = calculate_min_sd,
@@ -208,9 +228,6 @@ tides <- function(mean, sd, n, min, max,
     )
     df <- dplyr::bind_cols(meta, df)
   }
-  
+
   return(df)
 }
-
-
-

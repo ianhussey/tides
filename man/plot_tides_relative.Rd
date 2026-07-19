@@ -64,7 +64,7 @@ negative values by a factor of 10 to enhance interpretability and visual
 separation of implausibly low dispersions. Specifically:
 
 \deqn{
-  y = 
+  y =
   \begin{cases}
     \log_{10}(x + 1) & \text{if } x \geq 0 \\
     -10 \cdot \log_{10}(|x| + 1) & \text{if } x < 0
@@ -74,7 +74,7 @@ separation of implausibly low dispersions. Specifically:
 The inverse transformation is:
 
 \deqn{
-  x = 
+  x =
   \begin{cases}
     10^y - 1 & \text{if } y \geq 0 \\
     -(10^{-y / 10} - 1) & \text{if } y < 0

@@ -27,19 +27,20 @@
 #' @importFrom ggplot2 ggplot aes geom_point scale_y_continuous scale_x_continuous theme_linedraw
 #' @importFrom scales breaks_pretty
 #' @export
-plot_umbrella <- function(dat, size = 0.5){
+plot_umbrella <- function(dat, size = 0.5) {
   ggplot(dat, aes(x = mean, y = sd)) +
     geom_point(shape = 15, size = size, alpha = 0.8) +
-    scale_y_continuous(breaks = scales::breaks_pretty(n = 8),
-                       name   = "Standard Deviation",
-                       limits = c(min(dat$sd), max(dat$sd)),
-                       expand = c(10^-min(dat$digits)*5, 10^-min(dat$digits)*5)) +
-    scale_x_continuous(breaks = scales::breaks_pretty(n = 7),
-                       name   = "Mean",
-                       limits = c(min(dat$mean), max(dat$mean)),
-                       expand = c(10^-min(dat$digits)*5, 10^-min(dat$digits)*5)) +
+    scale_y_continuous(
+      breaks = scales::breaks_pretty(n = 8),
+      name = "Standard Deviation",
+      limits = c(min(dat$sd), max(dat$sd)),
+      expand = c(10^-min(dat$digits) * 5, 10^-min(dat$digits) * 5)
+    ) +
+    scale_x_continuous(
+      breaks = scales::breaks_pretty(n = 7),
+      name = "Mean",
+      limits = c(min(dat$mean), max(dat$mean)),
+      expand = c(10^-min(dat$digits) * 5, 10^-min(dat$digits) * 5)
+    ) +
     theme_linedraw()
 }
-
-
-

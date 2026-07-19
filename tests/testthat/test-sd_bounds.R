@@ -23,7 +23,13 @@ test_that("calculate_min_sd = FALSE forces min_sd to 0", {
 })
 
 test_that("return_distributions adds the achieving vectors", {
-  b <- sd_bounds(mean = 3.2, n = 30, min = 1, max = 5, return_distributions = TRUE)
+  b <- sd_bounds(
+    mean = 3.2,
+    n = 30,
+    min = 1,
+    max = 5,
+    return_distributions = TRUE
+  )
   expect_true(all(c("min_dist", "max_dist") %in% names(b)))
   expect_length(b$max_dist[[1]], 30)
 })

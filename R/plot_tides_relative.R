@@ -1,22 +1,22 @@
 #' Plot TIDES consistency on a standardized relative scale
 #'
-#' Given a data frame of TIDES outcomes (with percent-of-maximum-possible 
-#' transformed mean and SD), `plot_tides_relative()` draws each point’s 
-#' relative location (proportion of maximum possible mean) on the x-axis 
-#' against its relative dispersion (proportion of maximum possible SD) 
+#' Given a data frame of TIDES outcomes (with percent-of-maximum-possible
+#' transformed mean and SD), `plot_tides_relative()` draws each point’s
+#' relative location (proportion of maximum possible mean) on the x-axis
+#' against its relative dispersion (proportion of maximum possible SD)
 #' on the y-axis, transformed using an *asymmetric signed log₁₀ scale*.
 #'
-#' Regions outside the feasible 0–1 square are shaded to indicate 
-#' infeasible value combinations. Points are colored by whether they passed 
+#' Regions outside the feasible 0–1 square are shaded to indicate
+#' infeasible value combinations. Points are colored by whether they passed
 #' the TIDES consistency check.
 #'
 #' ## Y-Axis Transformation
 #' The y-axis applies a **custom signed log₁₀ transformation** that stretches
-#' negative values by a factor of 10 to enhance interpretability and visual 
+#' negative values by a factor of 10 to enhance interpretability and visual
 #' separation of implausibly low dispersions. Specifically:
 #'
 #' \deqn{
-#'   y = 
+#'   y =
 #'   \begin{cases}
 #'     \log_{10}(x + 1) & \text{if } x \geq 0 \\
 #'     -10 \cdot \log_{10}(|x| + 1) & \text{if } x < 0
@@ -26,7 +26,7 @@
 #' The inverse transformation is:
 #'
 #' \deqn{
-#'   x = 
+#'   x =
 #'   \begin{cases}
 #'     10^y - 1 & \text{if } y \geq 0 \\
 #'     -(10^{-y / 10} - 1) & \text{if } y < 0
@@ -34,7 +34,7 @@
 #' }
 #'
 #' This scaling preserves 0 as a fixed point and stretches the range of
-#' negative values, helping to distinguish near-zero and implausibly low 
+#' negative values, helping to distinguish near-zero and implausibly low
 #' dispersions that would otherwise be visually compressed.
 #'
 #' @param res A \code{data.frame} or \code{tibble} containing at minimum:
@@ -107,8 +107,14 @@
 #' @importFrom forcats fct_relevel
 #'
 #' @export
-plot_tides_relative <- function(res, color_true = "#43BF71FF", color_false = "#35608DFF", color_region = "turquoise4", alpha = 0.7, shade_improbable = FALSE){
-  
+plot_tides_relative <- function(
+  res,
+  color_true = "#43BF71FF",
+  color_false = "#35608DFF",
+  color_region = "turquoise4",
+  alpha = 0.7,
+  shade_improbable = FALSE
+) {
   # check for "method" column and its values
   if (!"method" %in% names(res)) {
     stop("Relative TIDES plot requires a `method` column in the input data.")
@@ -116,51 +122,65 @@ plot_tides_relative <- function(res, color_true = "#43BF71FF", color_false = "#3
   if (any(res$method != "approximate", na.rm = TRUE)) {
     stop("Relative TIDES plot requires `method = 'approximate'` for all rows.")
   }
-  
+
   # signed_log10_trans <- scales::trans_new(
   #   name = "signed_log10",
   #   transform = function(x) sign(x) * log10(abs(x) + 1),
   #   inverse = function(x) sign(x) * (10^abs(x) - 1)
   # )
-  
+
   signed_log10_trans <- scales::trans_new(
     name = "signed_log10_trans",
     transform = function(x) {
-      ifelse(x < 0,
-             -10 * log10(abs(x) + 1),
-             log10(x + 1))
+      ifelse(x < 0, -10 * log10(abs(x) + 1), log10(x + 1))
     },
     inverse = function(x) {
-      ifelse(x < 0,
-             -(10^(-x / 10) - 1),
-             10^x - 1)
+      ifelse(x < 0, -(10^(-x / 10) - 1), 10^x - 1)
     }
   )
-  
+
   p <- res |>
-    mutate(tides_consistent = fct_relevel(as.character(tides_consistent), "TRUE", "FALSE")) |>
-    ggplot(aes(relative_location, relative_dispersion, color = tides_consistent)) +
+    mutate(
+      tides_consistent = fct_relevel(
+        as.character(tides_consistent),
+        "TRUE",
+        "FALSE"
+      )
+    ) |>
+    ggplot(aes(
+      relative_location,
+      relative_dispersion,
+      color = tides_consistent
+    )) +
     # shaded areas
-    geom_rect(data = tibble(xmin = -Inf, xmax = 0, ymin = -Inf, ymax = Inf),
-              aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE,
-              fill = "grey10",
-              alpha = 0.3) +
-    geom_rect(data = tibble(xmin = 1, xmax = Inf, ymin = -Inf, ymax = Inf),
-              aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE,
-              fill = "grey10",
-              alpha = 0.3) +
-    geom_rect(data = tibble(xmin = 0, xmax = 1, ymin = 1, ymax = Inf),
-              aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE,
-              fill = "grey10",
-              alpha = 0.3) +
-    geom_rect(data = tibble(xmin = 0, xmax = 1, ymin = -Inf, ymax = 0),
-              aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-              inherit.aes = FALSE,
-              fill = "grey10",
-              alpha = 0.3) +
+    geom_rect(
+      data = tibble(xmin = -Inf, xmax = 0, ymin = -Inf, ymax = Inf),
+      aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+      inherit.aes = FALSE,
+      fill = "grey10",
+      alpha = 0.3
+    ) +
+    geom_rect(
+      data = tibble(xmin = 1, xmax = Inf, ymin = -Inf, ymax = Inf),
+      aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+      inherit.aes = FALSE,
+      fill = "grey10",
+      alpha = 0.3
+    ) +
+    geom_rect(
+      data = tibble(xmin = 0, xmax = 1, ymin = 1, ymax = Inf),
+      aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+      inherit.aes = FALSE,
+      fill = "grey10",
+      alpha = 0.3
+    ) +
+    geom_rect(
+      data = tibble(xmin = 0, xmax = 1, ymin = -Inf, ymax = 0),
+      aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+      inherit.aes = FALSE,
+      fill = "grey10",
+      alpha = 0.3
+    ) +
     # # black line separating shaded and unshaded areas - not working
     # geom_rect(aes(xmin = 0, xmax = 1, ymin = 0, ymax = 1),
     #           fill = NA,
@@ -168,73 +188,96 @@ plot_tides_relative <- function(res, color_true = "#43BF71FF", color_false = "#3
     #           linewidth = 0.01,
     #           color = "black") +
     # black line separating shaded and unshaded areas
-    geom_segment(data = tibble(x = 0, y = 0, xend = 1, yend = 0),
-                 aes(x = x, y = y, xend = xend, yend = yend),
-                 inherit.aes = FALSE,
-                 linewidth = 0.25,
-                 color = "black") +   # bottom
-    geom_segment(data = tibble(x = 1, y = 0, xend = 1, yend = 1),
-                 aes(x = x, y = y, xend = xend, yend = yend),
-                 inherit.aes = FALSE,
-                 linewidth = 0.25,
-                 color = "black") +   # right
-    geom_segment(data = tibble(x = 1, y = 1, xend = 0, yend = 1),
-                 aes(x = x, y = y, xend = xend, yend = yend),
-                 inherit.aes = FALSE,
-                 linewidth = 0.25,
-                 color = "black") +   # top
-    geom_segment(data = tibble(x = 0, y = 1, xend = 0, yend = 0),
-                 aes(x = x, y = y, xend = xend, yend = yend),
-                 inherit.aes = FALSE,
-                 linewidth = 0.25,
-                 color = "black") +   # left
+    geom_segment(
+      data = tibble(x = 0, y = 0, xend = 1, yend = 0),
+      aes(x = x, y = y, xend = xend, yend = yend),
+      inherit.aes = FALSE,
+      linewidth = 0.25,
+      color = "black"
+    ) + # bottom
+    geom_segment(
+      data = tibble(x = 1, y = 0, xend = 1, yend = 1),
+      aes(x = x, y = y, xend = xend, yend = yend),
+      inherit.aes = FALSE,
+      linewidth = 0.25,
+      color = "black"
+    ) + # right
+    geom_segment(
+      data = tibble(x = 1, y = 1, xend = 0, yend = 1),
+      aes(x = x, y = y, xend = xend, yend = yend),
+      inherit.aes = FALSE,
+      linewidth = 0.25,
+      color = "black"
+    ) + # top
+    geom_segment(
+      data = tibble(x = 0, y = 1, xend = 0, yend = 0),
+      aes(x = x, y = y, xend = xend, yend = yend),
+      inherit.aes = FALSE,
+      linewidth = 0.25,
+      color = "black"
+    ) + # left
     # data points
-    geom_point(alpha = alpha) + # shape = 15,  size = 2, 
+    geom_point(alpha = alpha) + # shape = 15,  size = 2,
     # axes and theme
-    scale_x_continuous(breaks = scales::breaks_pretty(n = 10),
-                       labels = scales::label_percent(),
-                       #name = "Percent-Of-Maximum-Possible Mean") +
-                       name = "Relative location") +
-    scale_y_continuous(breaks = scales::breaks_pretty(n = 10),
-                       labels = scales::label_percent(),
-                       #name = "Percent-Of-Maximum-Possible SD",
-                       name = "Relative dispersion",
-                       trans = signed_log10_trans) +
-    scale_color_manual(values = c("TRUE" = color_true, "FALSE" = color_false),
-                       labels = c("TRUE" = "TIDES consistent", "FALSE" = "TIDES inconsistent")) +
+    scale_x_continuous(
+      breaks = scales::breaks_pretty(n = 10),
+      labels = scales::label_percent(),
+      #name = "Percent-Of-Maximum-Possible Mean") +
+      name = "Relative location"
+    ) +
+    scale_y_continuous(
+      breaks = scales::breaks_pretty(n = 10),
+      labels = scales::label_percent(),
+      #name = "Percent-Of-Maximum-Possible SD",
+      name = "Relative dispersion",
+      trans = signed_log10_trans
+    ) +
+    scale_color_manual(
+      values = c("TRUE" = color_true, "FALSE" = color_false),
+      labels = c("TRUE" = "TIDES consistent", "FALSE" = "TIDES inconsistent")
+    ) +
     theme_linedraw() +
     theme(legend.position = "top") +
-    guides(color = guide_legend(reverse = FALSE,
-                                override.aes = list(size = 4, ncol = 1), 
-                                title = NULL))
-  
+    guides(
+      color = guide_legend(
+        reverse = FALSE,
+        override.aes = list(size = 4, ncol = 1),
+        title = NULL
+      )
+    )
+
   # improbable region
-  if(shade_improbable){
-    p <- p + 
-      geom_rect(data = tibble(xmin = 0, xmax = 1, ymin = 0, ymax = 0.05),
-                aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-                inherit.aes = FALSE,
-                fill = "darkred",
-                alpha = 0.3) +
-      geom_rect(data = tibble(xmin = 0, xmax = 1, ymin = 0.70, ymax = 1),
-                aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-                inherit.aes = FALSE,
-                fill = "darkred",
-                alpha = 0.3) +
-      geom_rect(data = tibble(xmin = 0, xmax = 0.05, ymin = 0.05, ymax = 0.70),
-                aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-                inherit.aes = FALSE,
-                fill = "darkred",
-                alpha = 0.3) +
-      geom_rect(data = tibble(xmin = 0.95, xmax = 1, ymin = 0.05, ymax = 0.70),
-                aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-                inherit.aes = FALSE,
-                fill = "darkred",
-                alpha = 0.3) 
+  if (shade_improbable) {
+    p <- p +
+      geom_rect(
+        data = tibble(xmin = 0, xmax = 1, ymin = 0, ymax = 0.05),
+        aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+        inherit.aes = FALSE,
+        fill = "darkred",
+        alpha = 0.3
+      ) +
+      geom_rect(
+        data = tibble(xmin = 0, xmax = 1, ymin = 0.70, ymax = 1),
+        aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+        inherit.aes = FALSE,
+        fill = "darkred",
+        alpha = 0.3
+      ) +
+      geom_rect(
+        data = tibble(xmin = 0, xmax = 0.05, ymin = 0.05, ymax = 0.70),
+        aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+        inherit.aes = FALSE,
+        fill = "darkred",
+        alpha = 0.3
+      ) +
+      geom_rect(
+        data = tibble(xmin = 0.95, xmax = 1, ymin = 0.05, ymax = 0.70),
+        aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+        inherit.aes = FALSE,
+        fill = "darkred",
+        alpha = 0.3
+      )
   }
-  
+
   return(p)
 }
-
-
-
