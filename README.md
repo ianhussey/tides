@@ -121,7 +121,7 @@ umbrella(n = 14, min = 1, max = 7, digits = 2) |>
 
 ## Suggested citation
 
-Hussey, I. (2024). TIDES: Trustworthiness assessments for summary statistics using bounds checks. https://github.com/ianhussey/TIDES doi: [10.5281/zenodo.21439905](https://doi.org/10.5281/zenodo.21439905)
+Hussey, I. (2024). TIDES: Trustworthiness assessments for summary statistics using bounds checks. https://github.com/ianhussey/tides doi: [10.5281/zenodo.21439905](https://doi.org/10.5281/zenodo.21439905)
 
 ## References
 
