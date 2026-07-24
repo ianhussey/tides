@@ -20,7 +20,7 @@ sd_bounds_alpha(l, u, n, mean, Z, alpha, k_items)
 \item{k_items}{Integer scalar, number of items, \code{k_items >= 1}.}
 }
 \value{
-List with \code{min_sd}, \code{max_sd}, \code{feasible}.
+List with \code{min_sd}, \code{max_sd}, \code{feasible}, \code{min_rule}, \code{note}.
 }
 \description{
 Bounds of the sum score's sample SD given the composite limits, n, sum-score
@@ -28,8 +28,10 @@ mean, granularity, and a reported alpha (the TIDES article, Appendix H).
 Ceiling: the mean-conditional ceiling divided by
 \verb{sqrt(k - (k - 1) alpha)}; under granularity, additionally the sharper
 quasi-integer \code{V_max} form, intersected with the alpha-free ceiling (alpha
-can only tighten). Floor: the alpha-amplified quasi-integer floor
-\verb{s_min / sqrt(1 - c alpha)} under granularity, else 0. The floor
-can exceed the ceiling for small k (a genuinely infeasible constraint set);
-this is reported rather than clipped.
+can only tighten). Floor under granularity: the alpha-amplified quasi-integer
+floor \verb{s_min / sqrt(1 - c alpha)}, sharpened for strictly integer composites
+to the exact Gini envelope of \code{\link[=sd_min_alpha_gini]{sd_min_alpha_gini()}} (positive even at
+whole-number means; Theorem H5) when that enumeration is affordable, else 0.
+The floor can exceed the ceiling for small k (a genuinely infeasible
+constraint set); this is reported rather than clipped.
 }

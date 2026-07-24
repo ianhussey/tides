@@ -249,13 +249,16 @@ sd_bounds_curve <- function(l, u, n, Z = "quasiinteger",
 #' @param digits Integer, reported decimal places (grid step `10^-digits`).
 #' @param Z granularity (default `"integer"`).
 #' @param scoring,n_items As in [sd_bounds()].
+#' @param alpha Optional reported Cronbach's alpha; when supplied the bounds each
+#'   cell is tested against are the alpha-conditional ones, so the grid shows the
+#'   jointly GRIM-, GRIMMER- and alpha-consistent tuples.
 #' @param rounding Rounding rule for mean and SD (default `"up_or_down"`).
 #' @return A data.frame: `mean`, `sd`, `min_sd`, `max_sd`, `in_bounds`,
 #'   `grimmer`, `consistent`.
 #' @export
 umbrella_data <- function(n, l, u, digits = 2, Z = "integer",
                           scoring = "singleitem", n_items = 1,
-                          rounding = "up_or_down") {
+                          alpha = NULL, rounding = "up_or_down") {
   step <- 10^(-digits)
   h <- step / 2
   means <- seq(l, u, by = step)
@@ -264,7 +267,7 @@ umbrella_data <- function(n, l, u, digits = 2, Z = "integer",
   for (mu in means) {
     d <- sd_bounds(l = l, u = u, n = n, mean = mu, mean_digits = digits,
                    rounding = rounding, Z = Z, scoring = scoring,
-                   n_items = n_items)
+                   n_items = n_items, alpha = alpha)
     if (!isTRUE(d$feasible) || is.na(d$max_sd)) next
     sds <- seq(0, ceiling(d$max_sd / step) * step, by = step)
     in_bounds <- (sds + h) >= d$min_sd - 1e-9 & (sds - h) <= d$max_sd + 1e-9

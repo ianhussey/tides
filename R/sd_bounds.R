@@ -32,8 +32,9 @@
       return(fail("alpha floor exceeds alpha ceiling: no sample satisfies all constraints"))
     res$min_sd <- ab$min_sd
     res$max_sd <- ab$max_sd
-    res$min_rule <- if (ab$min_sd > 0) "alpha-amplified quasi-integer floor" else "s >= 0"
+    res$min_rule <- if (ab$min_sd > 0) ab$min_rule else "s >= 0"
     res$max_rule <- "alpha ceiling"
+    if (!is.na(ab$note)) res$note <- ab$note
     return(res)
   }
 

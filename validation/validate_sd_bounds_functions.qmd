@@ -751,6 +751,71 @@ kable(tibble(test = c("check_multiple == row-wise", "curve hole-free",
       caption = "Derived builders.")
 ```
 
+# Part 5: the sharp alpha-conditional floor (Gini envelope, Theorem H5)
+
+Under a reported Cronbach's alpha the amplified floor of Theorem H4 vanishes at
+whole-number sum-score means, yet a defined positive alpha makes a constant
+composite impossible (its alpha is `0/0`) and excludes the two-adjacent-value
+profiles that give the alpha-free minimum. The sharp floor is the Gini envelope
+of Theorem H5: the least composite SD among integer profiles whose design-factor
+cap `m_max(S) = n * SS_S / V_min(S)` reaches the reported design factor. It must
+(i) reproduce the article's disproof counterexample, (ii) be a valid lower bound
+and sharp against brute force, and (iii) lift the floor off zero at whole-number
+means where the amplified floor is zero.
+
+```{r}
+# (i) the disproof composite {0, 3,3,3, 4x10}, n = 14: SS_S = 15.5, m_max = 2.7468
+env_disproof <- tides:::sd_min_alpha_gini(l = 0, u = 4, n = 14, mean = 3.5, m = 2.7468)
+disproof_ok <- isTRUE(all.equal(env_disproof, sqrt(15.5 / 13), tolerance = 1e-6))
+
+# (ii) exhaustive: n = 4 people, k = 2 integer items in 1..3
+n <- 4; k <- 2; il <- 1; iu <- 3
+G <- as.matrix(expand.grid(rep(list(il:iu), n * k)))
+person  <- ((seq_len(n * k) - 1) %/% k) + 1
+itemidx <- ((seq_len(n * k) - 1) %%  k) + 1
+comp <- sapply(1:n, function(p) rowSums(G[, person == p, drop = FALSE]))
+compmean <- rowMeans(comp)
+SS_S <- rowSums((comp - compmean)^2)
+V <- rowSums(sapply(1:k, function(it) {
+  Xi <- G[, itemidx == it, drop = FALSE]; apply(Xi, 1, function(r) sum((r - mean(r))^2))
+}))
+m_d <- ifelse(V > 0, SS_S / V, Inf); sd_d <- sqrt(SS_S / (n - 1))
+viol <- 0L
+for (i in which(V > 1e-9 & SS_S > 1e-9)) {
+  e <- tides:::sd_min_alpha_gini(l = k * il, u = k * iu, n = n, mean = compmean[i], m = m_d[i])
+  if (!is.null(e) && e > sd_d[i] + 1e-9) viol <- viol + 1L
+}
+valid_ok <- viol == 0L
+mu0 <- k * 2
+sharp_ok <- all(vapply(c(1.2, 1.5, 2.0), function(mt) {
+  cand <- which(abs(compmean - mu0) < 1e-9 & m_d >= mt - 1e-9 & SS_S > 1e-9)
+  isTRUE(all.equal(tides:::sd_min_alpha_gini(l = k * il, u = k * iu, n = n, mean = mu0, m = mt),
+                   min(sd_d[cand]), tolerance = 1e-9))
+}, logical(1)))
+
+# (iii) positive at a whole-number mean where the amplified floor is zero
+amped <- sd_bounds(l = 0, u = 3, n = 10, mean = 1.5, Z = "integer",
+                   scoring = "meanscored", n_items = 2)
+withA <- sd_bounds(l = 0, u = 3, n = 10, mean = 1.5, Z = "integer",
+                   scoring = "meanscored", n_items = 2, alpha = 0.7)
+lift_ok <- amped$min_sd == 0 && withA$min_sd > 0 && grepl("Gini", withA$min_rule)
+
+# (iv) unaffordable window falls back to the proven floor, flagged
+fb <- sd_bounds(l = 1, u = 5, n = 20, mean = 3, Z = "integer",
+                scoring = "meanscored", n_items = 3, alpha = 0.8)
+fallback_ok <- isTRUE(fb$feasible) && !is.na(fb$note) && grepl("not evaluated", fb$note)
+
+check(disproof_ok, "Gini envelope reproduces the disproof counterexample")
+check(valid_ok,    "Gini envelope is a valid lower bound (brute force, 0 violations)")
+check(sharp_ok,    "Gini envelope is sharp at whole-number means (brute force)")
+check(lift_ok,     "positive alpha lifts the floor off zero at a whole-number mean")
+check(fallback_ok, "over-budget composite window falls back to the proven floor with a note")
+kable(tibble(test = c("disproof reproduced", "valid lower bound", "sharp vs brute",
+                      "lifted off zero", "graceful fallback"),
+             passed = c(disproof_ok, valid_ok, sharp_ok, lift_ok, fallback_ok)),
+      caption = "Sharp alpha-conditional floor (Gini envelope).")
+```
+
 # Summary of all checks
 
 ```{r}

@@ -12,6 +12,7 @@ umbrella_data(
   Z = "integer",
   scoring = "singleitem",
   n_items = 1,
+  alpha = NULL,
   rounding = "up_or_down"
 )
 }
@@ -25,6 +26,10 @@ umbrella_data(
 \item{Z}{granularity (default \code{"integer"}).}
 
 \item{scoring, n_items}{As in \code{\link[=sd_bounds]{sd_bounds()}}.}
+
+\item{alpha}{Optional reported Cronbach's alpha; when supplied the bounds each
+cell is tested against are the alpha-conditional ones, so the grid shows the
+jointly GRIM-, GRIMMER- and alpha-consistent tuples.}
 
 \item{rounding}{Rounding rule for mean and SD (default \code{"up_or_down"}).}
 }

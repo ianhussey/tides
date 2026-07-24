@@ -118,6 +118,24 @@ sd_max_span_n <- function(lower, upper, n) {
   if (n %% 2 == 0) (R / 2) * sqrt(n / (n - 1)) else (R / 2) * sqrt((n + 1) / n)
 }
 
+#' Smooth mean-conditional maximum SD (Muilwijk / Bhatia-Davis)
+#'
+#' The mean-conditional ceiling `sqrt(n/(n-1)) * sqrt((upper - mean)(mean - lower))`,
+#' due to Muilwijk (1966) and rediscovered by Bhatia and Davis (2000). It is the
+#' smooth arch obtained by allowing fractional counts at the two limits, so it is
+#' *not* sharp: the sharp ceiling applies the count-parity correction and is
+#' [sd_max_structure_s()], which never exceeds this. Retained because it is the
+#' form most often cited in the literature and is useful as a reference curve.
+#'
+#' @param mean Numeric vector, mean(s) in `[lower, upper]`.
+#' @param n Integer scalar, sample size, `n >= 2`.
+#' @param lower,upper Numeric scalars, the limits.
+#' @return Numeric vector, the Muilwijk / Bhatia-Davis maximum sample SD.
+#' @export
+sd_max_muilwijk <- function(mean, n, lower, upper) {
+  bessel_factor(n) * sqrt(pmax(0, (upper - mean) * (mean - lower)))
+}
+
 #' Sharp mean-conditional maximum SD (Structure S)
 #'
 #' The sharp maximum given limits, n, and the mean: `n_u` observations at the
@@ -298,6 +316,7 @@ feasible_mean_band <- function(lower = NULL, upper = NULL,
 #' @param item_l,item_u Numeric scalars, the per-item limits.
 #' @return Numeric vector, the maximum of the population item-variance sum.
 #' @keywords internal
+#' @export
 v_max_alpha <- function(mean_sum, k, n, item_l, item_u) {
   h <- (item_u - item_l) / n
   T_ <- (mean_sum - k * item_l) / h
@@ -310,6 +329,66 @@ v_max_alpha <- function(mean_sum, k, n, item_l, item_u) {
   pmax(0, k * ((1 - th) * A(j) + th * A(j + 1)) - h^2 * (n - 1) * phi * (1 - phi))
 }
 
+# Internal: all non-negative integer count vectors (c_0, ..., c_{slots-1}) that
+# sum to `total`. Rows enumerate compositions; used for the exact Gini envelope.
+.count_vectors <- function(slots, total) {
+  if (slots == 1L) return(matrix(total, ncol = 1))
+  do.call(rbind, lapply(0:total, function(k)
+    cbind(k, .count_vectors(slots - 1L, total - k))))
+}
+
+#' Sharp alpha-conditional composite floor via the Gini mean difference
+#'
+#' The exact alpha-conditional minimum SD for a *strictly integer* composite
+#' (TIDES article, Theorem H5 and Corollaries H5a-H5b): the least sample SD
+#' among integer sum-score profiles \eqn{S} with the given mean, integer values
+#' in \eqn{[l, u]}, whose design-factor cap
+#' \eqn{m_{\max}(S) = 2 n\, SS_S / \sum_{s,t}|S_s - S_t|} is at least the reported
+#' design factor \eqn{m = 1/(1 - c\alpha)}. By inequality (\eqn{\star}) of the
+#' article, every integer item set achieving the reported alpha has such a
+#' profile, so this is a valid lower bound on the composite SD, and it is the
+#' *sharp* one when the full logical composite window (spread \eqn{u - l}) is
+#' enumerated. Unlike the amplified floor it is strictly positive whenever
+#' \eqn{m > 1}, including at whole-number sum-score means (Corollary H5b).
+#'
+#' Enumeration spans the full composite range, so the returned floor is exact.
+#' Returns `NULL` (caller falls back to the proven amplified floor) when no
+#' integer composite exists (\eqn{n \cdot mean} not an integer) or the
+#' enumeration `choose(n + W, W)`, \eqn{W = u - l}, would exceed `max_profiles`.
+#'
+#' @param l,u Integer scalars, sum-score limits.
+#' @param n Integer scalar, sample size.
+#' @param mean Numeric scalar, sum-score mean (with \eqn{n \cdot mean} an integer).
+#' @param m Numeric scalar, the reported design factor \eqn{1/(1 - c\alpha)}, \eqn{\ge 1}.
+#' @param max_profiles Numeric, enumeration budget (default 5e5).
+#' @return Numeric scalar, the exact floor in sum-score SD units, or `NULL`.
+#' @keywords internal
+sd_min_alpha_gini <- function(l, u, n, mean, m, max_profiles = 5e5) {
+  N <- round(n * mean)
+  if (abs(n * mean - N) > 1e-9) return(NULL)          # no integer composite
+  W <- as.integer(round(u - l))                        # composite spread (logical cap)
+  if (W < 1L) return(NULL)
+  if (!is.finite(suppressWarnings(choose(n + W, W))) ||
+      choose(n + W, W) > max_profiles) return(NULL)    # over budget -> fall back
+  vals <- 0:W                                          # deviations above l
+  target <- N - n * l                                  # required sum of (value - l)
+  if (target < 0 || target > n * W) return(NULL)
+  cv <- .count_vectors(W + 1L, n)
+  tot <- as.vector(cv %*% vals)
+  keep <- tot == target
+  if (!any(keep)) return(NULL)
+  cv <- cv[keep, , drop = FALSE]
+  SS <- as.vector(cv %*% (vals^2)) - target^2 / n      # SS_S (shift-invariant)
+  # Gini double-sum over unordered value pairs: sum_{a<b} c_a c_b (v_b - v_a)
+  G2 <- numeric(nrow(cv))
+  for (a in seq_len(W)) for (b in (a + 1L):(W + 1L))
+    G2 <- G2 + cv[, a] * cv[, b] * (vals[b] - vals[a])
+  mmax <- ifelse(G2 > 0, n * SS / G2, 0)               # m_max(S) = n SS / (n V_min)
+  ok <- mmax >= m - 1e-9 & SS > 1e-12                  # non-constant, supports alpha
+  if (!any(ok)) return(NULL)
+  sqrt(min(SS[ok]) / (n - 1))
+}
+
 #' SD bounds for a k-item composite with reported Cronbach's alpha
 #'
 #' Bounds of the sum score's sample SD given the composite limits, n, sum-score
@@ -317,10 +396,12 @@ v_max_alpha <- function(mean_sum, k, n, item_l, item_u) {
 #' Ceiling: the mean-conditional ceiling divided by
 #' `sqrt(k - (k - 1) alpha)`; under granularity, additionally the sharper
 #' quasi-integer `V_max` form, intersected with the alpha-free ceiling (alpha
-#' can only tighten). Floor: the alpha-amplified quasi-integer floor
-#' `s_min / sqrt(1 - c alpha)` under granularity, else 0. The floor
-#' can exceed the ceiling for small k (a genuinely infeasible constraint set);
-#' this is reported rather than clipped.
+#' can only tighten). Floor under granularity: the alpha-amplified quasi-integer
+#' floor `s_min / sqrt(1 - c alpha)`, sharpened for strictly integer composites
+#' to the exact Gini envelope of [sd_min_alpha_gini()] (positive even at
+#' whole-number means; Theorem H5) when that enumeration is affordable, else 0.
+#' The floor can exceed the ceiling for small k (a genuinely infeasible
+#' constraint set); this is reported rather than clipped.
 #'
 #' @param l,u Numeric scalars, limits of the SUM score (composite units).
 #' @param n Integer scalar, sample size.
@@ -328,7 +409,7 @@ v_max_alpha <- function(mean_sum, k, n, item_l, item_u) {
 #' @param Z One of "continuous", "integer", "quasiinteger" (item-level grid).
 #' @param alpha Numeric scalar, reported Cronbach's alpha, `alpha < 1`.
 #' @param k_items Integer scalar, number of items, `k_items >= 1`.
-#' @return List with `min_sd`, `max_sd`, `feasible`.
+#' @return List with `min_sd`, `max_sd`, `feasible`, `min_rule`, `note`.
 #' @export
 sd_bounds_alpha <- function(l, u, n, mean, Z, alpha, k_items) {
   k <- k_items
@@ -340,14 +421,30 @@ sd_bounds_alpha <- function(l, u, n, mean, Z, alpha, k_items) {
   ceil_smooth <- bessel_factor(n) * sqrt(pmax(0, (u - mean) * (mean - l)) / (k * D))
   ceiling <- min(ceil_free, ceil_smooth)
   floor_ <- 0
+  floor_rule <- "s >= 0"
+  note <- NA_character_
   if (Z %in% c("integer", "quasiinteger")) {
     item_l <- l / k
     item_u <- u / k
     ceil_vmax <- sqrt((n / (n - 1)) * v_max_alpha(mean, k, n, item_l, item_u) / D)
     ceiling <- min(ceiling, ceil_vmax)
-    floor_ <- sd_min_quasi_integer(mean, n) / sqrt(D)
+    floor_ <- sd_min_quasi_integer(mean, n) / sqrt(D)     # proven amplified floor
+    floor_rule <- "alpha-amplified quasi-integer floor"
+    # sharpen with the exact Gini envelope for strictly integer composites; it
+    # is >= the amplified floor and strictly positive at whole-number means.
+    if (Z == "integer" && alpha > 0) {
+      env <- sd_min_alpha_gini(l, u, n, mean, m = 1 / D)
+      if (is.null(env)) {
+        note <- "exact alpha floor (Theorem H5) not evaluated (n*mean non-integer or composite window over budget); proven amplified floor used, conservative near whole-number means"
+      } else if (env > floor_ + 1e-12) {
+        floor_ <- env
+        floor_rule <- "alpha-conditional Gini envelope floor (Theorem H5)"
+      }
+    }
   }
-  list(min_sd = floor_, max_sd = ceiling, feasible = floor_ <= ceiling + 1e-9)
+  list(min_sd = floor_, max_sd = ceiling,
+       feasible = floor_ <= ceiling + 1e-9,
+       min_rule = floor_rule, note = note)
 }
 
 # ---- Layer 3: rounding / truncation of reported inputs -----------------------
