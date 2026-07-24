@@ -136,5 +136,8 @@ tightens the bounds of a composite further.
 ```{r}
 # a 3-item composite reported as an item mean, with alpha
 sd_bounds(l = 1, u = 5, n = 20, mean = 3, Z = "integer",
-          scoring = "meanscored", n_items = 3, alpha = 0.8)
+          scoring = "meanscored", n_items = 3)$max_sd
+
+sd_bounds(l = 1, u = 5, n = 20, mean = 3, Z = "integer",
+          scoring = "meanscored", n_items = 3, alpha = 0.7)$max_sd
 ```
