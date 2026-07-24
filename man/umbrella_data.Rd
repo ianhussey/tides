@@ -35,7 +35,10 @@ jointly GRIM-, GRIMMER- and alpha-consistent tuples.}
 }
 \value{
 A data.frame: \code{mean}, \code{sd}, \code{min_sd}, \code{max_sd}, \code{in_bounds},
-\code{grimmer}, \code{consistent}.
+\code{grimmer}, \code{consistent}. \code{grimmer} is evaluated only for SDs inside the
+sharp bounds (elsewhere the tuple is already inconsistent and \code{grimmer}
+is \code{NA}); GRIM-inconsistent means are pruned before any SD is tested,
+which is why they are absent from the grid.
 }
 \description{
 For each reported mean on the \code{10^-digits} grid over \verb{[l, u]}, computes the

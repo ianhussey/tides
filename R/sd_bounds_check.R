@@ -254,7 +254,10 @@ sd_bounds_curve <- function(l, u, n, Z = "quasiinteger",
 #'   jointly GRIM-, GRIMMER- and alpha-consistent tuples.
 #' @param rounding Rounding rule for mean and SD (default `"up_or_down"`).
 #' @return A data.frame: `mean`, `sd`, `min_sd`, `max_sd`, `in_bounds`,
-#'   `grimmer`, `consistent`.
+#'   `grimmer`, `consistent`. `grimmer` is evaluated only for SDs inside the
+#'   sharp bounds (elsewhere the tuple is already inconsistent and `grimmer`
+#'   is `NA`); GRIM-inconsistent means are pruned before any SD is tested,
+#'   which is why they are absent from the grid.
 #' @export
 umbrella_data <- function(n, l, u, digits = 2, Z = "integer",
                           scoring = "singleitem", n_items = 1,
@@ -265,18 +268,25 @@ umbrella_data <- function(n, l, u, digits = 2, Z = "integer",
   use_grimmer <- Z == "integer" && requireNamespace("scrutiny", quietly = TRUE)
   rows <- list()
   for (mu in means) {
+    # sd_bounds() embeds the rounding-aware GRIM prefilter: a mean whose
+    # rounding interval admits no integer sum is infeasible under strict Z,
+    # so none of its SDs need testing.
     d <- sd_bounds(l = l, u = u, n = n, mean = mu, mean_digits = digits,
                    rounding = rounding, Z = Z, scoring = scoring,
                    n_items = n_items, alpha = alpha)
     if (!isTRUE(d$feasible) || is.na(d$max_sd)) next
     sds <- seq(0, ceiling(d$max_sd / step) * step, by = step)
     in_bounds <- (sds + h) >= d$min_sd - 1e-9 & (sds - h) <= d$max_sd + 1e-9
+    # GRIMMER (the expensive per-tuple test) runs only where the SD is inside
+    # the sharp bounds; outside, the tuple is already inconsistent and the
+    # verdict is left NA.
     grimmer <- rep(NA, length(sds))
-    if (use_grimmer)
-      grimmer <- as.logical(scrutiny::grimmer(
-        x = mu, sd = sds, n = n, digits_x = digits, digits_sd = digits,
-        items = n_items, rounding = rounding))
-    consistent <- in_bounds & (if (use_grimmer) grimmer else TRUE)
+    if (use_grimmer && any(in_bounds))
+      grimmer[in_bounds] <- as.logical(scrutiny::grimmer(
+        x = mu, sd = sds[in_bounds], n = n, digits_x = digits,
+        digits_sd = digits, items = n_items, rounding = rounding))
+    consistent <- in_bounds &
+      (if (use_grimmer) !is.na(grimmer) & grimmer else TRUE)
     rows[[length(rows) + 1]] <- data.frame(
       mean = mu, sd = sds, min_sd = d$min_sd, max_sd = d$max_sd,
       in_bounds = in_bounds, grimmer = grimmer, consistent = consistent)

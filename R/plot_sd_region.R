@@ -2,14 +2,73 @@
 # constraint set from the nested framework, drawn either as a continuous band or
 # (for strictly integer data) as the lattice of attainable reported tuples.
 
-# Internal: the alpha-free quasi-integer sharp band, in mean-score units for a
-# `k`-item composite (k = 1 is the single-item case).
-.quasi_band <- function(mean, n, l, u, k) {
+# Internal: the alpha-free quasi-integer sharp band. `mg` is the granularity
+# multiplier: the affine map w = mg * (x - l) sends the reported grid to the
+# integers, so mg = n_items for mean-scored composites and 1 otherwise.
+.quasi_band <- function(mean, n, l, u, mg) {
   data.frame(
     mean = mean,
-    lo = sd_min_quasi_integer(k * (mean - l), n) / k,
-    hi = sd_max_structure_s(k * (mean - l), n, 0, k * (u - l)) / k
+    lo = sd_min_quasi_integer(mg * (mean - l), n) / mg,
+    hi = sd_max_structure_s(mg * (mean - l), n, 0, mg * (u - l)) / mg
   )
+}
+
+# Internal: resolve a `scoring` choice into the three quantities the region
+# formulas need. `mg` is the granularity multiplier (above); `to_sum` maps a
+# reported mean to the sum-score mean that the alpha bounds are stated in;
+# `sd_div` converts a sum-score SD back to the reported SD's units.
+.scoring_geometry <- function(scoring, k, l, u) {
+  switch(scoring,
+    singleitem = {
+      if (k != 1L) stop("scoring = 'singleitem' requires n_items = 1")
+      list(mg = 1, item_l = l, item_u = u, to_sum = function(m) m, sd_div = 1)
+    },
+    meanscored = list(mg = k, item_l = l, item_u = u,
+                      to_sum = function(m) k * m, sd_div = k),
+    sumscored  = {
+      if (abs(l / k - round(l / k)) > 1e-9 || abs(u / k - round(u / k)) > 1e-9)
+        stop("scoring = 'sumscored' needs l and u divisible by n_items ",
+             "(they are the composite's limits, k times the per-item limits)")
+      list(mg = 1, item_l = l / k, item_u = u / k,
+           to_sum = function(m) m, sd_div = 1)
+    }
+  )
+}
+
+# Internal: the EXACT attainable (mean, SD) pairs for strictly integer data,
+# with no reporting grid. A DP over the n observations accumulates the set of
+# reachable (sum, sum-of-squares) pairs on the shifted integer grid
+# y = mg * (x - l) in 0..W; both statistics are recovered from (S, Q) at the
+# end. Unlike the rounded `"integer"` lattice this shows the true interior
+# holes, which rounding smears shut.
+.attainable_lattice <- function(l, u, n, mg = 1, max_cells = 2e7) {
+  W <- mg * (u - l)
+  if (abs(W - round(W)) > 1e-9)
+    stop("l, u and n_items must put the scale limits on the integer grid")
+  W <- as.integer(round(W))
+  Smax <- n * W; Qmax <- n * W * W
+  if ((Smax + 1) * (Qmax + 1) > max_cells)
+    stop("the exact lattice is too large to enumerate here (",
+         format(Smax + 1), " x ", format(Qmax + 1), " cells); use ",
+         "rule = 'integer' with a reporting precision instead")
+  cur <- matrix(FALSE, Smax + 1L, Qmax + 1L)
+  cur[1L, 1L] <- TRUE
+  for (i in seq_len(n)) {
+    nxt <- matrix(FALSE, Smax + 1L, Qmax + 1L)
+    for (v in 0:W) {
+      dq <- v * v
+      nxt[(1L + v):(Smax + 1L), (1L + dq):(Qmax + 1L)] <-
+        nxt[(1L + v):(Smax + 1L), (1L + dq):(Qmax + 1L)] |
+        cur[1L:(Smax + 1L - v), 1L:(Qmax + 1L - dq), drop = FALSE]
+    }
+    cur <- nxt
+  }
+  w <- which(cur, arr.ind = TRUE)
+  S <- w[, 1] - 1L; Q <- w[, 2] - 1L
+  ss <- Q - S^2 / n                      # sum of squares is translation-free
+  out <- data.frame(mean = l + S / (n * mg),
+                    sd   = sqrt(pmax(0, ss) / (n - 1)) / mg)
+  out[order(out$mean, out$sd), , drop = FALSE]
 }
 
 #' Feasible-region data for one constraint set
@@ -20,28 +79,34 @@
 #'
 #' @inheritParams plot_sd_region
 #' @return For band rules, a data frame with `mean`, `lo`, `hi`. For the lattice
-#'   rules (`"integer"`, `"integer_alpha"`), a data frame with `mean`, `sd` — the
-#'   tuples passing every applicable test. The `type` attribute is `"band"` or
-#'   `"points"`.
+#'   rules (`"integer"`, `"integer_alpha"`, `"attainable"`,
+#'   `"attainable_alpha"`), a data frame with `mean`, `sd`: the tuples passing
+#'   every applicable test. The `type` attribute is `"band"` or `"points"`.
 #' @export
 sd_region_data <- function(l, u, n,
                            rule = c("quasi", "range", "range_n", "mean",
                                     "mean_naive_floor", "mestdagh",
                                     "pesant_regin", "alpha", "integer",
-                                    "integer_alpha"),
+                                    "integer_alpha", "attainable",
+                                    "attainable_alpha"),
+                           scoring = NULL,
                            n_items = 1, alpha = NULL, digits = 2, by = NULL) {
   rule <- match.arg(rule)
-  if (rule %in% c("alpha", "integer_alpha") && is.null(alpha))
+  if (rule %in% c("alpha", "integer_alpha", "attainable_alpha") && is.null(alpha))
     stop(sprintf("rule = '%s' requires alpha", rule))
   k <- n_items
+  # back-compatible default: a composite is in mean-score units unless told
+  # otherwise, and one item is a single item.
+  if (is.null(scoring)) scoring <- if (k > 1) "meanscored" else "singleitem"
+  scoring <- match.arg(scoring, c("singleitem", "sumscored", "meanscored"))
+  g <- .scoring_geometry(scoring, k, l, u)
 
   # lattice rules: only GRIM/GRIMMER-attainable reported tuples exist, so the
   # region is a set of points, not a band (no curve is defined at the means and
   # SDs that strictly integer data cannot produce).
   if (rule %in% c("integer", "integer_alpha")) {
     um <- umbrella_data(n = n, l = l, u = u, digits = digits, Z = "integer",
-                        scoring = if (k > 1) "meanscored" else "singleitem",
-                        n_items = k,
+                        scoring = scoring, n_items = k,
                         alpha = if (rule == "integer_alpha") alpha else NULL)
     out <- um[which(um$consistent), c("mean", "sd"), drop = FALSE]
     rownames(out) <- NULL
@@ -49,10 +114,31 @@ sd_region_data <- function(l, u, n,
     return(out)
   }
 
+  # exact lattice rules: the true attainable tuples, with no reporting grid.
+  if (rule %in% c("attainable", "attainable_alpha")) {
+    out <- .attainable_lattice(l, u, n, g$mg)
+    if (rule == "attainable_alpha") {
+      mus <- unique(out$mean)
+      bd <- do.call(rbind, lapply(mus, function(mu) {
+        d <- sd_bounds(l = l, u = u, n = n, mean = mu, Z = "integer",
+                       scoring = scoring, n_items = k, alpha = alpha)
+        data.frame(mean = mu, lo = d$min_sd, hi = d$max_sd,
+                   ok = isTRUE(d$feasible) && !is.na(d$min_sd))
+      }))
+      out <- merge(out, bd, by = "mean")
+      out <- out[out$ok & out$sd >= out$lo - 1e-9 & out$sd <= out$hi + 1e-9,
+                 c("mean", "sd"), drop = FALSE]
+      out <- out[order(out$mean, out$sd), , drop = FALSE]
+    }
+    rownames(out) <- NULL
+    attr(out, "type") <- "points"
+    return(out)
+  }
+
   if (is.null(by)) by <- (u - l) / 1000
   m <- seq(l, u, by = by)
-  q <- .quasi_band(m, n, l, u, k)
-  naive <- sd_min_integer(k * m, n) / k        # strict Bernoulli floor, off-grid too
+  q <- .quasi_band(m, n, l, u, g$mg)
+  naive <- sd_min_integer(g$mg * m, n) / g$mg  # strict Bernoulli floor, off-grid too
 
   d <- switch(rule,
     range        = data.frame(mean = m, lo = 0,      hi = sd_max_span(l, u)),
@@ -68,7 +154,8 @@ sd_region_data <- function(l, u, n,
       D  <- 1 - cc * alpha
       if (k < 2) stop("rule = 'alpha' needs n_items >= 2 (alpha is inert at one item)")
       if (D <= 1e-12) stop("alpha too high for this n_items")
-      ceil_a <- sqrt((n / (n - 1)) * v_max_alpha(k * m, k, n, l, u) / D) / k
+      ceil_a <- sqrt((n / (n - 1)) *
+                     v_max_alpha(g$to_sum(m), k, n, g$item_l, g$item_u) / D) / g$sd_div
       data.frame(mean = m,
                  lo = q$lo / sqrt(D),          # alpha-amplified quasi-integer floor
                  hi = pmin(ceil_a, q$hi))      # alpha can only tighten
@@ -112,15 +199,28 @@ sd_region_data <- function(l, u, n,
 #'     because no band is defined at means and SDs integer data cannot produce.}
 #'   \item{`"integer_alpha"`}{that lattice, additionally inside the
 #'     alpha-conditional bounds.}
+#'   \item{`"attainable"`}{the EXACT attainable `(mean, sd)` tuples of strictly
+#'     integer data, with no reporting grid and so no `digits`. Unlike
+#'     `"integer"` this shows the true interior holes, which rounding to a
+#'     reporting grid smears shut; it is enumerated by dynamic programming and
+#'     errors if the lattice is too large.}
+#'   \item{`"attainable_alpha"`}{those exact tuples, additionally inside the
+#'     alpha-conditional bounds.}
 #' }
 #'
 #' @param l,u Numeric scalars, the scale limits (mean-score units when
-#'   `n_items > 1`).
+#'   `n_items > 1` and `scoring` is left at its default).
 #' @param n Integer scalar, sample size.
 #' @param rule Which constraint set to draw; see Details.
+#' @param scoring One of `"singleitem"`, `"sumscored"`, `"meanscored"`, as in
+#'   [sd_bounds()]. Defaults to `"meanscored"` when `n_items > 1` and
+#'   `"singleitem"` otherwise. Under `"sumscored"`, `l` and `u` are the
+#'   composite's limits and the reported values live on the unit grid, so
+#'   `n_items` enters only as Cronbach's alpha's `k`.
 #' @param n_items Integer, number of items in the composite (default 1).
 #' @param alpha Reported Cronbach's alpha; required by the alpha rules.
-#' @param digits Reported decimal places, used by the lattice rules (default 2).
+#' @param digits Reported decimal places, used by the rounded lattice rules
+#'   (default 2); ignored by the exact `"attainable"` rules.
 #' @param reference Draw the alpha-free sharp quasi-integer band as a dashed
 #'   reference (default `TRUE`; skipped for `rule = "quasi"`, which is that band).
 #' @param title Optional plot title.
@@ -141,7 +241,9 @@ plot_sd_region <- function(l, u, n,
                            rule = c("quasi", "range", "range_n", "mean",
                                     "mean_naive_floor", "mestdagh",
                                     "pesant_regin", "alpha", "integer",
-                                    "integer_alpha"),
+                                    "integer_alpha", "attainable",
+                                    "attainable_alpha"),
+                           scoring = NULL,
                            n_items = 1, alpha = NULL, digits = 2,
                            reference = TRUE, title = NULL, by = NULL,
                            fill = "grey85", line_colour = "black",
@@ -149,8 +251,13 @@ plot_sd_region <- function(l, u, n,
                            point_colour = "#1d4ed8", point_size = 0.5) {
   rule <- match.arg(rule)
   stopifnot(requireNamespace("ggplot2", quietly = TRUE))
-  d <- sd_region_data(l = l, u = u, n = n, rule = rule, n_items = n_items,
-                      alpha = alpha, digits = digits, by = by)
+  d <- sd_region_data(l = l, u = u, n = n, rule = rule, scoring = scoring,
+                      n_items = n_items, alpha = alpha, digits = digits,
+                      by = by)
+  gg <- .scoring_geometry(
+    if (is.null(scoring)) (if (n_items > 1) "meanscored" else "singleitem")
+    else match.arg(scoring, c("singleitem", "sumscored", "meanscored")),
+    n_items, l, u)
 
   p <- ggplot2::ggplot()
   # the region itself first, so the dashed reference stays visible on top of it
@@ -163,7 +270,7 @@ plot_sd_region <- function(l, u, n,
   # dashed reference: the sharp alpha-free band this rule should be judged against
   if (isTRUE(reference) && rule != "quasi") {
     step <- if (is.null(by)) (u - l) / 1000 else by
-    ref <- .quasi_band(seq(l, u, by = step), n, l, u, n_items)
+    ref <- .quasi_band(seq(l, u, by = step), n, l, u, gg$mg)
     p <- p +
       ggplot2::geom_line(data = ref, ggplot2::aes(.data$mean, .data$hi),
                          colour = reference_colour, linetype = "dashed",
