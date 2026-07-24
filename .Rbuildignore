@@ -9,3 +9,4 @@
 ^LICENSE\.md$
 ^.*\.DS_Store$
 ^\.Rhistory$
+^validation$

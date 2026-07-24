@@ -2,64 +2,152 @@
 % Please edit documentation in R/sd_bounds.R
 \name{sd_bounds}
 \alias{sd_bounds}
-\title{Compute Theoretical SD Bounds for a Given Mean and Range}
+\title{Bounds of the sample SD under a chosen set of constraints}
 \usage{
 sd_bounds(
-  mean,
-  n,
-  min,
-  max,
+  l = NULL,
+  u = NULL,
+  a = NULL,
+  b = NULL,
+  n = NULL,
+  mean = NULL,
+  mean_digits = NULL,
+  sd = NULL,
+  sd_digits = NULL,
+  rounding = NULL,
+  Z = c("continuous", "integer", "quasiinteger"),
+  scoring = c("singleitem", "sumscored", "meanscored"),
   n_items = 1,
-  digits = NULL,
-  calculate_min_sd = TRUE,
-  return_distributions = FALSE
+  alpha = NULL
 )
 }
 \arguments{
-\item{mean}{Numeric. The reported sample mean.}
+\item{l, u}{Numeric scalars or NULL, logical limits.}
 
-\item{n}{Integer. The sample size.}
+\item{a, b}{Numeric scalars or NULL, observed (attained) extremes.}
 
-\item{min}{Numeric. The minimum possible (or observed) value.}
+\item{n}{Integer scalar or NULL, sample size (\code{n >= 2} when given).}
 
-\item{max}{Numeric. The maximum possible (or observed) value.}
+\item{mean}{Numeric scalar or NULL, the reported sample mean.}
 
-\item{n_items}{Integer(1). Number of discrete "items" averaged at participant level
-(e.g.\ number of Likert items). Defaults to 1 (no within-participant averaging).}
+\item{mean_digits}{Integer scalar or NULL, decimal places of the reported
+mean (required with \code{rounding}).}
 
-\item{digits}{Integer or \code{NULL}. Number of decimal places used when
-comparing means or rounding SD. If \code{NULL}, it is inferred
-from the decimal precision of \code{mean}.}
+\item{sd}{Numeric scalar or NULL, the reported sample SD (verdict columns
+only; never affects the bounds).}
 
-\item{calculate_min_sd}{Logical. If \code{TRUE}, computes the minimum
-achievable SD given the constraints; if \code{FALSE}, sets
-\code{min_sd = 0} without computation. Defaults to \code{TRUE}.}
+\item{sd_digits}{Integer scalar or NULL, decimal places of the reported SD
+(required for GRIMMER and for interval-based \code{sd_in_bounds} when
+\code{rounding} is set).}
 
-\item{return_distributions}{Logical. If \code{TRUE}, returns the vectors that
-achieve the min and max SDs in columns \code{min_dist} and \code{max_dist}.}
+\item{rounding}{NULL (mean is exact) or a rounding/truncation rule; see
+\code{\link[=unround_interval]{unround_interval()}}.}
+
+\item{Z}{"continuous" (default), "integer", or "quasiinteger".}
+
+\item{scoring}{"singleitem" (default), "sumscored", or "meanscored".}
+
+\item{n_items}{Positive whole number of response items (default 1). Must be
+1 for \code{scoring = "singleitem"}.}
+
+\item{alpha}{Numeric scalar or NULL, reported Cronbach's alpha (requires
+\code{scoring = "sumscored"} or \code{"meanscored"}).}
 }
 \value{
-A single row data.frame with the columns min_sd and max_sd:
-\item{min_sd}{Minimum feasible standard deviation (or 0 if \code{calculate_min_sd=FALSE}).}
-\item{max_sd}{Maximum feasible standard deviation.}
+A one-row data.frame: \code{min_sd}, \code{max_sd} (Inf if unbounded),
+\code{feasible} (FALSE when the constraint set admits no sample, with
+\code{min_sd}/\code{max_sd} NA), \code{min_rule}, \code{max_rule} (which bound binds),
+\code{grim}, \code{grimmer} (scrutiny's verdicts; NA when not applicable),
+\code{sd_in_bounds} (NA when no \code{sd} supplied), \code{note}.
 }
 \description{
-Given a reported mean, sample size, and known minimum/maximum possible values
-(with optional discretization granularity), this function returns the
-smallest and largest standard deviations that could produce that mean
-under those constraints.
+Computes the smallest and largest sample standard deviations consistent with
+whichever constraints are supplied, following the nested framework and the
+attained-extremes extensions of the TIDES article. All constraints default
+to NULL; supplying more of them can only narrow the bounds. With none
+supplied the only bound is \verb{0 <= s < Inf}.
 }
 \details{
-The lower bound (min_sd) is computed only when \code{calculate_min_sd = TRUE},
-otherwise it is set to zero (the trivial case of all observations equal the mean).
-The upper bound (max_sd) is always computed. Rounding precision is inferred
-from the decimals in \code{mean} unless \code{digits} is specified.
+Constraint semantics:
+\itemize{
+\item \code{l}, \code{u} — logical scale limits (walls): observations lie in \verb{[l, u]} but
+need not touch either limit.
+\item \code{a}, \code{b} — observed extremes (attained): at least one observation equals
+each. \code{a} supersedes \code{l} and \code{b} supersedes \code{u} (a wall beyond an attained
+extreme is vacuous). Attainment leaves ceilings unchanged but creates
+nonzero floors.
+\item \code{n} — sample size (required for any mean-conditional bound).
+\item \code{mean}, \code{mean_digits} — the reported mean, numeric, with its number of
+reported decimal places. This mirrors scrutiny's post-string API (numeric
+\code{x} plus \code{digits_x}); a character-parsing wrapper can be layered above via
+\code{\link[=infer_digits]{infer_digits()}}, but is not required here. With \code{rounding = NULL} the
+mean is treated as exact and \code{mean_digits} is ignored.
+\item \code{rounding} — NULL (mean exact) or one of \code{"up_or_down"}, \code{"up"},
+\code{"down"}, \code{"even"}, \code{"ceiling"}, \code{"floor"}, \code{"trunc"}, \code{"anti_trunc"}
+(see \code{\link[=unround_interval]{unround_interval()}}; requires \code{mean_digits}). The returned bounds
+are then the ENVELOPE over all exact means consistent with the report,
+intersected with the feasible mean band. Under \code{Z = "integer"} the
+envelope enumerates the GRIM-consistent means in the interval exactly.
+\item \code{sd}, \code{sd_digits} — optionally, the reported SD and its decimal places.
+The SD never changes the bounds; it enables the report-consistency
+columns: \code{sd_in_bounds} (does the SD's own rounding interval overlap
+\verb{[min_sd, max_sd]}?) and, under \code{Z = "integer"} with \code{rounding} set, the
+GRIMMER verdict.
+\item \code{Z} — granularity: \code{"continuous"} (none; the default), \code{"integer"} (all
+observations on the grid), or \code{"quasiinteger"} (all but one on the grid;
+defined at every mean, the GRIM-free relaxation). For mean-scored data the
+grid is the 1/\code{n_items} mean-score lattice, not the integers.
+\item \code{scoring}, \code{n_items} — how the \code{n_items} response items enter the scale.
+\code{"singleitem"} (default, requires \code{n_items = 1}): observations are single
+integer responses. \code{"sumscored"}: observations are sums of \code{n_items}
+integer items, so still integer-gridded; \code{n_items} is used only to size a
+reported \code{alpha}. \code{"meanscored"}: observations are means of \code{n_items}
+integer items, so they sit on a 1/\code{n_items} grid; \code{n_items} sets that
+granularity (and, with \code{alpha}, doubles as the composite item count).
+\item \code{alpha} — reported Cronbach's alpha of the composite; requires
+\code{scoring = "sumscored"} or \code{"meanscored"} (a single item has no internal
+consistency) and \code{l}, \code{u}, \code{mean}, \code{n}. For \code{"sumscored"}, \code{l}, \code{u}, \code{mean}
+are in SUM-score units; for \code{"meanscored"}, in mean-score units. Not
+combinable with \code{a}/\code{b} (open problem).
+}
+
+GRIM and GRIMMER verdicts are DEFERRED to the scrutiny package
+(\code{scrutiny::grim()}, \code{scrutiny::grimmer()}) rather than reimplemented:
+under \code{Z = "integer"} with \code{rounding} set, the \code{grim} column carries
+scrutiny's verdict on the mean and (when \code{sd} is supplied) the \code{grimmer}
+column scrutiny's verdict on the (mean, sd) pair. The bounds themselves are
+computed from this package's own enumeration of GRIM-consistent means; when
+scrutiny's verdict disagrees with that enumeration the disagreement is
+surfaced in \code{note}. Divergences are expected in known edge cases: scrutiny's
+GRIM/GRIMMER have documented floating-point boundary bugs (false passes
+under \code{rounding = "up"}; false flags, including under the default rounding,
+when a candidate sum sits exactly on an interval endpoint), so verify such a
+mismatch against a full enumeration before attributing it to the bounds.
 }
 \examples{
-# A 5-point scale (1-5), mean = 3.2, n = 30, no within-person averaging:
-sd_bounds(mean = 3.2, n = 30, min = 1, max = 5)
+sd_bounds()                                     # 0 <= s < Inf
+sd_bounds(l = 1, u = 5)                         # range-only ceiling
+sd_bounds(l = 1, u = 5, n = 9)                  # parity ceiling
+sd_bounds(l = 1, u = 5, n = 9, mean = 2)        # sharp mean-conditional
+sd_bounds(l = 1, u = 5, n = 9, mean = 2.44, Z = "quasiinteger")
+sd_bounds(a = 2, b = 4, n = 9, mean = 2.44, Z = "integer")   # attained
+sd_bounds(l = 1, b = 4, n = 9, mean = 3.5, Z = "integer")    # mixed
 
-# If you only care about the upper bound:
-sd_bounds(mean = 3.2, n = 30, min = 1, max = 5, calculate_min_sd = FALSE)
+# reported mean rounded to 2 dp: envelope over [2.965, 2.975];
+# GRIM verdict deferred to scrutiny
+sd_bounds(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
+          rounding = "up_or_down", Z = "integer")
+# with a reported SD: adds scrutiny's GRIMMER verdict and the bounds check
+sd_bounds(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
+          sd = 2.83, sd_digits = 2, rounding = "up_or_down", Z = "integer")
+# truncated reporting
+sd_bounds(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
+          rounding = "trunc", Z = "quasiinteger")
 
+# sum-scored 3-item composite (l, u, mean in sum units) with alpha
+sd_bounds(l = 3, u = 15, n = 20, mean = 9, Z = "integer",
+          scoring = "sumscored", n_items = 3, alpha = 0.8)
+# the same composite reported as an item mean (l, u, mean in mean units)
+sd_bounds(l = 1, u = 5, n = 20, mean = 3, Z = "integer",
+          scoring = "meanscored", n_items = 3, alpha = 0.8)
 }

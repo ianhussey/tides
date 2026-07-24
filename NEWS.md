@@ -1,3 +1,48 @@
+# tides 0.4.0
+
+A ground-up rewrite of the engine around the closed-form standard-deviation
+bounds derived in the TIDES article. This is a breaking change: the API is new
+throughout.
+
+## Breaking changes
+
+* Removed `tides()`, `tides_df()`, `umbrella()`, `approximate_sd_bounds()`,
+  `plot_tides()` and `plot_tides_relative()`, and the internal
+  `grimmer_consistent()` scrutiny shim.
+* `sd_bounds()` has a new signature and semantics. It now takes logical scale
+  limits `l`, `u` (formerly `min`, `max`), optional attained extremes `a`, `b`,
+  a granularity argument `Z` (`"continuous"`, `"integer"`, `"quasiinteger"`),
+  `scoring` (`"singleitem"`, `"sumscored"`, `"meanscored"`) with `n_items`, and
+  an optional Cronbach's `alpha`. It returns bounds in closed form (no
+  constructed distributions) together with the binding rule for each bound.
+* `plot_umbrella()` now takes the output of `umbrella_data()`.
+
+## New features
+
+* Bounds are now sharp under many more constraint sets: attained observed
+  extremes (`a`, `b`), the quasi-integer floor (defined at every mean, so bound
+  curves are hole-free), the sharp Structure-S mean-conditional ceiling, and a
+  reported Cronbach's alpha for sum- or mean-scored composites.
+* `n_items` greater than 1 is now fully supported via the granularity grid
+  (previously forced to 1).
+* Rounded and truncated reported values are handled explicitly
+  (`unround_interval()`, and a `rounding` argument with the usual scrutiny-style
+  options); GRIM and GRIMMER verdicts are deferred to `scrutiny`.
+* `sd_bounds_check()` gives a single consistent/inconsistent verdict, the
+  failing tests, and percent-of-maximum-possible transforms (`pomp_mean`,
+  `pomp_sd_parity`, `pomp_sd_sharp`). `sd_bounds_check_multiple()` applies it
+  across a data frame, de-duplicating repeated constraint tuples.
+* `sd_bounds_curve()` and `umbrella_data()` build the plotting data;
+  `plot_sd_bounds()`, `plot_sd_bounds_pomp()` (native and POMP scales) and
+  `plot_umbrella()` visualise it.
+* The single-purpose bound primitives (e.g. `sd_max_structure_s()`,
+  `sd_min_quasi_integer()`) are exported and documented.
+
+## Dependencies
+
+* `Imports` trimmed to `ggplot2` and `scrutiny` (dropping `dplyr`, `tidyr`,
+  `purrr`, `tibble`, `janitor`, `forcats`, `scales`, `rlang`).
+
 # tides 0.3.2
 
 This release prepares the package for CRAN and fixes several bugs that affected

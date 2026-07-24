@@ -1,6 +1,6 @@
 ---
 title: "tides"
-subtitle: "Checking reported summary statistics from truncated data"
+subtitle: "Bounds of the standard deviation for truncated data"
 author: "Ian Hussey"
 output: rmarkdown::html_vignette
 vignette: >
@@ -16,134 +16,125 @@ knitr::opts_chunk$set(
   fig.width = 7,
   fig.height = 4.5
 )
-options(scipen = 999) # disable scientific notation
+options(scipen = 999)
 ```
 
 ```{r}
-library(dplyr)
-library(tidyr)
-library(purrr)
 library(tides)
-
-# used in the vignette but not required by tides itself
-library(scrutiny)
 ```
 
-## What tides does
+## The idea
 
-When a measure is bounded (truncated) — a Likert item, a symptom inventory, a
-percentage — the reported mean constrains the standard deviation that is
-arithmetically possible. `tides()` computes the smallest and largest SD that a
-reported mean, sample size and scale range could have produced, and flags a
-report as inconsistent when the reported SD falls outside that range.
+When a measure has a known minimum and maximum, a reported mean constrains the
+sample standard deviation that is arithmetically possible: the two summary
+statistics are *not* independent. `tides` computes, in closed form, the smallest
+and largest sample SD consistent with a chosen set of constraints, and flags
+reported values that fall outside them.
 
-We illustrate with the summary statistics reported by Zemestani & Mozaffari
-(2020), where the outcome is the BDI-II depression inventory (possible scores
-0–63).
-
-## Summary statistics from the article
+The constraints are nested — supplying more of them can only narrow the bounds.
 
 ```{r}
-# data manually extracted from the article
-reported_results <- data.frame(
-  timepoint = c(          "t1",           "t2",           "t3",      "t1",      "t2",      "t3"),
-  condition = c("intervention", "intervention", "intervention", "control", "control", "control"),
-  n         = c(         23.00,          23.00,          23.00,     29.00,     29.00,     29.00),
-  mean      = c(         31.09,          20.70,          24.09,     31.92,     32.57,     33.40),
-  sd        = c(          6.03,           3.40,           3.77,      4.83,      5.15,      4.45),
-  min       = 0,   # BDI-II minimum score
-  max       = 63,  # BDI-II maximum score
-  n_items   = 1,
-  digits    = 2
+sd_bounds(l = 1, u = 5)                          # scale limits only
+sd_bounds(l = 1, u = 5, n = 9)                   # + sample size (parity ceiling)
+sd_bounds(l = 1, u = 5, n = 9, mean = 2)         # + mean (sharp ceiling)
+```
+
+The `min_rule` / `max_rule` columns name which bound binds.
+
+## Granularity
+
+If the data are integers (e.g. single Likert items), the SD also has a nonzero
+*floor* — data cannot be perfectly smooth. `Z = "integer"` requires every
+observation to be a whole number (and the mean to be GRIM-consistent);
+`Z = "quasiinteger"` relaxes this to "all but one", which is defined at every
+mean and so never has GRIM holes.
+
+```{r}
+sd_bounds(l = 1, u = 5, n = 9, mean = 2.44, Z = "quasiinteger")
+```
+
+## Checking a reported statistic
+
+`sd_bounds_check()` turns the bounds into a consistency verdict. Give it the
+reported values as they appear in a paper — numbers plus their decimal places —
+and it unrounds them, applies the bounds test, and (for integer data) defers the
+GRIM and GRIMMER verdicts to the `scrutiny` package.
+
+```{r}
+# an ordinary report on a 1-7 scale
+sd_bounds_check(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
+                sd = 2.83, sd_digits = 2, Z = "integer")
+
+# an SD too small to be possible: caught by the bounds test
+sd_bounds_check(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
+                sd = 0.10, sd_digits = 2, Z = "quasiinteger")
+```
+
+The check also returns percent-of-maximum-possible (POMP) transforms:
+`pomp_mean`, a linear `pomp_sd_parity` (SD as a fraction of the mean-agnostic
+maximum), and `pomp_sd_sharp` (the SD's position within the sharp
+mean-conditional band: 0 at the floor, 1 at the ceiling, outside `[0, 1]` when
+impossible).
+
+## Across a data frame
+
+`sd_bounds_check_multiple()` applies the check to each row of a data frame.
+Columns named like the arguments are read per row; anything passed as a constant
+is broadcast. Repeated constraint tuples are computed once and reused.
+
+```{r}
+reports <- data.frame(
+  mean = c(2.97, 4.50, 3.10),
+  sd   = c(2.83, 0.10, 1.90)
 )
-
-reported_results
-```
-
-## Running TIDES over a table
-
-`tides_df()` applies `tides()` to each row, taking its arguments from the
-columns of the same name.
-
-```{r}
-tides_results <- reported_results |>
-  tides_df()
-
-tides_results |>
-  select(timepoint, condition, n, mean, sd,
-         min_sd, max_sd, tides_consistent)
-```
-
-Every reported SD here sits inside its feasible `[min_sd, max_sd]` range, so
-none of these values are TIDES-inconsistent.
-
-## Comparing TIDES with GRIM and GRIMMER
-
-TIDES is complementary to the granularity-based checks GRIM and GRIMMER (from
-the `scrutiny` package). GRIM checks whether a reported mean is possible given
-the sample size and number of items; GRIMMER extends this to the SD. TIDES adds
-the constraint imposed by the scale bounds.
-
-The `scrutiny` GRIM/GRIMMER interface has changed across releases (older
-versions take zero-padded strings; newer ones take numbers plus their decimal
-places), so we wrap each in a small helper that works with either.
-
-```{r}
-grim_ok <- function(x, n, digits, items = 1) {
-  if ("digits_x" %in% names(formals(scrutiny::grim))) {
-    scrutiny::grim(x = x, n = n, digits_x = digits, items = items)
-  } else {
-    scrutiny::grim(x = scrutiny::restore_zeros(x, width = digits),
-                   n = n, items = items)
-  }
-}
-
-grimmer_ok <- function(x, sd, n, digits, items = 1) {
-  if ("digits_x" %in% names(formals(scrutiny::grimmer))) {
-    scrutiny::grimmer(x = x, sd = sd, n = n,
-                      digits_x = digits, digits_sd = digits, items = items)
-  } else {
-    scrutiny::grimmer(x = scrutiny::restore_zeros(x, width = digits),
-                      sd = scrutiny::restore_zeros(sd, width = digits),
-                      n = n, items = items)
-  }
-}
-
-reported_results |>
-  mutate(
-    grim = pmap_lgl(list(x = mean, n = n, digits = digits, items = n_items),
-                    grim_ok),
-    grimmer = pmap_lgl(list(x = mean, sd = sd, n = n,
-                            digits = digits, items = n_items),
-                       grimmer_ok)
-  ) |>
-  tides_df() |>
-  select(timepoint, condition, n, mean, sd,
-         grim_consistent = grim,
-         grimmer_consistent = grimmer,
-         tides_consistent)
+sd_bounds_check_multiple(reports, l = 1, u = 7, n = 30,
+                         mean_digits = 2, sd_digits = 2, Z = "integer")[
+  , c("mean", "sd", "consistent", "failed_tests")]
 ```
 
 ## Visualising the feasible envelope
 
-For values that share the same sample size, scale range and precision,
-`plot_tides()` draws the TIDES envelope with the reported points overlaid.
-Here we plot the three intervention-group timepoints.
+`sd_bounds_curve()` traces the floor and ceiling across the mean;
+`plot_sd_bounds()` draws the band and, optionally, reported points coloured by
+consistency.
 
 ```{r}
-reported_results |>
-  filter(condition == "intervention") |>
-  mutate(calculate_min_sd = TRUE, method = "approximate") |>
-  tides_df() |>
-  plot_tides()
+curve  <- sd_bounds_curve(l = 1, u = 7, n = 30, Z = "quasiinteger")
+points <- sd_bounds_check_multiple(
+  data.frame(mean = c(3.0, 4.0, 2.5), sd = c(2.5, 0.2, 3.6)),
+  l = 1, u = 7, n = 30, mean_digits = 1, sd_digits = 1, Z = "quasiinteger")
+
+plot_sd_bounds(curve, points = points)
 ```
 
-## References
+On the POMP scale, `reference = "parity"` keeps the geometry undistorted (a
+linear rescaling), while `reference = "sharp"` maps the feasible region to the
+unit square so a point's height is its position within the band.
 
-Brown, N. J. L., & Heathers, J. A. J. (2017). The GRIM test: A simple technique
-detects numerous anomalies in the reporting of results in psychology. *Social
-Psychological and Personality Science, 8*(4), 363–369.
+```{r}
+plot_sd_bounds_pomp(curve, points = points, reference = "sharp")
+```
 
-Zemestani, M., & Mozaffari, S. (2020). Acceptance and commitment therapy for
-the treatment of depression in persons with physical disability. *(as cited for
-illustration only).*
+## The umbrella
+
+`umbrella_data()` builds the full grid of reported (mean, SD) pairs at a given
+reporting precision, tagging each as consistent, GRIMMER-inconsistent, or out of
+bounds; `plot_umbrella()` renders it.
+
+```{r}
+um <- umbrella_data(n = 14, l = 1, u = 7, digits = 2)
+plot_umbrella(um, curve = sd_bounds_curve(l = 1, u = 7, n = 14, Z = "quasiinteger"))
+```
+
+## Multi-item scales and composites
+
+`scoring` and `n_items` describe how response items form the score. Sum scores
+are integer-gridded (`scoring = "sumscored"`); item means live on a finer
+`1/n_items` grid (`scoring = "meanscored"`). A reported Cronbach's alpha
+tightens the bounds of a composite further.
+
+```{r}
+# a 3-item composite reported as an item mean, with alpha
+sd_bounds(l = 1, u = 5, n = 20, mean = 3, Z = "integer",
+          scoring = "meanscored", n_items = 3, alpha = 0.8)
+```

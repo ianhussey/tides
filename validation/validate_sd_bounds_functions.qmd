@@ -1,0 +1,766 @@
+---
+title: "Validate sd_bounds() / sd_bounds_check(): paths, sweeps, and the joint blind spot of GRIM + GRIMMER + bounds"
+author: "Ian Hussey"
+format:
+  html:
+    embed-resources: true
+    toc: true
+    code-fold: true
+    theme: flatly
+execute:
+  warning: false
+  message: false
+---
+
+<!--
+Validation companion to bounds-of-SD-article/bounds-of-SD-math/sd_bounds_functions.R.
+
+Three jobs:
+1. Re-run the validated paths of sd_bounds() and sd_bounds_check() as visible,
+   rerunnable tests (exhaustive enumeration; rounding envelopes; scrutiny
+   deference including the documented-bug witness case; verdict paths).
+2. Generate the COMPLETE discrete umbrella for a given (n, l, u) by enumerating
+   every frequency vector - Funderich et al.'s (2025) conceptualisation of
+   rating-scale data as allocations across the scale points (the Bernoulli
+   two-point picture at the extremes) makes the full (M, SD) set finite and
+   enumerable, exactly as CLOSURE does.
+3. Use that ground truth to exhibit the joint blind spot: reported (M, SD)
+   pairs that pass GRIM, GRIMMER, AND the bounds check yet correspond to no
+   integer dataset. These exist even with bug-free tests, are few, and sit in
+   predictable locations at the very edge of the umbrella.
+-->
+
+```{r}
+# These tidyverse/unsum packages are used only by this dev-time validation
+# document (which is excluded from the build via .Rbuildignore); they are NOT
+# runtime dependencies of the package.
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(tibble)
+library(ggplot2)
+library(knitr)
+library(scrutiny)
+library(unsum)
+
+# Dev-time validation: load the package under development from the repo root.
+# (This document lives in validation/, which is excluded from the build via
+# .Rbuildignore, so it is never run by R CMD check.)
+if (requireNamespace("pkgload", quietly = TRUE)) {
+  pkgload::load_all("..", quiet = TRUE)
+} else {
+  library(tides)
+}
+
+ok_tally <- list()
+check <- function(ok, label) {
+  ok_tally[[label]] <<- isTRUE(ok)
+  invisible(ok)
+}
+```
+
+# Part 1: validated paths
+
+## Exact path vs exhaustive enumeration
+
+Every integer sample for $n \in \{3,4,5\}$ on scales 1–4 and 1–5 is enumerated;
+`sd_bounds()` must reproduce the exact achievable min and max SD for every
+(constraint set, sum) cell: walls, attained extremes, and the two mixed cases.
+
+```{r}
+n_bad <- 0; n_cells <- 0
+for (n in 3:5) for (u0 in c(4, 5)) {
+  l0 <- 1
+  g <- as.matrix(do.call(expand.grid, rep(list(l0:u0), n)))
+  S <- rowSums(g); sdv <- apply(g, 1, sd)
+  mn <- apply(g, 1, min); mx <- apply(g, 1, max)
+
+  for (s0 in unique(S)) {
+    i <- S == s0; m <- s0 / n; n_cells <- n_cells + 1
+    r <- sd_bounds(l = l0, u = u0, n = n, mean = m, Z = "integer")
+    if (!(r$feasible && abs(r$min_sd - min(sdv[i])) < 1e-9 &&
+          abs(r$max_sd - max(sdv[i])) < 1e-9)) n_bad <- n_bad + 1
+    # quasi floor equals the integer floor at GRIM-consistent means
+    rq <- sd_bounds(l = l0, u = u0, n = n, mean = m, Z = "quasiinteger")
+    if (abs(rq$min_sd - r$min_sd) > 1e-9) n_bad <- n_bad + 1
+  }
+  # attained both extremes
+  for (aa in l0:(u0 - 1)) for (bb in (aa + 1):u0) {
+    j <- mn == aa & mx == bb
+    if (!any(j)) next
+    for (s0 in unique(S[j])) {
+      i <- j & S == s0; n_cells <- n_cells + 1
+      r <- sd_bounds(a = aa, b = bb, n = n, mean = s0 / n, Z = "integer")
+      if (!(r$feasible && abs(r$min_sd - min(sdv[i])) < 1e-9 &&
+            abs(r$max_sd - max(sdv[i])) < 1e-9)) n_bad <- n_bad + 1
+    }
+  }
+  # mixed: wall + one attained extreme (both mirrors)
+  for (bb in (l0 + 1):u0) {
+    j <- mx == bb
+    for (s0 in unique(S[j])) {
+      i <- j & S == s0; n_cells <- n_cells + 1
+      r <- sd_bounds(l = l0, b = bb, n = n, mean = s0 / n, Z = "integer")
+      if (!(r$feasible && abs(r$min_sd - min(sdv[i])) < 1e-9 &&
+            abs(r$max_sd - max(sdv[i])) < 1e-9)) n_bad <- n_bad + 1
+    }
+  }
+  for (aa in l0:(u0 - 1)) {
+    j <- mn == aa
+    for (s0 in unique(S[j])) {
+      i <- j & S == s0; n_cells <- n_cells + 1
+      r <- sd_bounds(a = aa, u = u0, n = n, mean = s0 / n, Z = "integer")
+      if (!(r$feasible && abs(r$min_sd - min(sdv[i])) < 1e-9 &&
+            abs(r$max_sd - max(sdv[i])) < 1e-9)) n_bad <- n_bad + 1
+    }
+  }
+}
+check(n_bad == 0, sprintf("exact path == enumeration (%d cells)", n_cells))
+kable(tibble(cells_tested = n_cells, mismatches = n_bad),
+      caption = "Exact-mean bounds vs exhaustive enumeration, all constraint states.")
+```
+
+## Rounding layer: envelopes and open endpoints
+
+```{r}
+res_round <- list()
+
+# envelope == brute scan (quasi-integer and continuous)
+for (Zi in c("quasiinteger", "continuous")) {
+  r <- sd_bounds(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
+                 rounding = "up_or_down", Z = Zi)
+  ms <- seq(2.965, 2.975, length.out = 5001)
+  fl <- vapply(ms, function(m) sd_bounds(l = 1, u = 7, n = 30, mean = m, Z = Zi)$min_sd, 1)
+  cl <- vapply(ms, function(m) sd_bounds(l = 1, u = 7, n = 30, mean = m, Z = Zi)$max_sd, 1)
+  res_round[[paste0(Zi, " envelope")]] <-
+    abs(r$min_sd - min(fl)) < 1e-6 && abs(r$max_sd - max(cl)) < 1e-6
+}
+
+# strict integer: GRIM means enumerated exactly; open endpoints respected
+# n = 20, mean 2.4 to 1 dp: candidates 2.35, 2.40, 2.45 sit ON the interval edges
+r_uod <- sd_bounds(n = 20, mean = 2.4, mean_digits = 1, rounding = "up_or_down", Z = "integer")
+r_up  <- sd_bounds(n = 20, mean = 2.4, mean_digits = 1, rounding = "up",         Z = "integer")
+r_dn  <- sd_bounds(n = 20, mean = 2.4, mean_digits = 1, rounding = "down",       Z = "integer")
+res_round[["closed endpoints (up_or_down)"]] <- abs(r_uod$min_sd - sd_min_integer(2.35, 20)) < 1e-9
+res_round[["open upper endpoint (up)"]]      <- abs(r_up$min_sd  - sd_min_integer(2.35, 20)) < 1e-9
+res_round[["open lower endpoint (down)"]]    <- abs(r_dn$min_sd  - sd_min_integer(2.40, 20)) < 1e-9
+
+# truncation option
+iv <- unround_interval(2.97, 2, "trunc")
+res_round[["trunc interval [x, x+unit)"]] <- abs(iv$lo - 2.97) < 1e-12 && !iv$hi_incl
+
+for (nm in names(res_round)) check(res_round[[nm]], nm)
+kable(tibble(test = names(res_round), passed = unlist(res_round)),
+      caption = "Rounding layer.")
+```
+
+## scrutiny deference, including the documented-bug witness
+
+GRIM and GRIMMER verdicts are deferred to scrutiny and reported verbatim.
+scrutiny's GRIMMER has documented false-flag cases (see
+`scrutiny_grimmer_issue_draft.md` in this folder); the witness dataset
+`c(rep(1, 7), rep(0, 193))` produces mean 0.035 and SD 0.184, reported as
+(0.03, 0.18), which scrutiny flags — while feasibility and the bounds check
+correctly admit it.
+
+```{r}
+res_scr <- list()
+
+r <- sd_bounds(l = 0, u = 1, n = 200, mean = 0.03, mean_digits = 2,
+               sd = 0.18, sd_digits = 2, rounding = "up_or_down", Z = "integer")
+res_scr[["witness: feasible & sd_in_bounds TRUE"]] <- r$feasible && isTRUE(r$sd_in_bounds)
+res_scr[["witness: scrutiny grimmer FALSE (documented false flag)"]] <- isFALSE(r$grimmer)
+
+# GRIMMER is scale-free; the bounds check is the complementary test
+r2 <- sd_bounds(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
+                sd = 3.30, sd_digits = 2, rounding = "up_or_down", Z = "integer")
+res_scr[["sd above ceiling: sd_in_bounds FALSE"]] <- isFALSE(r2$sd_in_bounds)
+
+# divergence note fires when scrutiny disagrees with the internal enumeration
+r3 <- sd_bounds(l = 0, u = 1, n = 40, mean = 0.07, mean_digits = 2,
+                rounding = "up", Z = "integer")
+res_scr[["documented grim false pass surfaces divergence note"]] <-
+  !r3$feasible && isTRUE(r3$grim) && grepl("disagrees", r3$note)
+
+for (nm in names(res_scr)) check(res_scr[[nm]], nm)
+kable(tibble(test = names(res_scr), passed = unlist(res_scr)),
+      caption = "scrutiny deference.")
+```
+
+## sd_bounds_check(): verdict paths
+
+```{r}
+paths <- tribble(
+  ~scenario, ~call,
+  "ordinary report (witnessed by c(rep(1,20), rep(7,9), 6))",
+    quote(sd_bounds_check(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
+                          sd = 2.83, sd_digits = 2, Z = "integer")),
+  "SD below the quasi-integer floor",
+    quote(sd_bounds_check(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
+                          sd = 0.10, sd_digits = 2, Z = "quasiinteger")),
+  "SD above the ceiling",
+    quote(sd_bounds_check(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
+                          sd = 3.30, sd_digits = 2, Z = "integer")),
+  "GRIM-impossible mean",
+    quote(sd_bounds_check(l = 1, u = 7, n = 30, mean = 3.51, mean_digits = 2,
+                          sd = 1.00, sd_digits = 2, Z = "integer")),
+  "scrutiny false-flag witness (only grimmer fails)",
+    quote(sd_bounds_check(l = 0, u = 1, n = 200, mean = 0.03, mean_digits = 2,
+                          sd = 0.18, sd_digits = 2, Z = "integer")),
+  "mean-free: SD at the parity ceiling",
+    quote(sd_bounds_check(l = 1, u = 7, n = 10, sd = 3.16, sd_digits = 2, Z = "integer")),
+  "attained extremes: SD below the two-pin floor",
+    quote(sd_bounds_check(a = 1, b = 7, n = 10, mean = 4.0, mean_digits = 1,
+                          sd = 1.20, sd_digits = 2, Z = "integer"))
+)
+verdicts <- paths |>
+  rowwise() |>
+  mutate(res = list(eval(call)),
+         consistent = res$consistent, failed_tests = res$failed_tests,
+         min_sd = round(res$min_sd, 3), max_sd = round(res$max_sd, 3)) |>
+  ungroup() |>
+  select(-call, -res)
+
+expected <- c(TRUE, FALSE, FALSE, FALSE, FALSE, TRUE, FALSE)
+check(identical(verdicts$consistent, expected), "sd_bounds_check verdict paths")
+kable(verdicts, caption = "Verdict paths. The witness row is inconsistent solely through scrutiny's documented GRIMMER false flag; its note carries the caveat.")
+```
+
+# Part 2: the complete discrete umbrella (Fünderich enumeration)
+
+Fünderich et al. (2025) treat rating-scale data as allocations across the
+scale points, with the extremal configurations Bernoulli-like two-point
+distributions. For fixed $(n, l, u)$ this makes the set of achievable
+$(M, SD)$ pairs finite: enumerate every frequency vector (composition of $n$
+over the $u - l + 1$ scale points), exactly as CLOSURE does, and compute each
+one's mean and SD.
+
+```{r}
+n_u <- 12; l_u <- 1; u_u <- 5
+
+compositions <- function(n, k) {
+  if (k == 1) return(matrix(n, 1, 1))
+  do.call(rbind, lapply(0:n, function(i) cbind(i, compositions(n - i, k - 1))))
+}
+Cm <- compositions(n_u, u_u - l_u + 1)
+vals <- l_u:u_u
+S_all  <- as.vector(Cm %*% vals)
+Q_all  <- as.vector(Cm %*% (vals^2))
+SS_all <- Q_all - S_all^2 / n_u
+umbrella <- tibble(S = S_all, SS = round(SS_all, 9)) |>
+  distinct() |>
+  mutate(mean = S / n_u, sd = sqrt(SS / (n_u - 1)))
+
+cat(sprintf("n = %d on %d-%d: %s frequency vectors -> %s distinct achievable (M, SD) pairs\n",
+            n_u, l_u, u_u, format(nrow(Cm), big.mark = ","),
+            format(nrow(umbrella), big.mark = ",")))
+
+# the umbrella must respect the sd_bounds primitives at every attainable mean
+env_ok <- umbrella |>
+  mutate(ceil = sd_max_structure_s(mean, n_u, l_u, u_u),
+         flr  = sd_min_integer(mean, n_u)) |>
+  summarise(all(sd <= ceil + 1e-9) && all(sd >= flr - 1e-9)) |>
+  pull()
+check(env_ok, "umbrella inside [integer floor, Structure S ceiling]")
+
+grid_env <- tibble(mean = seq(l_u, u_u, by = 0.002),
+                   lo = sd_min_quasi_integer(mean, n_u),
+                   hi = sd_max_structure_s(mean, n_u, l_u, u_u))
+
+ggplot(umbrella, aes(mean, sd)) +
+  geom_line(data = grid_env, aes(mean, hi), colour = "grey55", linewidth = 0.35) +
+  geom_line(data = grid_env, aes(mean, lo), colour = "grey55", linewidth = 0.35) +
+  geom_point(size = 0.5, alpha = 0.5) +
+  scale_x_continuous("Mean", breaks = l_u:u_u) +
+  scale_y_continuous("Sample SD") +
+  labs(title = sprintf("Every achievable (M, SD) for n = %d on a %d-%d scale", n_u, l_u, u_u),
+       subtitle = "Points: exhaustive enumeration. Curves: quasi-integer floor and Structure S ceiling.") +
+  theme_minimal(base_size = 10) +
+  theme(panel.grid.minor = element_blank())
+```
+
+The achievable pairs form the familiar discrete umbrella; the closed-form
+envelope traces its outline exactly, with the points thinning toward the
+edges — the thinning that produces the blind spot below.
+
+# Part 3: the joint blind spot
+
+**How achievability is certified.** Two independent, exhaustive methods, which
+must agree. (i) The composition enumeration of Part 2 *is* a from-scratch
+CLOSURE: every frequency vector for $(n, l, u)$ is an integer dataset (up to a
+permutation that leaves $M$ and $SD$ unchanged), so the set of achievable
+$(M, SD)$ is complete, and a reported tuple is achievable iff some enumerated
+exact pair's mean and SD both unround to it. (ii) The established
+`unsum::closure()` (Bartos & Nguyen's exact enumerator) is run on every tuple
+this document flags as unachievable, and on a matched sample of achievable
+ones; `samples_all` is the count of integer datasets it finds. A false-pass
+claim stands only when *both* say zero. The two are diffed cell by cell below.
+
+**Claim.** There exist reported 2-dp $(M, SD)$ tuples that pass GRIM, pass
+GRIMMER, and pass the bounds check, yet correspond to **no** integer dataset —
+even if all three tests were implemented perfectly. They must be few, and they
+must sit at the very top edge of the umbrella.
+
+**Why they must exist.** The three tests see different shadows of the joint
+problem. GRIM tests the mean alone. GRIMMER tests the mean-SD pair through the
+existence, parity, and round-back of an integer sum of squares — but it is
+**scale-free**: it never learns $l$ and $u$, so it cannot know that the
+required sum of squares, while arithmetically fine, demands observations
+outside the limits. The bounds check knows the limits, but tests only that the
+SD lies inside the envelope — and just below the ceiling the achievable sums
+of squares have genuine gaps (the parity-contiguity failure exhibited in
+`inverse_bounds_min_max_range.qmd`): near the extremal U-shaped
+configurations, consecutive achievable sums of squares skip values, so thin
+slivers inside the envelope contain no integer solution. A reported tuple
+landing in such a sliver passes all three tests. Because the gaps open up only
+near the extremal configurations, the false passes are pinned to the top
+fringe of the umbrella, all along the arch.
+
+```{r}
+#| label: sweep
+# ground truth: a reported (m2, s2) is achievable iff some enumerated exact
+# pair lies within both up_or_down rounding intervals
+half <- 0.005 + 1e-9
+
+# sweep all GRIM-consistent reported means, SDs across the envelope +/- margin
+rep_means <- sort(unique(round(unique(umbrella$mean), 2)))
+sweep <- map_dfr(rep_means, function(m2) {
+  r_env <- sd_bounds(l = l_u, u = u_u, n = n_u, mean = m2, mean_digits = 2,
+                     rounding = "up_or_down", Z = "integer")
+  if (!r_env$feasible) return(NULL)
+  s2s <- seq(max(0, floor((r_env$min_sd - 0.03) * 100) / 100),
+             r_env$max_sd + 0.03, by = 0.01)
+  tibble(m2 = m2, s2 = round(s2s, 2))
+})
+
+sweep <- sweep |>
+  rowwise() |>
+  mutate(
+    truth   = any(abs(umbrella$mean - m2) <= half & abs(umbrella$sd - s2) <= half),
+    grim_p  = isTRUE(as.logical(unname(scrutiny::grim(x = m2, n = n_u, digits_x = 2)))[1]),
+    grimmer_p = isTRUE(as.logical(unname(scrutiny::grimmer(x = m2, sd = s2, n = n_u,
+                                                           digits_x = 2, digits_sd = 2)))[1]),
+    bchk    = list(sd_bounds_check(l = l_u, u = u_u, n = n_u,
+                                   mean = m2, mean_digits = 2,
+                                   sd = s2, sd_digits = 2, Z = "integer")),
+    bounds_p = isTRUE(bchk$feasible) && isTRUE(bchk$sd_in_bounds)
+  ) |>
+  ungroup() |>
+  select(-bchk) |>
+  mutate(all_pass = grim_p & grimmer_p & bounds_p)
+
+kable(sweep |> count(truth, all_pass),
+      caption = "Sweep of reported 2-dp (M, SD) tuples: ground truth (an integer dataset exists) against passing all three tests.")
+
+false_pass <- sweep |> filter(all_pass & !truth)
+false_flag <- sweep |> filter(!all_pass & truth)
+check(nrow(false_flag) == 0, "no false flags (truth achievable but some test fails)")
+check(nrow(false_pass) > 0, "false passes exist (the blind spot is real)")
+check(nrow(false_pass) / sum(sweep$all_pass) < 0.10,
+      "false passes are few (< 10% of passing tuples; ~8% at this coarse n)")
+```
+
+```{r}
+# where do the false passes sit? all are INTERIOR gaps: inside the strict
+# [min, max] at their mean, but with no achievable SD nearby - and all in the
+# top fringe of the umbrella, just below the strict ceiling
+fringe <- false_pass |>
+  rowwise() |>
+  mutate(
+    t_near = list(unique(umbrella$S[abs(umbrella$mean - m2) <= half])),
+    sd_strict_max = max(umbrella$sd[umbrella$S %in% t_near]),
+    d_nearest = min(abs(umbrella$sd[umbrella$S %in% t_near] - s2)),
+    rel_height = s2 / sd_strict_max
+  ) |>
+  ungroup() |>
+  select(m2, s2, sd_strict_max, d_nearest, rel_height)
+
+kable(
+  tibble(
+    `false passes` = nrow(fringe),
+    `distinct means affected` = length(unique(fringe$m2)),
+    `min relative height (s2 / strict max at that mean)` = round(min(fringe$rel_height), 3),
+    `median relative height` = round(median(fringe$rel_height), 3),
+    `max gap to nearest achievable SD` = round(max(fringe$d_nearest), 3)
+  ),
+  caption = "Location of every false pass. None lies beyond the strict achievable range at its mean; all sit in interior achievability gaps concentrated in the top fringe of the umbrella (median relative height ~0.9), spread along the whole arch (1-2 per GRIM-consistent mean)."
+)
+
+check(all(fringe$rel_height > 0.75),
+      "all false passes in the top fringe (relative height > 0.75)")
+check(all(fringe$s2 <= fringe$sd_strict_max + 1e-9),
+      "no false pass exceeds the strict achievable maximum at its mean")
+```
+
+## How close to the ceiling can a false pass hide? The gap ladder
+
+CLOSURE need not run on every passing tuple. The achievability gaps that create
+false passes exist *only* near the maximum-spread configurations, i.e. hugging
+the ceiling; a tuple well below it has a large fibre and is trivially
+achievable, so the (slowest) CLOSURE call there is wasted. To prune we need to
+know **how far below the ceiling a false pass can sit** — and that has a
+derivation, not a magic number.
+
+At a fixed integer mean the achievable SDs form a ladder down from the integer
+maximum $s_{\max}(l,u,n,\bar{x},\mathbb{Z})$ (the Structure-S ceiling; the top of
+the ladder, since at a GRIM-consistent mean its remainder observation is itself
+an integer). The **top gap** — from $s_{\max}(l,u,n,\bar{x},\mathbb{Z})$ to the
+second-highest achievable SD — is, for even $n$ at the midpoint mean, obtained by
+one inward unit transfer ($l,u \to l{+}1,u{-}1$, which drops the summed squared
+deviation by $2(R-1)$):
+
+$$g_1 \;=\; \frac{2(R-1)}{R\,\sqrt{n(n-1)}}, \qquad R = u - l.$$
+
+Two consequences.
+
+**The role of $d$ (reporting precision).** Notice $g_1$ has no $d$ in it — the
+gap between the top two achievable SDs is a property of the integer geometry
+($n$ and $R$), not of how the number was printed. $d$ enters only as the
+**resolution** the gap is compared against: a reported value carries an
+uncertainty of half-width $\tfrac{1}{2}10^{-d}$, so it can fall cleanly *inside*
+a gap — landing on no achievable SD — only when the gap exceeds one reporting
+unit, $10^{-d}$. So $d$ does not move the ladder; it sets how fine a gap has to
+be resolved before a report can slip into it. It acts in three places:
+
+- **Existence.** False passes exist *at all* only when the top gap clears the
+  resolution, $g_1 > 10^{-d}$, i.e.
+  $n \lesssim \tfrac{2(R-1)}{R}\,10^{d} \approx 2\cdot 10^{d}$ — about
+  $n \lesssim 167$ for two-dp reporting on a 1–7 scale, and scaling by a full
+  order of magnitude in $n$ per extra reported digit. Above that even the top
+  gap is sub-resolution and there are essentially no false passes.
+- **Depth.** Finer reporting (larger $d$) resolves smaller gaps, so the
+  false-pass region reaches further down the ladder; coarser reporting confines
+  it to the very top rungs. This is the $d$-dependence of the un-closed-form $K$.
+- **Margin.** The prune threshold is quoted with one reporting unit $10^{-d}$ of
+  slack, since a reported value stands for its whole rounding interval.
+
+The band width itself, $C\,g_1$ with $C = 3$, is an empirical envelope
+**calibrated at $d = 2$** (the usual case). Because depth grows with $d$, a much
+finer $d$ could push false passes past $3\,g_1$; that is exactly what the
+retained-every-false-pass assertion guards against — it would fail and force a
+larger $C$ (or a $d$-aware $C$) rather than silently mis-prune.
+
+**Depth (K) has no clean closed form.** How many rungs down the false-pass
+region reaches is *not* a formula: at two-dp resolution the achievable SDs are
+never dense (the minimum SD gap $\approx 1/[s(n-1)]$ already exceeds $10^{-2}$
+for realistic $s, n$), so there is no "dense region" boundary to solve for.
+Which of the wide gaps actually host a false pass depends on the interaction of
+the sum-of-squares parity/round-back structure (what GRIMMER tests) with the
+reporting grid — genuinely number-theoretic. Empirically the depth is small and
+grows with $R$: about the top 2–3 rungs at 1–5, top ~5 at 1–7, more on wide
+scales, shrinking with $n$.
+
+So we do not parameterise a fixed $K$ or a fixed SD slab. Instead we compute the
+top gap $g_1$ *exactly per mean* from the ladder (which handles odd $n$ and the
+remainder automatically) and set the band at a small multiple of it:
+
+$$\text{run CLOSURE iff}\quad s \;\ge\; s_{\max}(l,u,n,\bar{x},\mathbb{Z}) - C\cdot g_1,\qquad C = 3,$$
+
+with the convention that if $g_1 < 10^{-d}$ (no wide gap) the band is empty. The
+constant $C = 3$ absorbs the un-closed-form depth; it is calibrated so that
+every false pass is retained, and — crucially — the retention is **asserted**
+from the exhaustive enumeration, so if $C$ is ever too small at some $(n, l, u)$
+the render fails rather than silently mis-pruning.
+
+```{r}
+#| label: gap-ladder
+# Top achievable summed-squared-deviations at a fixed integer mean, via best-
+# first search from the Structure-S maximum config using inward unit transfers.
+# Complete for the top rungs, which is all the threshold needs.
+top_ss_ladder <- function(n, l, u, S, depth = 3, guard_max = 20000) {
+  R <- u - l; ex <- S - n * l
+  if (ex < 0 || ex > n * R) return(numeric(0))
+  nu <- ex %/% R; rem <- ex - nu * R
+  cfg <- if (rem == 0) sort(c(rep(l, n - nu), rep(u, nu)))
+         else          sort(c(rep(l, n - nu - 1), l + rem, rep(u, nu)))
+  key <- function(v) paste(v, collapse = ","); Qof <- function(v) sum(v^2)
+  seen <- new.env(hash = TRUE); assign(key(cfg), TRUE, envir = seen)
+  frontier <- list(cfg); Qseen <- numeric(0); guard <- 0
+  while (length(frontier) && length(unique(Qseen)) < depth && guard < guard_max) {
+    guard <- guard + 1
+    Qs <- vapply(frontier, Qof, 0); i <- which.max(Qs)
+    v <- frontier[[i]]; frontier[[i]] <- NULL; Qseen <- c(Qseen, Qof(v))
+    uq <- sort(unique(v))
+    for (a in uq) for (b in uq) if (b - a >= 2) {
+      w <- v; w[which(w == a)[1]] <- a + 1; w[which(w == b)[1]] <- b - 1; w <- sort(w)
+      k <- key(w)
+      if (!exists(k, envir = seen, inherits = FALSE)) {
+        assign(k, TRUE, envir = seen); frontier[[length(frontier) + 1]] <- w
+      }
+    }
+  }
+  Q <- sort(unique(Qseen), decreasing = TRUE)
+  (Q - S^2 / n)[seq_len(min(depth, length(Q)))]
+}
+
+# SD threshold below which no false pass can hide (ceiling minus C top-gaps).
+ladder_threshold <- function(mean, n, l, u, digits, C = 3) {
+  S <- round(n * mean); ss <- top_ss_ladder(n, l, u, S, depth = 3)
+  if (length(ss) < 2) return(-Inf)                  # degenerate: check everything
+  sd <- sqrt(pmax(0, ss) / (n - 1)); g1 <- sd[1] - sd[2]
+  if (g1 < 10^(-digits)) return(sd[1])              # no wide gap -> no false passes
+  sd[1] - C * g1
+}
+```
+
+```{r}
+#| label: closure-cert
+fmt <- function(x, d = 2) formatC(x, format = "f", digits = d)
+closure_samples <- function(m, s) {
+  d <- unsum::closure_generate(mean = fmt(m), sd = fmt(s), n = n_u,
+                               scale_min = l_u, scale_max = u_u,
+                               rounding = "up_or_down", warn_if_empty = FALSE)
+  d$metrics$samples_all
+}
+
+C_gap  <- 3
+d_prec <- 2                    # reporting precision (decimal places); resolution = 10^-d
+unit   <- 10^(-d_prec)
+half   <- unit / 2 + 1e-9
+# per reported mean: min ladder threshold over the GRIM means in its interval,
+# minus one reporting unit of margin (the reported value stands for its interval)
+ladder_thr_reported <- function(m2) {
+  gm <- (ceiling(n_u * (m2 - half)):floor(n_u * (m2 + half))) / n_u
+  gm <- gm[gm >= l_u & gm <= u_u]
+  if (!length(gm)) return(Inf)
+  min(vapply(gm, function(m) ladder_threshold(m, n_u, l_u, u_u, d_prec, C_gap), 0)) - unit
+}
+passers <- sweep |> filter(all_pass) |>
+  rowwise() |>
+  mutate(thr = ladder_thr_reported(m2), in_band = s2 >= thr) |>
+  ungroup()
+
+# SAFETY: pruning to the ladder band must retain every false pass
+check(all(passers$in_band[!passers$truth]),
+      "ladder band retains every false pass (pruning is safe)")
+
+band <- passers |> filter(in_band) |>
+  mutate(closure_samples = map2_dbl(m2, s2, closure_samples))
+fp_band <- band |> filter(!truth)      # false passes (all live here)
+tr_band <- band |> filter(truth)       # near-ceiling achievable tuples
+
+# spot-check OUTSIDE the band: these must all be achievable (>= 1)
+set.seed(1)
+spot <- passers |> filter(!in_band) |> slice_sample(n = 8) |>
+  mutate(closure_samples = map2_dbl(m2, s2, closure_samples))
+
+check(all(fp_band$closure_samples == 0),
+      sprintf("CLOSURE confirms all %d false passes have no integer solution", nrow(fp_band)))
+check(all(tr_band$closure_samples >= 1),
+      "CLOSURE confirms every near-ceiling achievable tuple has >= 1 solution")
+check(all(spot$closure_samples >= 1),
+      "spot-check outside the band: all achievable (nothing hidden)")
+
+n_saved <- sum(!passers$in_band)
+kable(
+  tibble(
+    `passing tuples (would need CLOSURE naively)` = nrow(passers),
+    `band rule` = sprintf("s >= ceiling - %d*g1 (g1 = exact top gap per mean)", C_gap),
+    `CLOSURE runs inside band` = nrow(band),
+    `runs pruned` = sprintf("%d (%.0f%%)", n_saved, 100 * n_saved / nrow(passers)),
+    `false passes, all in band` = nrow(fp_band)
+  ),
+  caption = sprintf("Gap-ladder pruning of the CLOSURE certification. CLOSURE runs only where a reported SD is within %d top-gaps of the ceiling; the threshold is computed per mean from the ladder, self-scaling in n, l, u and the reporting resolution, with no hand-tuned SD distance.", C_gap)
+)
+
+kable(
+  bind_rows(
+    tibble(group = "false passes (in band)", tuples = nrow(fp_band),
+           `CLOSURE = 0` = sum(fp_band$closure_samples == 0),
+           `min/max samples` = sprintf("%d / %d", min(fp_band$closure_samples), max(fp_band$closure_samples))),
+    tibble(group = "achievable, in band (near ceiling)", tuples = nrow(tr_band),
+           `CLOSURE = 0` = sum(tr_band$closure_samples == 0),
+           `min/max samples` = sprintf("%d / %d", min(tr_band$closure_samples), max(tr_band$closure_samples))),
+    tibble(group = "achievable, spot-check outside band", tuples = nrow(spot),
+           `CLOSURE = 0` = sum(spot$closure_samples == 0),
+           `min/max samples` = sprintf("%d / %d", min(spot$closure_samples), max(spot$closure_samples)))
+  ),
+  caption = "Independent certification by unsum::closure(). Every false pass returns zero; every achievable tuple (in-band and the out-of-band spot-check) returns at least one. Composition enumeration and CLOSURE agree cell for cell."
+)
+```
+
+```{r}
+ggplot() +
+  geom_line(data = grid_env, aes(mean, hi), colour = "grey55", linewidth = 0.35) +
+  geom_line(data = grid_env, aes(mean, lo), colour = "grey55", linewidth = 0.35) +
+  geom_point(data = umbrella, aes(mean, sd), size = 0.5, alpha = 0.35) +
+  geom_point(data = false_pass, aes(m2, s2), colour = "#dc2626", shape = 4,
+             size = 2.4, stroke = 1) +
+  scale_x_continuous("Reported mean", breaks = l_u:u_u) +
+  scale_y_continuous("Reported SD") +
+  labs(title = "The joint blind spot",
+       subtitle = sprintf("Red X: %d reported tuples passing GRIM + GRIMMER + bounds with no integer solution (n = %d, %d-%d).\nAll sit in the top fringe of the umbrella, in the achievability gaps just below the strict ceiling.",
+                          nrow(false_pass), n_u, l_u, u_u)) +
+  theme_minimal(base_size = 10) +
+  theme(panel.grid.minor = element_blank())
+```
+
+**Reading.** The red crosses are the residual: tuples no test in the current
+battery can catch without full enumeration. They are structural, not
+implementation bugs — each test is correct about its own shadow of the
+problem. Closing them requires joint achievability of (sum, sum of squares)
+within the limits, i.e. CLOSURE-style enumeration or the exact
+sum-of-squares-achievability characterisation flagged as an open problem in
+`inverse_bounds_min_max_range.qmd`. Their scarcity and predictable location
+(the top ~15% of the umbrella's height, hugging the ceiling) is itself
+useful: a reported value that passes everything *and* sits close to the
+mean-conditional maximum is exactly the case where CLOSURE-style enumeration
+is worth the cost.
+
+# Part 4: multi-item scoring, POMP, and the derived builders
+
+The `scoring`/`n_items` layer, the POMP transforms of `sd_bounds_check()`, and
+the derived `sd_bounds_check_multiple()` / `sd_bounds_curve()` / `umbrella_data()`
+builders each carry their own validated claim.
+
+## Multi-item granularity: the affine invariance
+
+Mean-scored data on `n_items = m` items live on a `1/m` grid. Under `w = m x`
+that grid becomes the integers, so every bound must equal the single-item bound
+computed on the scaled scale, divided by `m`. This is checked directly against
+exhaustive enumeration of `m`-item integer response profiles (whose per-person
+means populate the `1/m` grid), not merely against the scaled formula, so it
+certifies the affine reduction end to end.
+
+```{r}
+# exhaustive: n people, each a mean of m integer items in [il, iu]
+aff_bad <- 0; aff_cells <- 0
+for (m in 2:3) for (n in c(3, 4)) {
+  il <- 1; iu <- 3
+  # every profile of n*m item responses; per person = mean of its m items
+  G <- as.matrix(do.call(expand.grid, rep(list(il:iu), n * m)))
+  # per-person means: average consecutive blocks of m columns
+  pm <- sapply(seq_len(n), function(p) rowMeans(G[, ((p - 1) * m + 1):(p * m), drop = FALSE]))
+  personmean <- pm                              # rows = profiles, cols = people
+  grand <- rowMeans(personmean)
+  sdv   <- apply(personmean, 1, sd)
+  for (M in sort(unique(round(grand, 12)))) {
+    i <- abs(grand - M) < 1e-9
+    aff_cells <- aff_cells + 1
+    r <- sd_bounds(l = il, u = iu, n = n, mean = M, Z = "integer",
+                   scoring = "meanscored", n_items = m)
+    if (!(r$feasible &&
+          abs(r$min_sd - min(sdv[i])) < 1e-9 &&
+          abs(r$max_sd - max(sdv[i])) < 1e-9)) aff_bad <- aff_bad + 1
+    # and equals the single-item bound on the w = m*x scale, / m
+    r2 <- sd_bounds(l = il * m, u = iu * m, n = n, mean = M * m, Z = "integer")
+    if (abs(r$min_sd - r2$min_sd / m) > 1e-9 ||
+        abs(r$max_sd - r2$max_sd / m) > 1e-9) aff_bad <- aff_bad + 1
+  }
+}
+check(aff_bad == 0, sprintf("meanscored bounds == enumeration & affine reduction (%d cells)", aff_cells))
+
+# mean-scored composite with alpha == sum-scored composite on the w scale, / m
+m <- 4
+ma <- sd_bounds(l = 1, u = 5, n = 25, mean = 3.2, Z = "integer",
+                scoring = "meanscored", n_items = m, alpha = 0.75)
+sa <- sd_bounds(l = 1 * m, u = 5 * m, n = 25, mean = 3.2 * m, Z = "integer",
+                scoring = "sumscored", n_items = m, alpha = 0.75)
+check(isTRUE(all.equal(c(ma$min_sd, ma$max_sd), c(sa$min_sd, sa$max_sd) / m)),
+      "meanscored+alpha == sumscored+alpha / n_items")
+
+# singleitem forbids alpha and n_items > 1
+guard_ok <-
+  inherits(try(sd_bounds(l = 1, u = 5, n = 9, mean = 3, alpha = 0.7,
+                         scoring = "singleitem"), silent = TRUE), "try-error") &&
+  inherits(try(sd_bounds(scoring = "singleitem", n_items = 2), silent = TRUE), "try-error")
+check(guard_ok, "singleitem rejects alpha and n_items > 1")
+
+kable(tibble(test = c("affine invariance", "meanscored+alpha reduction", "singleitem guards"),
+             passed = c(aff_bad == 0,
+                        isTRUE(all.equal(c(ma$min_sd, ma$max_sd), c(sa$min_sd, sa$max_sd) / m)),
+                        guard_ok)),
+      caption = "Multi-item scoring layer.")
+```
+
+## POMP transforms
+
+`pomp_sd_parity` is a linear rescaling by the mean-agnostic parity ceiling (so
+it doubles when the SD doubles and never depends on the mean); `pomp_sd_sharp`
+places the SD inside the sharp mean-conditional band actually returned, so it is
+exactly 1 at a witnessed maximum-SD configuration and exactly 0 at the floor.
+
+```{r}
+# parity is linear and mean-independent
+p1 <- sd_bounds_check(l = 1, u = 7, n = 30, mean = 4, sd = 1.0, sd_digits = 6,
+                      rounding = NULL, Z = "continuous")
+p2 <- sd_bounds_check(l = 1, u = 7, n = 30, mean = 4, sd = 2.0, sd_digits = 6,
+                      rounding = NULL, Z = "continuous")
+p3 <- sd_bounds_check(l = 1, u = 7, n = 30, mean = 6, sd = 1.0, sd_digits = 6,
+                      rounding = NULL, Z = "continuous")
+lin  <- abs(p2$pomp_sd_parity - 2 * p1$pomp_sd_parity) < 1e-9
+mind <- abs(p3$pomp_sd_parity - p1$pomp_sd_parity) < 1e-9   # same s, different mean
+
+# sharp == 1 at the ceiling, 0 at the floor
+mxc <- sd_bounds(l = 1, u = 5, n = 9, mean = 3)$max_sd
+mnc <- sd_bounds(l = 1, u = 5, n = 9, mean = 2.44, Z = "quasiinteger")$min_sd
+sh1 <- sd_bounds_check(l = 1, u = 5, n = 9, mean = 3, sd = mxc, sd_digits = 9,
+                       rounding = NULL, Z = "continuous")$pomp_sd_sharp
+sh0 <- sd_bounds_check(l = 1, u = 5, n = 9, mean = 2.44, sd = mnc, sd_digits = 9,
+                       rounding = NULL, Z = "quasiinteger")$pomp_sd_sharp
+sharp_ok <- abs(sh1 - 1) < 1e-6 && abs(sh0 - 0) < 1e-6
+
+check(lin && mind, "pomp_sd_parity is linear and mean-independent")
+check(sharp_ok, "pomp_sd_sharp is 1 at the ceiling and 0 at the floor")
+kable(tibble(test = c("parity linear", "parity mean-independent",
+                      "sharp=1 at ceiling", "sharp=0 at floor"),
+             passed = c(lin, mind, abs(sh1 - 1) < 1e-6, abs(sh0) < 1e-6)),
+      caption = "POMP transforms.")
+```
+
+## Derived builders
+
+`sd_bounds_check_multiple()` must equal a row-wise loop (its de-duplication is
+an optimisation, not a semantic change); `sd_bounds_curve()` must be hole-free
+under a granularity relaxation; and `umbrella_data()`'s passing set must match
+an independent GRIM + GRIMMER + bounds screen.
+
+```{r}
+# check_multiple == row-wise, on a grid that includes duplicate tuples
+df <- expand.grid(mean = c(2.90, 2.97, 3.50), sd = c(0.10, 1.50, 2.83))
+df <- rbind(df, df[1:3, ])                       # force duplicates
+mult <- sd_bounds_check_multiple(df, l = 1, u = 7, n = 30, mean_digits = 2,
+                                 sd_digits = 2, Z = "integer")
+roww <- do.call(rbind, lapply(seq_len(nrow(df)), function(i)
+  sd_bounds_check(l = 1, u = 7, n = 30, mean = df$mean[i], mean_digits = 2,
+                  sd = df$sd[i], sd_digits = 2, Z = "integer")))
+mult_ok <- isTRUE(all.equal(mult$consistent, roww$consistent)) &&
+           isTRUE(all.equal(mult$min_sd, roww$min_sd)) &&
+           isTRUE(all.equal(mult$pomp_sd_sharp, roww$pomp_sd_sharp))
+
+# curve hole-free under quasi-integer
+cv <- sd_bounds_curve(l = 1, u = 7, n = 30, Z = "quasiinteger")
+curve_ok <- !any(is.na(cv$min_sd[cv$feasible])) && !any(is.na(cv$max_sd[cv$feasible]))
+
+# umbrella passing set == independent screen
+um <- umbrella_data(n = 12, l = 1, u = 7, digits = 2)
+indep <- with(um, {
+  gm <- as.logical(scrutiny::grimmer(x = mean, sd = sd, n = 12, digits_x = 2,
+                                     digits_sd = 2, items = 1, rounding = "up_or_down"))
+  ib <- (sd + 0.005) >= min_sd - 1e-9 & (sd - 0.005) <= max_sd + 1e-9
+  gm & ib
+})
+umb_ok <- isTRUE(all.equal(um$consistent, indep))
+
+check(mult_ok, "sd_bounds_check_multiple == row-wise loop")
+check(curve_ok, "sd_bounds_curve is hole-free under quasi-integer")
+check(umb_ok, "umbrella_data passing set == independent GRIMMER + bounds screen")
+kable(tibble(test = c("check_multiple == row-wise", "curve hole-free",
+                      "umbrella == independent screen"),
+             passed = c(mult_ok, curve_ok, umb_ok)),
+      caption = "Derived builders.")
+```
+
+# Summary of all checks
+
+```{r}
+summary_tbl <- tibble(check = names(ok_tally), passed = unlist(ok_tally))
+kable(summary_tbl, caption = "All validation checks in this document.")
+stopifnot(all(summary_tbl$passed))
+```
+
+# Session info
+
+```{r}
+sessionInfo()
+```
