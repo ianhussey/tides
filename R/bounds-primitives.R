@@ -366,27 +366,49 @@ v_max_alpha <- function(mean_sum, k, n, item_l, item_u) {
 sd_min_alpha_gini <- function(l, u, n, mean, m, max_profiles = 5e5) {
   N <- round(n * mean)
   if (abs(n * mean - N) > 1e-9) return(NULL)          # no integer composite
-  W <- as.integer(round(u - l))                        # composite spread (logical cap)
-  if (W < 1L) return(NULL)
-  if (!is.finite(suppressWarnings(choose(n + W, W))) ||
-      choose(n + W, W) > max_profiles) return(NULL)    # over budget -> fall back
-  vals <- 0:W                                          # deviations above l
   target <- N - n * l                                  # required sum of (value - l)
-  if (target < 0 || target > n * W) return(NULL)
+  env <- .alpha_gini_envelope(l, u, n, m, max_profiles)
+  if (is.null(env)) return(NULL)                       # over budget -> fall back
+  i <- match(target, env$target)
+  if (is.na(i)) return(NULL)
+  sqrt(env$ss[i] / (n - 1))
+}
+
+# Internal: the whole Gini envelope in ONE enumeration pass, memoized.
+# The per-mean entry point above used to filter a full enumeration of the
+# profile space down to a single sum, so sweeping every mean re-enumerated the
+# same 10^5-10^6 profiles once per mean. Grouping by sum instead yields every
+# mean's floor from a single pass, which is what makes mean-sweeps (figures,
+# umbrella grids) affordable. Cached on (l, u, n, m, budget) because `m`
+# decides which profiles can support the reported alpha.
+.gini_envelope_cache <- new.env(parent = emptyenv())
+
+.alpha_gini_envelope <- function(l, u, n, m, max_profiles = 5e5) {
+  key <- paste(l, u, n, signif(m, 12), max_profiles, sep = "|")
+  hit <- .gini_envelope_cache[[key]]
+  if (!is.null(hit)) return(if (identical(hit, NA)) NULL else hit)
+  W <- as.integer(round(u - l))                        # composite spread
+  if (W < 1L || !is.finite(suppressWarnings(choose(n + W, W))) ||
+      choose(n + W, W) > max_profiles) {
+    assign(key, NA, envir = .gini_envelope_cache)
+    return(NULL)
+  }
+  vals <- 0:W                                          # deviations above l
   cv <- .count_vectors(W + 1L, n)
   tot <- as.vector(cv %*% vals)
-  keep <- tot == target
-  if (!any(keep)) return(NULL)
-  cv <- cv[keep, , drop = FALSE]
-  SS <- as.vector(cv %*% (vals^2)) - target^2 / n      # SS_S (shift-invariant)
+  SS <- as.vector(cv %*% (vals^2)) - tot^2 / n         # SS_S (shift-invariant)
   # Gini double-sum over unordered value pairs: sum_{a<b} c_a c_b (v_b - v_a)
   G2 <- numeric(nrow(cv))
   for (a in seq_len(W)) for (b in (a + 1L):(W + 1L))
     G2 <- G2 + cv[, a] * cv[, b] * (vals[b] - vals[a])
   mmax <- ifelse(G2 > 0, n * SS / G2, 0)               # m_max(S) = n SS / (n V_min)
   ok <- mmax >= m - 1e-9 & SS > 1e-12                  # non-constant, supports alpha
-  if (!any(ok)) return(NULL)
-  sqrt(min(SS[ok]) / (n - 1))
+  res <- if (!any(ok)) list(target = integer(0), ss = numeric(0)) else {
+    agg <- tapply(SS[ok], tot[ok], min)
+    list(target = as.integer(names(agg)), ss = as.numeric(agg))
+  }
+  assign(key, res, envir = .gini_envelope_cache)
+  res
 }
 
 #' SD bounds for a k-item composite with reported Cronbach's alpha

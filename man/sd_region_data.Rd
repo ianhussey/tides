@@ -9,7 +9,9 @@ sd_region_data(
   u,
   n,
   rule = c("quasi", "range", "range_n", "mean", "mean_naive_floor", "mestdagh",
-    "pesant_regin", "alpha", "integer", "integer_alpha"),
+    "pesant_regin", "alpha", "integer", "integer_alpha", "attainable",
+    "attainable_alpha"),
+  scoring = NULL,
   n_items = 1,
   alpha = NULL,
   digits = 2,
@@ -18,26 +20,33 @@ sd_region_data(
 }
 \arguments{
 \item{l, u}{Numeric scalars, the scale limits (mean-score units when
-\code{n_items > 1}).}
+\code{n_items > 1} and \code{scoring} is left at its default).}
 
 \item{n}{Integer scalar, sample size.}
 
 \item{rule}{Which constraint set to draw; see Details.}
 
+\item{scoring}{One of \code{"singleitem"}, \code{"sumscored"}, \code{"meanscored"}, as in
+\code{\link[=sd_bounds]{sd_bounds()}}. Defaults to \code{"meanscored"} when \code{n_items > 1} and
+\code{"singleitem"} otherwise. Under \code{"sumscored"}, \code{l} and \code{u} are the
+composite's limits and the reported values live on the unit grid, so
+\code{n_items} enters only as Cronbach's alpha's \code{k}.}
+
 \item{n_items}{Integer, number of items in the composite (default 1).}
 
 \item{alpha}{Reported Cronbach's alpha; required by the alpha rules.}
 
-\item{digits}{Reported decimal places, used by the lattice rules (default 2).}
+\item{digits}{Reported decimal places, used by the rounded lattice rules
+(default 2); ignored by the exact \code{"attainable"} rules.}
 
 \item{by}{Optional mean-grid spacing (default \code{(u - l) / 1000}); ignored by
 the lattice rules, which step by \code{10^-digits}.}
 }
 \value{
 For band rules, a data frame with \code{mean}, \code{lo}, \code{hi}. For the lattice
-rules (\code{"integer"}, \code{"integer_alpha"}), a data frame with \code{mean}, \code{sd} — the
-tuples passing every applicable test. The \code{type} attribute is \code{"band"} or
-\code{"points"}.
+rules (\code{"integer"}, \code{"integer_alpha"}, \code{"attainable"},
+\code{"attainable_alpha"}), a data frame with \code{mean}, \code{sd}: the tuples passing
+every applicable test. The \code{type} attribute is \code{"band"} or \code{"points"}.
 }
 \description{
 The \verb{(mean, lo, hi)} band, or the lattice of attainable reported \verb{(mean, sd)}

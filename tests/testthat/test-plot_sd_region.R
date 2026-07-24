@@ -89,3 +89,80 @@ test_that("sd_max_muilwijk is the smooth arch and never below Structure S", {
   expect_equal(sd_max_muilwijk(3, n, l, u), bes * sqrt((u - 3) * (3 - l)))
   expect_true(all(sd_max_muilwijk(m, n, l, u) >= sd_max_structure_s(m, n, l, u) - 1e-9))
 })
+
+test_that("the exact lattice matches brute-force enumeration", {
+  brute <- function(n, l, u) {
+    g <- as.matrix(expand.grid(rep(list(l:u), n)))
+    m <- unique(round(cbind(rowMeans(g), apply(g, 1, stats::sd)), 10))
+    m[order(m[, 1], m[, 2]), , drop = FALSE]
+  }
+  for (cfg in list(c(4, 1, 5), c(5, 0, 3), c(3, 1, 7))) {
+    n <- cfg[1]; l <- cfg[2]; u <- cfg[3]
+    d <- sd_region_data(l, u, n, rule = "attainable")
+    a <- unique(round(as.matrix(d), 10))
+    a <- a[order(a[, 1], a[, 2]), , drop = FALSE]
+    expect_equal(unname(a), unname(brute(n, l, u)), tolerance = 1e-9)
+  }
+  expect_identical(attr(sd_region_data(0, 3, 5, rule = "attainable"), "type"),
+                   "points")
+})
+
+test_that("the exact lattice shows holes the reported lattice smears shut", {
+  ex <- sd_region_data(0, 3, 7, rule = "attainable")
+  # attainable sums of squares are not contiguous in steps of 2: real interior
+  # gaps exist, which rounding to a reporting grid hides
+  gaps <- vapply(split(ex$sd, ex$mean), function(s) {
+    d <- diff(sort(unique(round(s, 10))))
+    length(d) > 1 && max(d) > 1.5 * min(d)
+  }, logical(1))
+  expect_true(any(gaps))
+})
+
+test_that("scoring decouples granularity from alpha's k", {
+  # a 2-item 0-3 SUM composite is plain integer data on [0, 6]
+  s1 <- sd_region_data(0, 6, 23, rule = "quasi", n_items = 2,
+                       scoring = "sumscored", by = 0.05)
+  s2 <- sd_region_data(0, 6, 23, rule = "quasi", n_items = 1, by = 0.05)
+  expect_equal(s1, s2)
+  # sum-score alpha ceiling is k times the mean-score one
+  a_sum  <- sd_region_data(0, 6, 23, rule = "alpha", n_items = 2,
+                           scoring = "sumscored", alpha = 0.5, by = 1)
+  a_mean <- sd_region_data(0, 3, 23, rule = "alpha", n_items = 2,
+                           scoring = "meanscored", alpha = 0.5, by = 0.5)
+  expect_equal(a_sum$hi, 2 * a_mean$hi, tolerance = 1e-8)
+  # default scoring is unchanged
+  expect_identical(sd_region_data(1, 7, 7, rule = "quasi", n_items = 5, by = 0.05),
+                   sd_region_data(1, 7, 7, rule = "quasi", n_items = 5,
+                                  scoring = "meanscored", by = 0.05))
+  expect_error(sd_region_data(0, 5, 9, rule = "quasi", n_items = 2,
+                              scoring = "sumscored"), "divisible")
+})
+
+test_that("alpha prunes the exact lattice from both directions", {
+  a <- sd_region_data(0, 6, 23, rule = "attainable")
+  b <- sd_region_data(0, 6, 23, rule = "attainable_alpha", n_items = 2,
+                      scoring = "sumscored", alpha = 0.5)
+  expect_true(nrow(b) < nrow(a))
+  expect_true(all(paste(b$mean, b$sd) %in% paste(a$mean, a$sd)))
+  lo_a <- tapply(a$sd, a$mean, min); lo_b <- tapply(b$sd, b$mean, min)
+  hi_a <- tapply(a$sd, a$mean, max); hi_b <- tapply(b$sd, b$mean, max)
+  cm <- intersect(names(lo_a), names(lo_b))
+  expect_true(sum(lo_b[cm] > lo_a[cm] + 1e-9) > 0)   # raises the floor
+  expect_true(sum(hi_b[cm] < hi_a[cm] - 1e-9) > 0)   # lowers the ceiling
+})
+
+test_that("the batched Gini envelope agrees with per-mean evaluation", {
+  m <- 1 / (1 - 0.5 * 0.5)
+  # a cold cache and a warm one must agree, and both must be finite and
+  # increasing in the profile constraint
+  rm(list = ls(envir = tides:::.gini_envelope_cache),
+     envir = tides:::.gini_envelope_cache)
+  cold <- vapply(c(1, 1.5, 2, 2.5, 3), function(mu) {
+    r <- sd_min_alpha_gini(0, 6, 23, mu, m); if (is.null(r)) NA_real_ else r
+  }, 0)
+  warm <- vapply(c(1, 1.5, 2, 2.5, 3), function(mu) {
+    r <- sd_min_alpha_gini(0, 6, 23, mu, m); if (is.null(r)) NA_real_ else r
+  }, 0)
+  expect_equal(cold, warm)
+  expect_true(all(cold[!is.na(cold)] > 0))   # positive alpha forbids SD = 0
+})

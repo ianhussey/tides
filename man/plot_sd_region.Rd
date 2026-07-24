@@ -9,7 +9,9 @@ plot_sd_region(
   u,
   n,
   rule = c("quasi", "range", "range_n", "mean", "mean_naive_floor", "mestdagh",
-    "pesant_regin", "alpha", "integer", "integer_alpha"),
+    "pesant_regin", "alpha", "integer", "integer_alpha", "attainable",
+    "attainable_alpha"),
+  scoring = NULL,
   n_items = 1,
   alpha = NULL,
   digits = 2,
@@ -25,17 +27,24 @@ plot_sd_region(
 }
 \arguments{
 \item{l, u}{Numeric scalars, the scale limits (mean-score units when
-\code{n_items > 1}).}
+\code{n_items > 1} and \code{scoring} is left at its default).}
 
 \item{n}{Integer scalar, sample size.}
 
 \item{rule}{Which constraint set to draw; see Details.}
 
+\item{scoring}{One of \code{"singleitem"}, \code{"sumscored"}, \code{"meanscored"}, as in
+\code{\link[=sd_bounds]{sd_bounds()}}. Defaults to \code{"meanscored"} when \code{n_items > 1} and
+\code{"singleitem"} otherwise. Under \code{"sumscored"}, \code{l} and \code{u} are the
+composite's limits and the reported values live on the unit grid, so
+\code{n_items} enters only as Cronbach's alpha's \code{k}.}
+
 \item{n_items}{Integer, number of items in the composite (default 1).}
 
 \item{alpha}{Reported Cronbach's alpha; required by the alpha rules.}
 
-\item{digits}{Reported decimal places, used by the lattice rules (default 2).}
+\item{digits}{Reported decimal places, used by the rounded lattice rules
+(default 2); ignored by the exact \code{"attainable"} rules.}
 
 \item{reference}{Draw the alpha-free sharp quasi-integer band as a dashed
 reference (default \code{TRUE}; skipped for \code{rule = "quasi"}, which is that band).}
@@ -80,6 +89,13 @@ needs \code{n_items >= 2}.}
 \verb{(mean, sd)} tuples passing GRIM, GRIMMER and the bounds. Drawn as points,
 because no band is defined at means and SDs integer data cannot produce.}
 \item{\code{"integer_alpha"}}{that lattice, additionally inside the
+alpha-conditional bounds.}
+\item{\code{"attainable"}}{the EXACT attainable \verb{(mean, sd)} tuples of strictly
+integer data, with no reporting grid and so no \code{digits}. Unlike
+\code{"integer"} this shows the true interior holes, which rounding to a
+reporting grid smears shut; it is enumerated by dynamic programming and
+errors if the lattice is too large.}
+\item{\code{"attainable_alpha"}}{those exact tuples, additionally inside the
 alpha-conditional bounds.}
 }
 }
