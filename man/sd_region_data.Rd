@@ -15,7 +15,10 @@ sd_region_data(
   n_items = 1,
   alpha = NULL,
   digits = 2,
-  by = NULL
+  by = NULL,
+  round_digits = NULL,
+  rounding = c("half_up", "half_down", "native", "ceiling", "floor", "trunc",
+    "anti_trunc")
 )
 }
 \arguments{
@@ -41,6 +44,17 @@ composite's limits and the reported values live on the unit grid, so
 
 \item{by}{Optional mean-grid spacing (default \code{(u - l) / 1000}); ignored by
 the lattice rules, which step by \code{10^-digits}.}
+
+\item{round_digits}{Optionally round the returned \verb{(mean, sd)} lattice to
+this many decimal places, collapsing pairs that round together. \code{NULL}
+(default) returns them unrounded, which for the \code{"attainable"} rules means
+exactly. Band rules are unaffected: rounding a bound can turn it
+anti-conservative, so bounds are always returned at full precision.}
+
+\item{rounding}{How to round when \code{round_digits} is given. \code{"half_up"}
+(default) and the other named rules use scrutiny's implementations, so the
+vocabulary matches GRIM and GRIMMER; \code{"native"} is base R's \code{round()},
+which rounds halves to even.}
 }
 \value{
 For band rules, a data frame with \code{mean}, \code{lo}, \code{hi}. For the lattice

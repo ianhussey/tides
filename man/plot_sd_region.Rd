@@ -15,6 +15,8 @@ plot_sd_region(
   n_items = 1,
   alpha = NULL,
   digits = 2,
+  round_digits = NULL,
+  rounding = "half_up",
   reference = TRUE,
   title = NULL,
   by = NULL,
@@ -45,6 +47,17 @@ composite's limits and the reported values live on the unit grid, so
 
 \item{digits}{Reported decimal places, used by the rounded lattice rules
 (default 2); ignored by the exact \code{"attainable"} rules.}
+
+\item{round_digits}{Optionally round the returned \verb{(mean, sd)} lattice to
+this many decimal places, collapsing pairs that round together. \code{NULL}
+(default) returns them unrounded, which for the \code{"attainable"} rules means
+exactly. Band rules are unaffected: rounding a bound can turn it
+anti-conservative, so bounds are always returned at full precision.}
+
+\item{rounding}{How to round when \code{round_digits} is given. \code{"half_up"}
+(default) and the other named rules use scrutiny's implementations, so the
+vocabulary matches GRIM and GRIMMER; \code{"native"} is base R's \code{round()},
+which rounds halves to even.}
 
 \item{reference}{Draw the alpha-free sharp quasi-integer band as a dashed
 reference (default \code{TRUE}; skipped for \code{rule = "quasi"}, which is that band).}

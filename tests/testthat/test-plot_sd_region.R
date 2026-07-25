@@ -166,3 +166,73 @@ test_that("the batched Gini envelope agrees with per-mean evaluation", {
   expect_equal(cold, warm)
   expect_true(all(cold[!is.na(cold)] > 0))   # positive alpha forbids SD = 0
 })
+
+test_that("the lattice DP's state-space reductions are sound", {
+  # the (S, R) axis change, gcd packing, growing window, reflection symmetry
+  # and raw storage must not alter a single tuple
+  for (cfg in list(c(4, 1, 5), c(5, 0, 3), c(7, 0, 6), c(6, 0, 2))) {
+    n <- cfg[1]; l <- cfg[2]; u <- cfg[3]
+    d <- tides:::.attainable_lattice(l, u, n, 1)
+    g <- as.matrix(expand.grid(rep(list(l:u), n)))
+    b <- unique(round(cbind(rowMeans(g), apply(g, 1, stats::sd)), 10))
+    b <- b[order(b[, 1], b[, 2]), , drop = FALSE]
+    a <- unique(round(as.matrix(d), 10))
+    a <- a[order(a[, 1], a[, 2]), , drop = FALSE]
+    expect_equal(unname(a), unname(b), tolerance = 1e-9)
+  }
+  # odd W packs the R axis by g = 2, even W does not; both must be exact
+  expect_equal(nrow(tides:::.attainable_lattice(0, 3, 7, 1)), 100L)
+  expect_equal(nrow(tides:::.attainable_lattice(0, 6, 23, 1)), 8634L)
+  # a mean-scored grid (mg > 1) still lands on the 1/mg lattice
+  d <- tides:::.attainable_lattice(0, 3, 6, 2)
+  expect_true(all(abs(d$mean * 6 * 2 - round(d$mean * 6 * 2)) < 1e-9))
+  # the guard fires only when the REDUCED grid is oversized; the reductions
+  # bring cases within reach that the naive (S, Q) grid could not hold
+  expect_error(tides:::.attainable_lattice(1, 7, 61, 5), "too large")
+  expect_silent(tides:::.attainable_lattice(0, 6, 300, 1))
+})
+
+test_that("round_digits/rounding round the emitted lattice", {
+  ex <- sd_region_data(0, 3, 7, rule = "attainable")
+  expect_true(any(abs(ex$sd * 100 - round(ex$sd * 100)) > 1e-9))  # exact by default
+  for (rr in c("half_up", "half_down", "native", "ceiling", "floor",
+               "trunc", "anti_trunc")) {
+    r <- sd_region_data(0, 3, 7, rule = "attainable", round_digits = 1,
+                        rounding = rr)
+    expect_true(all(abs(r$sd * 10 - round(r$sd * 10)) < 1e-9))
+    expect_true(all(abs(r$mean * 10 - round(r$mean * 10)) < 1e-9))
+    expect_false(any(1 / r$sd == -Inf))          # no negative zero
+    expect_false(anyDuplicated(r) > 0)           # collapsed duplicates
+  }
+  expect_error(sd_region_data(0, 3, 7, rule = "attainable", round_digits = 1,
+                              rounding = "nonsense"))
+  # rounding genuinely merges distinct exact SDs
+  expect_lt(length(unique(sd_region_data(0, 3, 7, rule = "attainable",
+                                         round_digits = 1)$sd)),
+            length(unique(round(ex$sd, 10))))
+})
+
+test_that("forward-rounded exact tuples are a subset of the GRIMMER lattice", {
+  # the strongest available cross-check: every pair a real integer data set can
+  # be reported as must survive GRIM, GRIMMER and the bounds. GRIMMER is
+  # necessary but not sufficient, so it admits extras; it must never reject one.
+  for (cfg in list(c(7, 0, 3, 1), c(9, 1, 5, 1), c(12, 0, 6, 1), c(7, 1, 7, 2))) {
+    n <- cfg[1]; l <- cfg[2]; u <- cfg[3]; dg <- cfg[4]
+    k <- function(d) paste(sprintf("%.10f", d$mean), sprintf("%.10f", d$sd))
+    grm <- k(sd_region_data(l, u, n, rule = "integer", digits = dg))
+    for (rr in c("half_up", "half_down")) {
+      fwd <- k(sd_region_data(l, u, n, rule = "attainable",
+                              round_digits = dg, rounding = rr))
+      expect_true(all(fwd %in% grm))
+    }
+  }
+})
+
+test_that("umbrella_data's reporting grid is free of seq() drift", {
+  # seq(0, 6, by = 0.1)[4] is 0.3 + 5.6e-17, and scrutiny reads the value as a
+  # decimal, so an unrounded grid flips GRIMMER verdicts
+  um <- umbrella_data(n = 12, l = 0, u = 6, digits = 1, Z = "integer")
+  expect_true(all(abs(um$mean * 10 - round(um$mean * 10)) < 1e-12))
+  expect_true(all(abs(um$sd * 10 - round(um$sd * 10)) < 1e-12))
+  expect_identical(sum(um$consistent), 1175L)   # 1167 before the fix
+})

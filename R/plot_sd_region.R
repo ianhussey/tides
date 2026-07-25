@@ -35,37 +35,111 @@
   )
 }
 
+.gcd2 <- function(a, b) { while (b) { t <- b; b <- a %% b; a <- t }; a }
+
+# Internal: apply one reporting-rounding convention, using scrutiny's
+# implementations so that the vocabulary matches the rest of the error-detection
+# ecosystem. "native" is base R's round(), which rounds halves to even.
+.round_reported <- function(x, digits, rounding) {
+  switch(rounding,
+    half_up    = scrutiny::round_up(x, digits),
+    half_down  = scrutiny::round_down(x, digits),
+    native     = round(x, digits),
+    ceiling    = scrutiny::round_ceiling(x, digits),
+    floor      = scrutiny::round_floor(x, digits),
+    trunc      = scrutiny::round_trunc(x, digits),
+    anti_trunc = scrutiny::round_anti_trunc(x, digits),
+    stop("unknown rounding rule: ", rounding)
+  )
+}
+
+# Internal: round a lattice of (mean, sd) pairs to reporting precision and
+# collapse the duplicates that creates. Distinct attainable pairs routinely
+# round into one reported cell, which is exactly why a rounded lattice can look
+# solid where the exact one is full of holes.
+.round_lattice <- function(d, digits, rounding) {
+  if (is.null(digits)) return(d)
+  d$mean <- .round_reported(d$mean, digits, rounding)
+  d$sd   <- .round_reported(d$sd,   digits, rounding)
+  # some rounding rules return negative zero at 0, which compares equal but
+  # prints and string-matches differently; normalise it away
+  d$mean[d$mean == 0] <- 0
+  d$sd[d$sd == 0] <- 0
+  d <- unique(d)
+  d <- d[order(d$mean, d$sd), , drop = FALSE]
+  rownames(d) <- NULL
+  d
+}
+
 # Internal: the EXACT attainable (mean, SD) pairs for strictly integer data,
-# with no reporting grid. A DP over the n observations accumulates the set of
-# reachable (sum, sum-of-squares) pairs on the shifted integer grid
-# y = mg * (x - l) in 0..W; both statistics are recovered from (S, Q) at the
-# end. Unlike the rounded `"integer"` lattice this shows the true interior
-# holes, which rounding smears shut.
+# with no reporting grid. A dynamic program over the n observations accumulates
+# the reachable (sum, sum-of-squares) pairs on the shifted grid
+# y = mg * (x - l) in 0..W, from which both statistics are recovered. Unlike the
+# rounded `"integer"` lattice this shows the true interior holes, which rounding
+# smears shut.
+#
+# Five things keep the state space small enough for this to stay fast in R:
+#
+#  (1) The second axis is NOT the sum of squares Q but R = W*S - Q = sum
+#      y(W - y). Every term is non-negative and at most floor(W^2/4), so R
+#      spans n*floor(W^2/4) rather than n*W^2: about a quarter of the cells.
+#  (2) R is then divided by g, the gcd of the achievable y(W - y). For odd W
+#      every y(W - y) is even, so g = 2 halves the axis again.
+#  (3) Only the frontier reachable after t items is live at step t, so the
+#      active window grows instead of the full grid being swept n times.
+#  (4) The reachable set is symmetric under y -> W - y, which maps S -> tW - S
+#      and leaves R fixed. Only the lower half of the S axis is computed; the
+#      upper half is a reversed copy.
+#  (5) Cells are `raw` (one byte) rather than `logical` (four).
+#
+# Shifted whole-block ORs are used rather than scattering into which(...)
+# indices: the block form is what lets (3) and (4) restrict the work.
 .attainable_lattice <- function(l, u, n, mg = 1, max_cells = 2e7) {
   W <- mg * (u - l)
   if (abs(W - round(W)) > 1e-9)
     stop("l, u and n_items must put the scale limits on the integer grid")
   W <- as.integer(round(W))
-  Smax <- n * W; Qmax <- n * W * W
-  if ((Smax + 1) * (Qmax + 1) > max_cells)
+  if (W < 1L) stop("the scale limits must span at least one grid step")
+  ys <- 0:W
+  pr <- ys * (W - ys)                     # each item's contribution to R
+  g  <- Reduce(.gcd2, pr[pr > 0])
+  if (!length(g) || is.na(g) || g < 1) g <- 1
+  pm <- max(pr) / g                       # per-item span of the R axis
+  Smax <- n * W; Rmax <- n * pm
+  if ((Smax + 1) * (Rmax + 1) > max_cells)
     stop("the exact lattice is too large to enumerate here (",
-         format(Smax + 1), " x ", format(Qmax + 1), " cells); use ",
+         format(Smax + 1), " x ", format(Rmax + 1), " cells); use ",
          "rule = 'integer' with a reporting precision instead")
-  cur <- matrix(FALSE, Smax + 1L, Qmax + 1L)
-  cur[1L, 1L] <- TRUE
-  for (i in seq_len(n)) {
-    nxt <- matrix(FALSE, Smax + 1L, Qmax + 1L)
-    for (v in 0:W) {
-      dq <- v * v
-      nxt[(1L + v):(Smax + 1L), (1L + dq):(Qmax + 1L)] <-
-        nxt[(1L + v):(Smax + 1L), (1L + dq):(Qmax + 1L)] |
-        cur[1L:(Smax + 1L - v), 1L:(Qmax + 1L - dq), drop = FALSE]
+
+  z <- as.raw(0)
+  A <- matrix(z, Smax + 1L, Rmax + 1L)
+  B <- matrix(z, Smax + 1L, Rmax + 1L)
+  A[1L, 1L] <- as.raw(1)
+  drs <- pr / g
+  for (t in seq_len(n)) {
+    Sh <- (t - 1L) * W; Rh <- (t - 1L) * pm      # frontier before this item
+    So <- t * W;        Ro <- t * pm             # frontier after it
+    hl <- floor(So / 2) + 1L                     # rows computed; rest mirrored
+    B[1L:(So + 1L), 1L:(Ro + 1L)] <- z
+    for (i in seq_along(ys)) {
+      v <- ys[i]; dr <- drs[i]
+      r_hi <- min(Sh + 1L + v, hl)
+      if (r_hi < 1L + v) next
+      B[(1L + v):r_hi, (1L + dr):(Rh + 1L + dr)] <-
+        B[(1L + v):r_hi, (1L + dr):(Rh + 1L + dr)] |
+        A[1L:(r_hi - v), 1L:(Rh + 1L), drop = FALSE]
     }
-    cur <- nxt
+    if (hl < So + 1L)                            # y -> W - y symmetry
+      B[(hl + 1L):(So + 1L), 1L:(Ro + 1L)] <-
+        B[(So + 1L - hl):1L, 1L:(Ro + 1L), drop = FALSE]
+    tmp <- A; A <- B; B <- tmp
   }
-  w <- which(cur, arr.ind = TRUE)
-  S <- w[, 1] - 1L; Q <- w[, 2] - 1L
-  ss <- Q - S^2 / n                      # sum of squares is translation-free
+
+  w  <- which(A != z)
+  nr <- Smax + 1L
+  S  <- (w - 1L) %% nr
+  Q  <- W * S - ((w - 1L) %/% nr) * g
+  ss <- Q - S^2 / n                       # sum of squares is translation-free
   out <- data.frame(mean = l + S / (n * mg),
                     sd   = sqrt(pmax(0, ss) / (n - 1)) / mg)
   out[order(out$mean, out$sd), , drop = FALSE]
@@ -90,8 +164,13 @@ sd_region_data <- function(l, u, n,
                                     "integer_alpha", "attainable",
                                     "attainable_alpha"),
                            scoring = NULL,
-                           n_items = 1, alpha = NULL, digits = 2, by = NULL) {
+                           n_items = 1, alpha = NULL, digits = 2, by = NULL,
+                           round_digits = NULL,
+                           rounding = c("half_up", "half_down", "native",
+                                        "ceiling", "floor", "trunc",
+                                        "anti_trunc")) {
   rule <- match.arg(rule)
+  rounding <- match.arg(rounding)
   if (rule %in% c("alpha", "integer_alpha", "attainable_alpha") && is.null(alpha))
     stop(sprintf("rule = '%s' requires alpha", rule))
   k <- n_items
@@ -110,6 +189,7 @@ sd_region_data <- function(l, u, n,
                         alpha = if (rule == "integer_alpha") alpha else NULL)
     out <- um[which(um$consistent), c("mean", "sd"), drop = FALSE]
     rownames(out) <- NULL
+    out <- .round_lattice(out, round_digits, rounding)
     attr(out, "type") <- "points"
     return(out)
   }
@@ -131,6 +211,7 @@ sd_region_data <- function(l, u, n,
       out <- out[order(out$mean, out$sd), , drop = FALSE]
     }
     rownames(out) <- NULL
+    out <- .round_lattice(out, round_digits, rounding)
     attr(out, "type") <- "points"
     return(out)
   }
@@ -221,6 +302,15 @@ sd_region_data <- function(l, u, n,
 #' @param alpha Reported Cronbach's alpha; required by the alpha rules.
 #' @param digits Reported decimal places, used by the rounded lattice rules
 #'   (default 2); ignored by the exact `"attainable"` rules.
+#' @param round_digits Optionally round the returned `(mean, sd)` lattice to
+#'   this many decimal places, collapsing pairs that round together. `NULL`
+#'   (default) returns them unrounded, which for the `"attainable"` rules means
+#'   exactly. Band rules are unaffected: rounding a bound can turn it
+#'   anti-conservative, so bounds are always returned at full precision.
+#' @param rounding How to round when `round_digits` is given. `"half_up"`
+#'   (default) and the other named rules use scrutiny's implementations, so the
+#'   vocabulary matches GRIM and GRIMMER; `"native"` is base R's `round()`,
+#'   which rounds halves to even.
 #' @param reference Draw the alpha-free sharp quasi-integer band as a dashed
 #'   reference (default `TRUE`; skipped for `rule = "quasi"`, which is that band).
 #' @param title Optional plot title.
@@ -245,6 +335,7 @@ plot_sd_region <- function(l, u, n,
                                     "attainable_alpha"),
                            scoring = NULL,
                            n_items = 1, alpha = NULL, digits = 2,
+                           round_digits = NULL, rounding = "half_up",
                            reference = TRUE, title = NULL, by = NULL,
                            fill = "grey85", line_colour = "black",
                            reference_colour = "grey45",
@@ -253,7 +344,8 @@ plot_sd_region <- function(l, u, n,
   stopifnot(requireNamespace("ggplot2", quietly = TRUE))
   d <- sd_region_data(l = l, u = u, n = n, rule = rule, scoring = scoring,
                       n_items = n_items, alpha = alpha, digits = digits,
-                      by = by)
+                      by = by, round_digits = round_digits,
+                      rounding = rounding)
   gg <- .scoring_geometry(
     if (is.null(scoring)) (if (n_items > 1) "meanscored" else "singleitem")
     else match.arg(scoring, c("singleitem", "sumscored", "meanscored")),

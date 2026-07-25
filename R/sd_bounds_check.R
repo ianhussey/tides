@@ -264,7 +264,11 @@ umbrella_data <- function(n, l, u, digits = 2, Z = "integer",
                           alpha = NULL, rounding = "up_or_down") {
   step <- 10^(-digits)
   h <- step / 2
-  means <- seq(l, u, by = step)
+  # round() the grids back onto the nearest double to each decimal. seq() by a
+  # decimal step accumulates error (seq(0, 6, by = 0.1)[4] is 0.3 + 5.6e-17),
+  # and the granularity tests read the value as a decimal string, so an
+  # off-by-one-ulp grid point can flip a GRIMMER verdict.
+  means <- round(seq(l, u, by = step), digits)
   use_grimmer <- Z == "integer" && requireNamespace("scrutiny", quietly = TRUE)
   rows <- list()
   for (mu in means) {
@@ -275,7 +279,7 @@ umbrella_data <- function(n, l, u, digits = 2, Z = "integer",
                    rounding = rounding, Z = Z, scoring = scoring,
                    n_items = n_items, alpha = alpha)
     if (!isTRUE(d$feasible) || is.na(d$max_sd)) next
-    sds <- seq(0, ceiling(d$max_sd / step) * step, by = step)
+    sds <- round(seq(0, ceiling(d$max_sd / step) * step, by = step), digits)
     in_bounds <- (sds + h) >= d$min_sd - 1e-9 & (sds - h) <= d$max_sd + 1e-9
     # GRIMMER (the expensive per-tuple test) runs only where the SD is inside
     # the sharp bounds; outside, the tuple is already inconsistent and the
