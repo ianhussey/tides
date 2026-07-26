@@ -2,11 +2,15 @@
 title: "Certifying integer possibility"
 subtitle: "CLOSURE reconstruction and analytic certification compared"
 author: "Ian Hussey"
-output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{Certifying integer possibility}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
+format:
+  html:
+    embed-resources: true
+    toc: true
+    code-fold: true
+    theme: flatly
+execute:
+  warning: false
+  message: false
 ---
 
 ```{r include=FALSE}

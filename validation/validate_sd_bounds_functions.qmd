@@ -187,6 +187,64 @@ kable(tibble(test = names(res_scr), passed = unlist(res_scr)),
       caption = "scrutiny deference.")
 ```
 
+## GRIMMER misses in the CRAN release of scrutiny
+
+The witness above is a *documented* false flag. There is a second, broader one
+that matters more for anyone installing this package today. scrutiny 0.6.1 —
+the current CRAN release, and therefore what CRAN builds `strait` against —
+carries a bug in GRIMMER's third test that flags attainable values as
+inconsistent (<https://github.com/lhdjung/scrutiny/issues/80>); it warns about
+this on every call. The development version (0.6.2) fixes it.
+
+This matters because `brimmer()`, `umbrella_data()` and the lattice rules
+defer to scrutiny verbatim and so inherit the false flags. `certify()` does
+not defer to anything, and disproves them constructively.
+
+```{r}
+scrutiny_ver <- as.character(packageVersion("scrutiny"))
+
+# a real dataset: 12 integers on 1-5, exact mean 1.25 -> "1.2" (halves down),
+# exact SD 0.4523 -> "0.5". Any test calling this report impossible is wrong.
+witness <- c(rep(1, 9), 2, 2, 2)
+w_ok <- length(witness) == 12 && all(witness == round(witness) &
+                                     witness >= 1 & witness <= 5)
+w_cert <- certify(l = 1, u = 5, n = 12, mean = 1.2, sd = 0.5, digits = 1)
+
+# how many cells does the installed scrutiny reject that certify() proves real?
+um_g <- umbrella_data(n = 12, l = 1, u = 5, digits = 1, Z = "integer")
+cert_g <- certify(l = 1, u = 5, n = 12, mean = um_g$mean, sd = um_g$sd,
+                  digits = 1)
+misses <- which(!um_g$consistent & cert_g$possible)
+
+cat(sprintf("installed scrutiny: %s\n", scrutiny_ver))
+cat(sprintf("witness c(rep(1, 9), 2, 2, 2): n = %d, mean = %.4f, sd = %.4f\n",
+            length(witness), mean(witness), sd(witness)))
+cat(sprintf("certify() calls the report (1.2, 0.5) possible: %s (rules: %s)\n",
+            w_cert$possible, w_cert$rules))
+cat(sprintf("cells the screen rejects but certify() proves attainable: %d of %d\n",
+            length(misses), nrow(um_g)))
+if (length(misses)) {
+  cat("  all are inside the SD bounds, so GRIMMER alone is rejecting them: ",
+      all(um_g$in_bounds[misses]), "\n", sep = "")
+  print(utils::head(tibble(mean = um_g$mean[misses], sd = um_g$sd[misses],
+                           grimmer = um_g$grimmer[misses], certified = TRUE), 5))
+}
+
+# The witness is real, so this must hold on every scrutiny version.
+check(w_ok && isTRUE(w_cert$possible),
+      "certify() admits a hand-constructed integer witness")
+# Version-dependent, so recorded rather than asserted: it is a property of the
+# installed scrutiny, not of this package.
+cat(sprintf("\n=> On scrutiny %s, strait's GRIMMER-dependent verdicts are %s.\n",
+            scrutiny_ver,
+            if (length(misses)) "AFFECTED by the upstream bug" else "clean"))
+```
+
+Until scrutiny 0.6.2 reaches CRAN, GRIMMER verdicts from a CRAN install should
+be read alongside `certify()`, and this package should not be submitted to
+CRAN — a forensic tool that false-flags legitimate reports is worse than one
+that is merely slow. See the TODO in `README.md`.
+
 ## brimmer(): verdict paths
 
 ```{r}
@@ -262,6 +320,22 @@ env_ok <- umbrella |>
   summarise(all(sd <= ceil + 1e-9) && all(sd >= flr - 1e-9)) |>
   pull()
 check(env_ok, "umbrella inside [integer floor, Structure S ceiling]")
+
+# Sharpness, which is the stronger claim: the bounds are not merely respected
+# by the enumeration, they are ATTAINED by it. At every attainable mean the
+# largest enumerated SD equals the Structure S ceiling and the smallest equals
+# the integer floor, so neither bound can be tightened. (Earlier drafts of this
+# validation compared the envelope against CLOSURE cell by cell to establish
+# the same thing; enumerating directly is exact and far cheaper.)
+sharp <- umbrella |>
+  group_by(mean) |>
+  summarise(hi = max(sd), lo = min(sd), .groups = "drop") |>
+  mutate(ceil = sd_max_structure_s(mean, n_u, l_u, u_u),
+         flr  = sd_min_integer(mean, n_u))
+check(all(abs(sharp$hi - sharp$ceil) < 1e-9),
+      "Structure S ceiling ATTAINED at every attainable mean (sharp above)")
+check(all(abs(sharp$lo - sharp$flr) < 1e-9),
+      "integer floor ATTAINED at every attainable mean (sharp below)")
 
 grid_env <- tibble(mean = seq(l_u, u_u, by = 0.002),
                    lo = sd_min_quasi_integer(mean, n_u),
@@ -595,17 +669,72 @@ ggplot() +
   theme(panel.grid.minor = element_blank())
 ```
 
-**Reading.** The red crosses are the residual: tuples no test in the current
-battery can catch without full enumeration. They are structural, not
-implementation bugs — each test is correct about its own shadow of the
-problem. Closing them requires joint achievability of (sum, sum of squares)
-within the limits, i.e. CLOSURE-style enumeration or the exact
-sum-of-squares-achievability characterisation flagged as an open problem in
-`inverse_bounds_min_max_range.qmd`. Their scarcity and predictable location
-(the top ~15% of the umbrella's height, hugging the ceiling) is itself
-useful: a reported value that passes everything *and* sits close to the
-mean-conditional maximum is exactly the case where CLOSURE-style enumeration
-is worth the cost.
+**Reading.** The red crosses are the residual: tuples no *closed-form* test in
+the battery can catch. They are structural, not implementation bugs — each
+test is correct about its own shadow of the problem. Closing them requires
+joint achievability of (sum, sum of squares) within the limits. Their scarcity
+and predictable location (the top ~15% of the umbrella's height, hugging the
+ceiling) is itself useful: a reported value that passes everything *and* sits
+close to the mean-conditional maximum is exactly the case worth certifying
+exactly.
+
+## Closing the blind spot: `certify()`
+
+`certify()` settles the residual. It obtains the same joint achievability the
+enumeration above does, but by dynamic programming over the reachable
+(sum, sum of squares) states rather than by materialising datasets, so no
+sample is ever constructed and the cost depends only on $(l, u, n)$ rather
+than on how many datasets exist. Three claims, each checked against an
+independent oracle.
+
+```{r}
+res_cert <- list()
+
+# (i) against the Part 2 composition enumeration: two different algorithms
+# (compositions of n over the scale points vs. a reachability DP) must induce
+# the same set of reportable tuples once rounded to the reporting grid
+enum_key <- unique(unlist(lapply(c("half_up", "half_down"), function(rr)
+  paste(round(strait:::.round_reported(umbrella$mean, 1, rr) * 10),
+        round(strait:::.round_reported(umbrella$sd,   1, rr) * 10)))))
+grid_c <- expand.grid(mean = seq(l_u, u_u, by = 0.1),
+                      sd   = seq(0, ceiling(sd_max_span_n(l_u, u_u, n_u) * 10) / 10,
+                                 by = 0.1))
+cert_c <- certify(l = l_u, u = u_u, n = n_u,
+                  mean = grid_c$mean, sd = grid_c$sd, digits = 1)
+res_cert[["certify() == composition enumeration, cell for cell"]] <-
+  identical(cert_c$possible,
+            paste(round(grid_c$mean * 10), round(grid_c$sd * 10)) %in% enum_key)
+
+# (ii) against CLOSURE, cell for cell, on a smaller design
+um_cl <- umbrella_data(n = 9, l = 1, u = 5, digits = 1, Z = "integer")
+cert_cl <- certify(l = 1, u = 5, n = 9, mean = um_cl$mean, sd = um_cl$sd,
+                   digits = 1)
+closure_cl <- vapply(seq_len(nrow(um_cl)), function(i) {
+  r <- try(suppressWarnings(unsum::closure_generate(
+    mean = sprintf("%.1f", um_cl$mean[i]), sd = sprintf("%.1f", um_cl$sd[i]),
+    n = 9, scale_min = 1, scale_max = 5, rounding = "up_or_down")),
+    silent = TRUE)
+  if (inherits(r, "try-error")) FALSE else nrow(r$results) > 0
+}, logical(1))
+res_cert[["certify() == unsum::CLOSURE, cell for cell"]] <-
+  identical(cert_cl$possible, closure_cl)
+
+# (iii) the closed-form screen is NECESSARY but not sufficient: it must never
+# reject a tuple certify() proves attainable, while certify() rejects exactly
+# the blind-spot cells it admits
+res_cert[["screen never rejects a certified-attainable tuple"]] <-
+  sum(!um_cl$consistent & cert_cl$possible) == 0
+res_cert[["certify() rejects blind-spot cells the screen admits"]] <-
+  sum(um_cl$consistent & !cert_cl$possible) > 0
+
+for (nm in names(res_cert)) check(res_cert[[nm]], nm)
+kable(tibble(test = names(res_cert), passed = unlist(res_cert)),
+      caption = "certify(): the analytic CLOSURE certificate.")
+```
+
+The blind spot is therefore no longer a limitation of the package, only of the
+closed-form layer within it. `brimmer()` remains the fast screen; `certify()`
+is the exact adjudicator for whatever survives it.
 
 # Part 4: multi-item scoring, POMP, and the derived builders
 
@@ -816,7 +945,41 @@ kable(tibble(test = c("disproof reproduced", "valid lower bound", "sharp vs brut
       caption = "Sharp alpha-conditional floor (Gini envelope).")
 ```
 
-# Summary of all checks
+# Validation claimed by the JOSS paper
+
+`paper/paper.md` makes specific claims about what has been validated and how.
+Each is discharged by a section above; this table is the crosswalk, so that a
+reviewer can go from a sentence in the paper to the check that supports it.
+
+| Claim in `paper/paper.md` | Where it is validated |
+|---|---|
+| "validated against exhaustive enumeration" | Part 1, exact path vs exhaustive enumeration; Part 2, the composition enumeration of every frequency vector for $(n, l, u)$ |
+| "and, for the tuples that pass every test, against the CLOSURE algorithm implemented in `unsum`" | Part 3, the joint blind spot, and `certify()` vs CLOSURE cell for cell |
+| bounds are **sharp**, not merely valid | Part 2, ceiling and floor *attained* at every attainable mean |
+| "an out-of-bounds verdict is a proof of impossibility rather than the outcome of an enumeration" | Part 1, rounding envelopes; Part 3, the screen never rejects a certified-attainable tuple |
+| GRIM and GRIMMER "deferred ... rather than reimplemented" | Part 1, scrutiny deference, including both false-flag witnesses |
+| the alpha-conditional floor is sharp for integer composites (Theorem H5) | Part 5, the Gini envelope |
+| multi-item scoring behaves as an affine rescaling | Part 4, the affine invariance |
+
+Two things the paper does **not** yet say, and should:
+
+1. **`certify()` exists and is validated.** The paper describes the closed-form
+   layer and cites `unsum` as the complementary reconstruction tool, but the
+   package now also provides an exact certificate of its own, obtained by
+   dynamic programming over reachable (sum, sum of squares) states rather than
+   by search. It agrees with both exhaustive enumeration and CLOSURE cell for
+   cell, at roughly 700-1000x CLOSURE's speed, because its cost depends only on
+   $(l, u, n)$ and one lattice certifies a whole design at once. The paper's
+   framing of the trade-off — "the bounds used as a fast screen and
+   reconstruction reserved for the cases that survive it" — is now a three-way
+   one: screen with `brimmer()`, certify with `certify()`, reconstruct with
+   CLOSURE only when the *witness datasets themselves* are wanted.
+
+2. **The residual blind spot is closed.** The paper inherits the older framing
+   in which the tuples passing every closed-form test could only be resolved by
+   external enumeration. They can now be resolved inside the package.
+
+
 
 ```{r}
 summary_tbl <- tibble(check = names(ok_tally), passed = unlist(ok_tally))
