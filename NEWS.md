@@ -31,6 +31,16 @@ First CRAN release.
 
 ## New features
 
+* `certify()` gives an exact possible / impossible certificate for reported
+  `(mean, sd)` tuples on a bounded integer scale, closing the residual blind
+  spot the closed-form screen admits. It enumerates the attainable lattice by
+  dynamic programming over the reachable (sum, sum of squares) states and tests
+  membership after rounding, so no dataset is reconstructed — the same
+  certificate `unsum::closure_generate()` provides, obtained analytically. It
+  is vectorised over tuples, since one lattice serves a whole design. Verified
+  cell-for-cell against CLOSURE across six designs (~5,700 tuples, zero
+  disagreements) at roughly 700-1000x the speed. New vignette
+  `vignette("certification")` covers the comparison; `unsum` is now suggested.
 * `brim()` is the mean-side bounds test: is the reported mean attainable at
   all, given the scale limits, `n` and any attained extremes? It reports the
   feasible mean band (`band_lo`, `band_hi`) alongside the verdict. Under

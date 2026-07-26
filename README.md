@@ -58,6 +58,23 @@ brim(l = 1, u = 7, n = 30, mean = 3.51, mean_digits = 2, Z = "integer")
 
 `umbrella_data()` builds the full grid of reported means and SDs for a design, tagging each as consistent, GRIMMER-inconsistent or out of bounds, which `plot_umbrella()` renders as the characteristic "umbrella" of feasible values.
 
+### Exact certification
+
+The tests above are *necessary* — failing one proves a report impossible — but not *sufficient*. A small residual set of tuples clears all of them and still has no integer solution.
+
+`certify()` settles those exactly, without reconstructing any dataset. It enumerates the exact attainable `(mean, sd)` lattice for a design by dynamic programming over the reachable *(sum, sum of squares)* states, rounds it to the reporting precision, and tests membership:
+
+```r
+# passes the bounds, GRIM and GRIMMER, yet no integer sample produces it
+certify(l = 1, u = 5, n = 9, mean = 1.3, sd = 0.9, digits = 1)
+#>   mean  sd possible rules
+#> 1  1.3 0.9    FALSE
+```
+
+This is the same certificate the CLOSURE algorithm provides (`unsum::closure_generate()`), reached analytically rather than by search — an **analytic CLOSURE certification**. Verified cell-for-cell against CLOSURE across six designs (~5,700 tuples, zero disagreements) at roughly **700–1000x** the speed, because the cost depends only on `l`, `u` and `n` rather than on how many datasets satisfy the constraints, and one lattice certifies every tuple of a design at once.
+
+The trade is that no witness datasets are produced. Use CLOSURE when you need the actual candidate samples; use `certify()` when the verdict is the deliverable. See `vignette("certification")`.
+
 ## Installation
 
 ```r
@@ -67,7 +84,9 @@ remotes::install_github("ianhussey/strait")
 
 ## Usage
 
-See also the vignette in the R package (`vignette("strait")`).
+See also the vignettes in the R package: `vignette("strait")` for the bounds
+and the consistency verdict, `vignette("certification")` for exact certification
+and how it compares with CLOSURE.
 
 ```r
 library(strait)
@@ -124,6 +143,7 @@ umbrella_data(n = 14, l = 1, u = 7, digits = 2) |>
 | `brim(l, u, a, b, n, mean, mean_digits, Z, ...)` | the mean-side test: is the reported mean attainable within the scale limits (and, under `Z = "integer"`, GRIM)? |
 | `brimmer(...)` | the SD-side test, nested on `brim()`: turn the bounds into a consistent/inconsistent verdict with POMP transforms; defers GRIM/GRIMMER to `scrutiny` |
 | `brimmer_multiple(data, ...)` | apply `brimmer()` to each row of a data frame |
+| `certify(l, u, n, mean, sd, digits, ...)` | exact possible / impossible certificate for reported tuples, by analytic enumeration of the attainable lattice (no dataset reconstruction) |
 | `sd_bounds_curve(l, u, n, ...)` | trace the floor and ceiling of the SD across the mean (hole-free under `"quasiinteger"`) |
 | `umbrella_data(n, l, u, ...)` | build the grid of reported (mean, SD) pairs with their consistency verdicts |
 | `plot_sd_bounds(curve, ...)` | plot the SD-bounds envelope on the native scale, with reported points |
@@ -134,7 +154,7 @@ The single-purpose bound primitives (e.g. `sd_max_structure_s()`, `sd_min_quasi_
 
 ## Limitations
 
-- **A small residual blind spot at the umbrella's edge.** A handful of reported (mean, SD) tuples pass GRIM, GRIMMER *and* the SD bounds yet still have no integer-data solution. These are rare and predictably located, hugging the mean-conditional ceiling at the very top of the umbrella; certifying them requires full enumeration (e.g. the `unsum` CLOSURE algorithm). See the validation document in `validation/`.
+- **A small residual blind spot at the umbrella's edge.** A handful of reported (mean, SD) tuples pass GRIM, GRIMMER *and* the SD bounds yet still have no integer-data solution. These are rare and predictably located, hugging the mean-conditional ceiling at the very top of the umbrella. The closed-form screen is *necessary but not sufficient*: it never rejects a report real integer data can produce, but it does admit these. `certify()` settles them exactly — see below. See also the validation document in `validation/`.
 
 ## TODO
 

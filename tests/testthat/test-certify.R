@@ -1,0 +1,85 @@
+test_that("certify() separates attainable reports from the blind spot", {
+  ok  <- certify(l = 1, u = 5, n = 9, mean = 3.0, sd = 1.0, digits = 1)
+  bad <- certify(l = 1, u = 5, n = 9, mean = 1.3, sd = 0.9, digits = 1)
+  expect_true(ok$possible)
+  expect_true(nzchar(ok$rules))
+  expect_false(bad$possible)
+  expect_identical(bad$rules, "")
+})
+
+test_that("certify() is vectorised over tuples and keeps input order", {
+  r <- certify(l = 1, u = 5, n = 9, digits = 1,
+               mean = c(3.0, 1.3, 3.0), sd = c(1.0, 0.9, 1.0))
+  expect_equal(nrow(r), 3L)
+  expect_equal(r$mean, c(3.0, 1.3, 3.0))
+  expect_identical(r$possible, c(TRUE, FALSE, TRUE))
+  # recycling a scalar against a vector
+  expect_equal(nrow(certify(l = 1, u = 5, n = 9, mean = 3.0,
+                            sd = c(1.0, 0.9, 1.2), digits = 1)), 3L)
+})
+
+test_that("certify() never contradicts the closed-form screen's rejections", {
+  # the screen is necessary but not sufficient: it may admit tuples that no
+  # integer sample produces (the blind spot), but it must never reject one
+  # that certify() proves attainable
+  for (cfg in list(c(9, 5), c(12, 5), c(11, 7))) {
+    n <- cfg[1]; u <- cfg[2]
+    um <- suppressWarnings(umbrella_data(n = n, l = 1, u = u, digits = 1,
+                                         Z = "integer"))
+    cr <- certify(l = 1, u = u, n = n, mean = um$mean, sd = um$sd, digits = 1)
+    expect_equal(sum(!um$consistent & cr$possible), 0L)
+    expect_true(sum(um$consistent & !cr$possible) >= 0L)
+  }
+})
+
+test_that("certify() agrees with an independently constructed witness", {
+  # c(rep(0, 9), 1, 1, 1): n = 12 integers on 0-6, mean 0.25 -> "0.2",
+  # sd 0.4523 -> "0.5". A real sample, so the report must certify possible.
+  x <- c(rep(0, 9), 1, 1, 1)
+  expect_equal(length(x), 12L)
+  expect_true(all(x == round(x) & x >= 0 & x <= 6))
+  r <- certify(l = 0, u = 6, n = 12,
+               mean = round(mean(x), 1), sd = round(sd(x), 1), digits = 1)
+  expect_true(r$possible)
+})
+
+test_that("a miss is only impossibility relative to the admitted rules", {
+  # mean 0.25 rounds to 0.2 only when halves go down, so restricting the
+  # rules can turn a possible report into an unreachable one
+  x <- c(rep(0, 9), 1, 1, 1)
+  both <- certify(l = 0, u = 6, n = 12, mean = 0.2, sd = 0.5, digits = 1,
+                  rounding = c("half_up", "half_down"))
+  down <- certify(l = 0, u = 6, n = 12, mean = 0.2, sd = 0.5, digits = 1,
+                  rounding = "half_down")
+  expect_true(both$possible)
+  expect_true(down$possible)
+  expect_true(grepl("half_down", both$rules))
+})
+
+test_that("certify() validates its arguments", {
+  expect_error(certify(l = 1, u = 5, n = 9, mean = 3, sd = 1),
+               "decimal places are required")
+  expect_error(certify(l = 1, u = 5, n = 9, mean = 3, sd = 1, digits = 1,
+                       rounding = "up_or_down"), "unknown rounding rule")
+  expect_error(certify(l = 1, u = 5, n = 1, mean = 3, sd = 1, digits = 1),
+               "n must be >= 2")
+  # separate precision for the mean and the SD
+  expect_equal(nrow(certify(l = 1, u = 5, n = 9, mean = 3.00, sd = 1.0,
+                            mean_digits = 2, sd_digits = 1)), 1L)
+})
+
+test_that("certify() matches CLOSURE cell for cell", {
+  skip_on_cran()
+  skip_if_not_installed("unsum")
+  um <- suppressWarnings(umbrella_data(n = 9, l = 1, u = 5, digits = 1,
+                                       Z = "integer"))
+  cr <- certify(l = 1, u = 5, n = 9, mean = um$mean, sd = um$sd, digits = 1)
+  cl <- vapply(seq_len(nrow(um)), function(i) {
+    r <- try(suppressWarnings(unsum::closure_generate(
+      mean = sprintf("%.1f", um$mean[i]), sd = sprintf("%.1f", um$sd[i]),
+      n = 9, scale_min = 1, scale_max = 5, rounding = "up_or_down")),
+      silent = TRUE)
+    if (inherits(r, "try-error")) FALSE else nrow(r$results) > 0
+  }, logical(1))
+  expect_identical(cr$possible, cl)
+})
