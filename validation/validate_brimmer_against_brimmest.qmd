@@ -1,5 +1,5 @@
 ---
-title: "Validating `brimmer()` against `certify()`"
+title: "Validating `brimmer()` against `brimmest()`"
 subtitle: "Every verdict on whole reporting grids, judged against an exact oracle. `brimmer()` is applied grid-wise via `umbrella_data()`, whose equivalence to it is checked first."
 author: "Ian Hussey"
 date: today
@@ -18,7 +18,7 @@ execute:
 <!--
 Companion to validate_sd_bounds_functions.qmd. That document validates claims
 about individual functions; this one validates the VERDICTS brimmer() returns,
-over whole reporting grids, against certify() as an exact oracle.
+over whole reporting grids, against brimmest() as an exact oracle.
 
 brimmer() is exercised grid-wise through umbrella_data(), which applies the same
 three tests (SD bounds, GRIM, GRIMMER) to every cell of a reporting grid in one
@@ -75,7 +75,7 @@ which runs those same three tests across an entire reporting grid in one pass.
 The two are shown to return identical verdicts before any sweep is run; the
 witness datasets at the end call `brimmer()` directly.
 
-`certify()` is exact in both directions. It enumerates the reachable
+`brimmest()` is exact in both directions. It enumerates the reachable
 *(sum, sum of squares)* states for the design by dynamic programming, rounds the
 resulting lattice to the reporting precision, and tests membership. So for any
 reported tuple it answers *possible* or *impossible* outright, and can serve as
@@ -83,9 +83,9 @@ the oracle the screen is measured against.
 
 That gives two quantities per tuple, and they are not symmetric:
 
-- a **false flag** — screen says impossible, `certify()` says possible — is a
+- a **false flag** — screen says impossible, `brimmest()` says possible — is a
   fatal error. It accuses real data.
-- a **blind-spot cell** — screen says possible, `certify()` says impossible — is
+- a **blind-spot cell** — screen says possible, `brimmest()` says impossible — is
   the expected price of a necessary-only test. It is a missed detection, not a
   false accusation.
 
@@ -94,7 +94,7 @@ zero everywhere; the blind spot is measured.
 
 ## Verifying the oracle first
 
-Anchoring a sweep on `certify()` is only meaningful if `certify()` is itself
+Anchoring a sweep on `brimmest()` is only meaningful if `brimmest()` is itself
 right, so it is checked against two independent constructions before use.
 
 ```{r oracle-brute}
@@ -103,7 +103,7 @@ brute_pairs <- function(n, l, u, digits) {
   g <- as.matrix(expand.grid(rep(list(l:u), n)))
   m <- cbind(rowMeans(g), apply(g, 1, stats::sd))
   # a reported pair is achievable if some exact pair rounds to it, under either
-  # convention, matching certify()'s default rule set
+  # convention, matching brimmest()'s default rule set
   up   <- cbind(round_up(m[, 1], digits),   round_up(m[, 2], digits))
   down <- cbind(round_down(m[, 1], digits), round_down(m[, 2], digits))
   unique(rbind(up, down))
@@ -114,22 +114,22 @@ brute_ok <- map_lgl(list(c(4, 1, 5, 1), c(5, 0, 3, 1), c(6, 1, 4, 1)), function(
   b <- brute_pairs(n, l, u, d)
   grid <- expand_grid(mean = round(seq(l, u, by = 10^-d), d),
                       sd   = round(seq(0, (u - l), by = 10^-d), d))
-  cert <- certify(l = l, u = u, n = n, mean = grid$mean, sd = grid$sd, digits = d)
+  cert <- brimmest(l = l, u = u, n = n, mean = grid$mean, sd = grid$sd, digits = d)
   bk <- paste(sprintf("%.6f", b[, 1]), sprintf("%.6f", b[, 2]))
   gk <- paste(sprintf("%.6f", grid$mean), sprintf("%.6f", grid$sd))
   identical(sort(gk[cert$possible]), sort(intersect(gk, bk)))
 })
 
-check(all(brute_ok), "certify() == brute-force enumeration (3 small designs)")
+check(all(brute_ok), "brimmest() == brute-force enumeration (3 small designs)")
 tibble(design = c("n=4 on 1-5", "n=5 on 0-3", "n=6 on 1-4"), agrees = brute_ok) |>
-  kable(caption = "certify() against exhaustive enumeration of every integer sample.")
+  kable(caption = "brimmest() against exhaustive enumeration of every integer sample.")
 ```
 
 ```{r oracle-closure, eval=has_unsum}
 # (ii) CLOSURE: an independent reconstruction algorithm in another package
 n_c <- 9; l_c <- 1; u_c <- 5; d_c <- 1
 um_c <- umbrella_data(n = n_c, l = l_c, u = u_c, digits = d_c, Z = "integer")
-cert_c <- certify(l = l_c, u = u_c, n = n_c, mean = um_c$mean, sd = um_c$sd,
+cert_c <- brimmest(l = l_c, u = u_c, n = n_c, mean = um_c$mean, sd = um_c$sd,
                   digits = d_c)
 
 closure_says <- cached("closure_n9_1to5.rds", {
@@ -142,11 +142,11 @@ closure_says <- cached("closure_n9_1to5.rds", {
   }, logical(1))
 })
 
-check(all(closure_says == cert_c$possible), "certify() == unsum::CLOSURE, cell for cell")
+check(all(closure_says == cert_c$possible), "brimmest() == unsum::CLOSURE, cell for cell")
 tibble(cells = nrow(um_c),
        agree = sum(closure_says == cert_c$possible),
        disagree = sum(closure_says != cert_c$possible)) |>
-  kable(caption = "certify() against CLOSURE reconstruction.")
+  kable(caption = "brimmest() against CLOSURE reconstruction.")
 ```
 
 ## brimmer() and the grid builder agree
@@ -217,7 +217,7 @@ sweep_one <- function(l, u, n, digits) {
            in_bounds = coalesce(in_bounds, FALSE),
            grimmer   = coalesce(grimmer, FALSE),
            screened  = coalesce(consistent, FALSE),
-           certified = certify(l = l, u = u, n = n, mean = mean, sd = sd,
+           certified = brimmest(l = l, u = u, n = n, mean = mean, sd = sd,
                                digits = digits)$possible)
 
   ff <- g$certified & !g$screened          # false flags, by the test responsible
@@ -270,7 +270,7 @@ never once rejected a report that real integer data can produce. That is the
 property the tool is for: a `brimmer()` failure is a proof of impossibility, and
 can be acted on. A `brimmer()` pass is not a proof of possibility, and
 `r format(sum(sweep$blind_spot), big.mark = ",")` of the passes are in fact
-impossible — which is what `certify()` exists to settle.
+impossible — which is what `brimmest()` exists to settle.
 
 ## Which test earns the catch
 
@@ -331,7 +331,7 @@ rather than asserted.
 
 The broader point survives regardless: a screen made of necessary conditions
 leaves a residue at every *n*, so the value of settling survivors exactly with
-`certify()` does not go away as designs get larger.
+`brimmest()` does not go away as designs get larger.
 
 # Rounding conventions
 
@@ -344,7 +344,7 @@ the sweep must show that.
 round_check <- function(rules) {
   n <- 12; l <- 0; u <- 6; d <- 1
   um <- umbrella_data(n = n, l = l, u = u, digits = d, Z = "integer")
-  ce <- certify(l = l, u = u, n = n, mean = um$mean, sd = um$sd, digits = d,
+  ce <- brimmest(l = l, u = u, n = n, mean = um$mean, sd = um$sd, digits = d,
                 rounding = rules)
   tibble(rules = paste(rules, collapse = " + "),
          certified = sum(ce$possible))
@@ -358,8 +358,8 @@ bind_rows(round_check("half_up"), round_check("half_down"),
 ```{r rounding-witness}
 # a real sample whose report is reachable ONLY when halves round down
 x_w <- c(rep(0, 9), 1, 1, 1)
-w_up   <- certify(l = 0, u = 6, n = 12, mean = 0.2, sd = 0.5, digits = 1, rounding = "half_up")
-w_both <- certify(l = 0, u = 6, n = 12, mean = 0.2, sd = 0.5, digits = 1)
+w_up   <- brimmest(l = 0, u = 6, n = 12, mean = 0.2, sd = 0.5, digits = 1, rounding = "half_up")
+w_both <- brimmest(l = 0, u = 6, n = 12, mean = 0.2, sd = 0.5, digits = 1)
 
 check(!w_up$possible && w_both$possible,
       "narrowing the rule set can wrongly reject a real sample")
@@ -367,22 +367,22 @@ check(!w_up$possible && w_both$possible,
 tibble(sample = "c(rep(0, 9), 1, 1, 1)",
        mean = mean(x_w), sd = sd(x_w),
        `reported 1 dp` = "0.2, 0.5",
-       `certify, half_up only` = w_up$possible,
-       `certify, default rules` = w_both$possible) |>
+       `brimmest, half_up only` = w_up$possible,
+       `brimmest, default rules` = w_both$possible) |>
   kable(digits = 4,
         caption = "Restricting rounding to a convention the source did not use is itself a false-flag risk.")
 ```
 
 # Multi-item scoring
 
-Composite scores move the data onto a `1/k` grid. `certify()` and the screen must
+Composite scores move the data onto a `1/k` grid. `brimmest()` and the screen must
 agree about that grid, in both sum-scored and mean-scored form.
 
 ```{r scoring}
 scoring_one <- function(scoring, n_items, l, u, n, digits) {
   um <- umbrella_data(n = n, l = l, u = u, digits = digits, Z = "integer",
                       scoring = scoring, n_items = n_items)
-  ce <- certify(l = l, u = u, n = n, mean = um$mean, sd = um$sd, digits = digits,
+  ce <- brimmest(l = l, u = u, n = n, mean = um$mean, sd = um$sd, digits = digits,
                 scoring = scoring, n_items = n_items)
   ff <- ce$possible & !um$consistent
   tibble(scoring = scoring, n_items = n_items,
@@ -407,7 +407,7 @@ scoring_res <- cached("scoring2.rds", pmap_dfr(scoring_grid, scoring_one))
 
 check(sum(scoring_res$ff_bounds) == 0, "the SD bounds never false-flag in any scoring mode")
 
-scoring_res |> kable(caption = "Screen against certify() across scoring modes. `ff_grimmer` is attributable to scrutiny, not to this package.")
+scoring_res |> kable(caption = "Screen against brimmest() across scoring modes. `ff_grimmer` is attributable to scrutiny, not to this package.")
 ```
 
 ## A false flag in scrutiny's multi-item GRIMMER
@@ -422,12 +422,12 @@ x_mi <- c(2, 2, 2, 2, 2, 2, 2, 2.5, 2.5, 2.5)   # 10 people, each a mean of two 
 
 mi <- tibble(
   quantity = c("n", "exact mean", "exact SD", "reported at 1 dp",
-               "certify(meanscored, k = 2)",
+               "brimmest(meanscored, k = 2)",
                "scrutiny grimmer(items = 2)",
                "scrutiny grimmer on the sum scale (items = 1)"),
   value = c(length(x_mi), sprintf("%.4f", mean(x_mi)), sprintf("%.4f", sd(x_mi)),
             "2.2, 0.2",
-            as.character(certify(l = 1, u = 5, n = 10, mean = 2.2, sd = 0.2,
+            as.character(brimmest(l = 1, u = 5, n = 10, mean = 2.2, sd = 0.2,
                                  digits = 1, scoring = "meanscored", n_items = 2)$possible),
             as.character(as.logical(grimmer(x = 2.2, sd = 0.2, n = 10, digits_x = 1,
                                             digits_sd = 1, items = 2))),
@@ -440,7 +440,7 @@ check(all(x_mi * 2 == round(x_mi * 2)), "witness lies on the 1/2 mean-score grid
 ```
 
 Every value is a legal 2-item mean, the reported pair is what a journal would
-print, and `certify()` confirms attainability. `scrutiny::grimmer()` returns
+print, and `brimmest()` confirms attainability. `scrutiny::grimmer()` returns
 `FALSE` under every rounding rule when told `items = 2`, while the same data
 expressed on the sum scale passes. This is a **false flag in the `items`
 handling**, distinct from the two issues already filed against `scrutiny`
@@ -474,7 +474,7 @@ witnesses <- map_dfr(witness_designs, function(w) {
   tibble(n = n, scale = sprintf("%d-%d", w$l, w$u),
          reported = sprintf("%.*f, %.*f", w$d, m_r, w$d, s_r),
          brimmer_consistent = isTRUE(b$consistent),
-         certified = certify(l = w$l, u = w$u, n = n, mean = m_r, sd = s_r,
+         certified = brimmest(l = w$l, u = w$u, n = n, mean = m_r, sd = s_r,
                              digits = w$d)$possible)
 })
 
@@ -486,12 +486,12 @@ witnesses |> kable(caption = "Real samples, reported and re-screened. Any FALSE 
 
 # What this document does not verify
 
-The sweep is anchored on `certify()`, so it can only reach claims `certify()`
+The sweep is anchored on `brimmest()`, so it can only reach claims `brimmest()`
 can express: whether a reported (mean, SD) is attainable by integer data on a
 bounded scale, under a given scoring and precision. Four things fall outside
 that, and are checked in `validate_sd_bounds_functions.qmd` instead.
 
-**The alpha-conditional bounds.** `certify()` has no `alpha` argument — the
+**The alpha-conditional bounds.** `brimmest()` has no `alpha` argument — the
 attainable lattice it builds is over sum and sum of squares, which carry no
 information about how a composite decomposes into items. So nothing here tests
 the internal-consistency ceiling, the amplified floor, or the sharp Gini

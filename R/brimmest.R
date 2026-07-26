@@ -2,23 +2,36 @@
 # lattice of strictly integer data. See R/plot_sd_region.R for the dynamic
 # program that enumerates the lattice.
 
-#' Certify whether a reported (mean, SD) is attainable by integer data
+#' BRIMMEST: certify whether a reported (mean, SD) is attainable
 #'
-#' An exact possible / impossible certificate for reported summary statistics
-#' on a bounded integer scale, obtained without reconstructing any dataset.
+#' Bounds-Related Inconsistency of Means and Errors, Settled Test. An exact
+#' possible / impossible certificate for reported summary statistics on a
+#' bounded integer scale, obtained without reconstructing any dataset.
 #'
-#' [sd_bounds()] and [brimmer()] answer a *necessary* question — does the
-#' reported SD lie inside the feasible band? — and a handful of tuples pass
-#' that, GRIM and GRIMMER, yet still have no integer solution. `certify()`
-#' settles those: it enumerates the exact attainable `(mean, sd)` lattice for
-#' the design by dynamic programming over the reachable
-#' `(sum, sum of squares)` states, rounds that lattice to the reporting
-#' precision, and asks whether the reported tuple is a member.
+#' `brimmest()` completes the family, and the superlative is the point.
+#' [brim()] and [brimmer()] — like GRIM and GRIMMER before them — test
+#' conditions that are *necessary but not sufficient*: failing one proves a
+#' report impossible, but passing them all proves nothing. A handful of tuples
+#' clear the SD bounds, GRIM and GRIMMER together and still correspond to no
+#' integer dataset.
 #'
-#' The verdict is exact in both directions. A hit means some integer sample on
-#' `[l, u]` of size `n` rounds to exactly this report, so the report is
-#' **possible**. A miss means no such sample exists, so the report is
-#' **impossible** — a proof, not a heuristic flag.
+#' `brimmest()` is *necessary and sufficient*. It enumerates the exact
+#' attainable `(mean, sd)` lattice for the design by dynamic programming over
+#' the reachable `(sum, sum of squares)` states, rounds that lattice to the
+#' reporting precision, and asks whether the reported tuple is a member. The
+#' verdict is therefore exact in both directions: a hit means some integer
+#' sample on `[l, u]` of size `n` rounds to exactly this report, so it is
+#' **possible**; a miss means no such sample exists, so it is **impossible** —
+#' a proof, not a heuristic flag. Nothing in the GRIM family can make the
+#' second claim.
+#'
+#' The three tests are nested, cheapest first:
+#'
+#' | test | asks | verdict |
+#' | --- | --- | --- |
+#' | [brim()] | is the reported mean attainable? | necessary only |
+#' | [brimmer()] | and is the reported SD attainable with it? | necessary only |
+#' | `brimmest()` | is the pair jointly attainable by real integer data? | necessary and sufficient |
 #'
 #' This is the same question the CLOSURE algorithm answers (see
 #' `unsum::closure_generate()`), reached analytically rather than by search —
@@ -27,7 +40,8 @@
 #' not how. In exchange the cost depends only on `l`, `u` and `n`, not on how
 #' many datasets happen to satisfy the constraints, and one lattice certifies
 #' every tuple of that design at once — so a vector of reports costs barely
-#' more than a single one. See `vignette("certification")`.
+#' more than a single one. The certification validation document in
+#' `validation/` reports the comparison against CLOSURE in full.
 #'
 #' @section Rounding and the direction of proof:
 #' A hit certifies possibility under whichever rounding rule produced it. A
@@ -60,21 +74,21 @@
 #' @return A data.frame with one row per reported tuple: `mean`, `sd`,
 #'   `possible` (logical), and `rules` — the rounding rules under which the
 #'   tuple is reachable, comma-separated and `""` when none.
-#' @seealso [brimmer()] for the closed-form screen to run first, and
-#'   [sd_region_data()] for the lattice itself.
+#' @seealso [brim()] and [brimmer()] for the closed-form screens to run
+#'   first, and [sd_region_data()] for the lattice itself.
 #' @examples
 #' # a report a real 1-5 scale sample can produce
-#' certify(l = 1, u = 5, n = 9, mean = 3.0, sd = 1.0, digits = 1)
+#' brimmest(l = 1, u = 5, n = 9, mean = 3.0, sd = 1.0, digits = 1)
 #'
 #' # inside the SD bounds and passing GRIM and GRIMMER, yet no integer
 #' # sample produces it: the residual blind spot of the closed-form screen
-#' certify(l = 1, u = 5, n = 9, mean = 1.3, sd = 0.9, digits = 1)
+#' brimmest(l = 1, u = 5, n = 9, mean = 1.3, sd = 0.9, digits = 1)
 #'
 #' # one lattice certifies many reports at once
-#' certify(l = 1, u = 5, n = 9, digits = 1,
+#' brimmest(l = 1, u = 5, n = 9, digits = 1,
 #'         mean = c(3.0, 1.3, 2.5), sd = c(1.0, 0.9, 1.2))
 #' @export
-certify <- function(l, u, n, mean, sd, digits = NULL,
+brimmest <- function(l, u, n, mean, sd, digits = NULL,
                     mean_digits = NULL, sd_digits = NULL,
                     rounding = c("half_up", "half_down"),
                     scoring = c("singleitem", "sumscored", "meanscored"),

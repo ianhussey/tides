@@ -3,7 +3,7 @@
 export(brim)
 export(brimmer)
 export(brimmer_multiple)
-export(certify)
+export(brimmest)
 export(feasible_mean_band)
 export(infer_digits)
 export(plot_sd_bounds)

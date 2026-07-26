@@ -2359,7 +2359,7 @@ window.Quarto = {
   <li><a href="#part-3-the-joint-blind-spot" id="toc-part-3-the-joint-blind-spot" class="nav-link" data-scroll-target="#part-3-the-joint-blind-spot">Part 3: the joint blind spot</a>
   <ul class="collapse">
   <li><a href="#how-close-to-the-ceiling-can-a-false-pass-hide-the-gap-ladder" id="toc-how-close-to-the-ceiling-can-a-false-pass-hide-the-gap-ladder" class="nav-link" data-scroll-target="#how-close-to-the-ceiling-can-a-false-pass-hide-the-gap-ladder">How close to the ceiling can a false pass hide? The gap ladder</a></li>
-  <li><a href="#closing-the-blind-spot-certify" id="toc-closing-the-blind-spot-certify" class="nav-link" data-scroll-target="#closing-the-blind-spot-certify">Closing the blind spot: <code>certify()</code></a></li>
+  <li><a href="#closing-the-blind-spot-brimmest" id="toc-closing-the-blind-spot-brimmest" class="nav-link" data-scroll-target="#closing-the-blind-spot-brimmest">Closing the blind spot: <code>brimmest()</code></a></li>
   </ul></li>
   <li><a href="#part-4-multi-item-scoring-pomp-and-the-derived-builders" id="toc-part-4-multi-item-scoring-pomp-and-the-derived-builders" class="nav-link" data-scroll-target="#part-4-multi-item-scoring-pomp-and-the-derived-builders">Part 4: multi-item scoring, POMP, and the derived builders</a>
   <ul class="collapse">
@@ -2662,7 +2662,7 @@ Three jobs:
 <section id="grimmer-misses-in-the-cran-release-of-scrutiny" class="level2">
 <h2 class="anchored" data-anchor-id="grimmer-misses-in-the-cran-release-of-scrutiny">GRIMMER misses in the CRAN release of scrutiny</h2>
 <p>The witness above is a <em>documented</em> false flag. There is a second, broader one that matters more for anyone installing this package today. scrutiny 0.6.1 — the current CRAN release, and therefore what CRAN builds <code>strait</code> against — carries a bug in GRIMMER’s third test that flags attainable values as inconsistent (<a href="https://github.com/lhdjung/scrutiny/issues/80" class="uri">https://github.com/lhdjung/scrutiny/issues/80</a>); it warns about this on every call. The development version (0.6.2) fixes it.</p>
-<p>This matters because <code>brimmer()</code>, <code>umbrella_data()</code> and the lattice rules defer to scrutiny verbatim and so inherit the false flags. <code>certify()</code> does not defer to anything, and disproves them constructively.</p>
+<p>This matters because <code>brimmer()</code>, <code>umbrella_data()</code> and the lattice rules defer to scrutiny verbatim and so inherit the false flags. <code>brimmest()</code> does not defer to anything, and disproves them constructively.</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
@@ -2673,11 +2673,11 @@ Three jobs:
 <span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>witness <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">rep</span>(<span class="dv">1</span>, <span class="dv">9</span>), <span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">2</span>)</span>
 <span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>w_ok <span class="ot">&lt;-</span> <span class="fu">length</span>(witness) <span class="sc">==</span> <span class="dv">12</span> <span class="sc">&amp;&amp;</span> <span class="fu">all</span>(witness <span class="sc">==</span> <span class="fu">round</span>(witness) <span class="sc">&amp;</span></span>
 <span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>                                     witness <span class="sc">&gt;=</span> <span class="dv">1</span> <span class="sc">&amp;</span> witness <span class="sc">&lt;=</span> <span class="dv">5</span>)</span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>w_cert <span class="ot">&lt;-</span> <span class="fu">certify</span>(<span class="at">l =</span> <span class="dv">1</span>, <span class="at">u =</span> <span class="dv">5</span>, <span class="at">n =</span> <span class="dv">12</span>, <span class="at">mean =</span> <span class="fl">1.2</span>, <span class="at">sd =</span> <span class="fl">0.5</span>, <span class="at">digits =</span> <span class="dv">1</span>)</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>w_cert <span class="ot">&lt;-</span> <span class="fu">brimmest</span>(<span class="at">l =</span> <span class="dv">1</span>, <span class="at">u =</span> <span class="dv">5</span>, <span class="at">n =</span> <span class="dv">12</span>, <span class="at">mean =</span> <span class="fl">1.2</span>, <span class="at">sd =</span> <span class="fl">0.5</span>, <span class="at">digits =</span> <span class="dv">1</span>)</span>
 <span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="co"># how many cells does the installed scrutiny reject that certify() proves real?</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="co"># how many cells does the installed scrutiny reject that brimmest() proves real?</span></span>
 <span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>um_g <span class="ot">&lt;-</span> <span class="fu">umbrella_data</span>(<span class="at">n =</span> <span class="dv">12</span>, <span class="at">l =</span> <span class="dv">1</span>, <span class="at">u =</span> <span class="dv">5</span>, <span class="at">digits =</span> <span class="dv">1</span>, <span class="at">Z =</span> <span class="st">&quot;integer&quot;</span>)</span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>cert_g <span class="ot">&lt;-</span> <span class="fu">certify</span>(<span class="at">l =</span> <span class="dv">1</span>, <span class="at">u =</span> <span class="dv">5</span>, <span class="at">n =</span> <span class="dv">12</span>, <span class="at">mean =</span> um_g<span class="sc">$</span>mean, <span class="at">sd =</span> um_g<span class="sc">$</span>sd,</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>cert_g <span class="ot">&lt;-</span> <span class="fu">brimmest</span>(<span class="at">l =</span> <span class="dv">1</span>, <span class="at">u =</span> <span class="dv">5</span>, <span class="at">n =</span> <span class="dv">12</span>, <span class="at">mean =</span> um_g<span class="sc">$</span>mean, <span class="at">sd =</span> um_g<span class="sc">$</span>sd,</span>
 <span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>                  <span class="at">digits =</span> <span class="dv">1</span>)</span>
 <span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>misses <span class="ot">&lt;-</span> <span class="fu">which</span>(<span class="sc">!</span>um_g<span class="sc">$</span>consistent <span class="sc">&amp;</span> cert_g<span class="sc">$</span>possible)</span>
 <span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a></span>
@@ -2696,19 +2696,19 @@ Three jobs:
 </div>
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">&quot;certify() calls the report (1.2, 0.5) possible: %s (rules: %s)</span><span class="sc">\n</span><span class="st">&quot;</span>,</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">&quot;brimmest() calls the report (1.2, 0.5) possible: %s (rules: %s)</span><span class="sc">\n</span><span class="st">&quot;</span>,</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>            w_cert<span class="sc">$</span>possible, w_cert<span class="sc">$</span>rules))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>certify() calls the report (1.2, 0.5) possible: TRUE (rules: half_down)</code></pre>
+<pre><code>brimmest() calls the report (1.2, 0.5) possible: TRUE (rules: half_down)</code></pre>
 </div>
 <details class="code-fold">
 <summary>Code</summary>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">&quot;cells the screen rejects but certify() proves attainable: %d of %d</span><span class="sc">\n</span><span class="st">&quot;</span>,</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">&quot;cells the screen rejects but brimmest() proves attainable: %d of %d</span><span class="sc">\n</span><span class="st">&quot;</span>,</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>            <span class="fu">length</span>(misses), <span class="fu">nrow</span>(um_g)))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code>cells the screen rejects but certify() proves attainable: 0 of 684</code></pre>
+<pre><code>cells the screen rejects but brimmest() proves attainable: 0 of 684</code></pre>
 </div>
 <details class="code-fold">
 <summary>Code</summary>
@@ -2721,7 +2721,7 @@ Three jobs:
 <span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="co"># The witness is real, so this must hold on every scrutiny version.</span></span>
 <span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="fu">check</span>(w_ok <span class="sc">&amp;&amp;</span> <span class="fu">isTRUE</span>(w_cert<span class="sc">$</span>possible),</span>
-<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>      <span class="st">&quot;certify() admits a hand-constructed integer witness&quot;</span>)</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>      <span class="st">&quot;brimmest() admits a hand-constructed integer witness&quot;</span>)</span>
 <span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Version-dependent, so recorded rather than asserted: it is a property of the</span></span>
 <span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a><span class="co"># installed scrutiny, not of this package.</span></span>
 <span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">=&gt; On scrutiny %s, strait&#39;s GRIMMER-dependent verdicts are %s.</span><span class="sc">\n</span><span class="st">&quot;</span>,</span>
@@ -2733,7 +2733,7 @@ Three jobs:
 =&gt; On scrutiny 0.6.2, strait&#39;s GRIMMER-dependent verdicts are clean.</code></pre>
 </div>
 </div>
-<p>Until scrutiny 0.6.2 reaches CRAN, GRIMMER verdicts from a CRAN install should be read alongside <code>certify()</code>, and this package should not be submitted to CRAN — a forensic tool that false-flags legitimate reports is worse than one that is merely slow. See the TODO in <code>README.md</code>.</p>
+<p>Until scrutiny 0.6.2 reaches CRAN, GRIMMER verdicts from a CRAN install should be read alongside <code>brimmest()</code>, and this package should not be submitted to CRAN — a forensic tool that false-flags legitimate reports is worse than one that is merely slow. See the TODO in <code>README.md</code>.</p>
 </section>
 <section id="brimmer-verdict-paths" class="level2">
 <h2 class="anchored" data-anchor-id="brimmer-verdict-paths">brimmer(): verdict paths</h2>
@@ -3310,9 +3310,9 @@ Three jobs:
 </div>
 <p><strong>Reading.</strong> The red crosses are the residual: tuples no <em>closed-form</em> test in the battery can catch. They are structural, not implementation bugs — each test is correct about its own shadow of the problem. Closing them requires joint achievability of (sum, sum of squares) within the limits. Their scarcity and predictable location (the top ~15% of the umbrella’s height, hugging the ceiling) is itself useful: a reported value that passes everything <em>and</em> sits close to the mean-conditional maximum is exactly the case worth certifying exactly.</p>
 </section>
-<section id="closing-the-blind-spot-certify" class="level2">
-<h2 class="anchored" data-anchor-id="closing-the-blind-spot-certify">Closing the blind spot: <code>certify()</code></h2>
-<p><code>certify()</code> settles the residual. It obtains the same joint achievability the enumeration above does, but by dynamic programming over the reachable (sum, sum of squares) states rather than by materialising datasets, so no sample is ever constructed and the cost depends only on <span class="math inline">\((l, u, n)\)</span> rather than on how many datasets exist. Three claims, each checked against an independent oracle.</p>
+<section id="closing-the-blind-spot-brimmest" class="level2">
+<h2 class="anchored" data-anchor-id="closing-the-blind-spot-brimmest">Closing the blind spot: <code>brimmest()</code></h2>
+<p><code>brimmest()</code> settles the residual. It obtains the same joint achievability the enumeration above does, but by dynamic programming over the reachable (sum, sum of squares) states rather than by materialising datasets, so no sample is ever constructed and the cost depends only on <span class="math inline">\((l, u, n)\)</span> rather than on how many datasets exist. Three claims, each checked against an independent oracle.</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
@@ -3327,15 +3327,15 @@ Three jobs:
 <span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>grid_c <span class="ot">&lt;-</span> <span class="fu">expand.grid</span>(<span class="at">mean =</span> <span class="fu">seq</span>(l_u, u_u, <span class="at">by =</span> <span class="fl">0.1</span>),</span>
 <span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>                      <span class="at">sd   =</span> <span class="fu">seq</span>(<span class="dv">0</span>, <span class="fu">ceiling</span>(<span class="fu">sd_max_span_n</span>(l_u, u_u, n_u) <span class="sc">*</span> <span class="dv">10</span>) <span class="sc">/</span> <span class="dv">10</span>,</span>
 <span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>                                 <span class="at">by =</span> <span class="fl">0.1</span>))</span>
-<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>cert_c <span class="ot">&lt;-</span> <span class="fu">certify</span>(<span class="at">l =</span> l_u, <span class="at">u =</span> u_u, <span class="at">n =</span> n_u,</span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>cert_c <span class="ot">&lt;-</span> <span class="fu">brimmest</span>(<span class="at">l =</span> l_u, <span class="at">u =</span> u_u, <span class="at">n =</span> n_u,</span>
 <span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a>                  <span class="at">mean =</span> grid_c<span class="sc">$</span>mean, <span class="at">sd =</span> grid_c<span class="sc">$</span>sd, <span class="at">digits =</span> <span class="dv">1</span>)</span>
-<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>res_cert[[<span class="st">&quot;certify() == composition enumeration, cell for cell&quot;</span>]] <span class="ot">&lt;-</span></span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>res_cert[[<span class="st">&quot;brimmest() == composition enumeration, cell for cell&quot;</span>]] <span class="ot">&lt;-</span></span>
 <span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">identical</span>(cert_c<span class="sc">$</span>possible,</span>
 <span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a>            <span class="fu">paste</span>(<span class="fu">round</span>(grid_c<span class="sc">$</span>mean <span class="sc">*</span> <span class="dv">10</span>), <span class="fu">round</span>(grid_c<span class="sc">$</span>sd <span class="sc">*</span> <span class="dv">10</span>)) <span class="sc">%in%</span> enum_key)</span>
 <span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a><span class="co"># (ii) against CLOSURE, cell for cell, on a smaller design</span></span>
 <span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a>um_cl <span class="ot">&lt;-</span> <span class="fu">umbrella_data</span>(<span class="at">n =</span> <span class="dv">9</span>, <span class="at">l =</span> <span class="dv">1</span>, <span class="at">u =</span> <span class="dv">5</span>, <span class="at">digits =</span> <span class="dv">1</span>, <span class="at">Z =</span> <span class="st">&quot;integer&quot;</span>)</span>
-<span id="cb27-20"><a href="#cb27-20" aria-hidden="true" tabindex="-1"></a>cert_cl <span class="ot">&lt;-</span> <span class="fu">certify</span>(<span class="at">l =</span> <span class="dv">1</span>, <span class="at">u =</span> <span class="dv">5</span>, <span class="at">n =</span> <span class="dv">9</span>, <span class="at">mean =</span> um_cl<span class="sc">$</span>mean, <span class="at">sd =</span> um_cl<span class="sc">$</span>sd,</span>
+<span id="cb27-20"><a href="#cb27-20" aria-hidden="true" tabindex="-1"></a>cert_cl <span class="ot">&lt;-</span> <span class="fu">brimmest</span>(<span class="at">l =</span> <span class="dv">1</span>, <span class="at">u =</span> <span class="dv">5</span>, <span class="at">n =</span> <span class="dv">9</span>, <span class="at">mean =</span> um_cl<span class="sc">$</span>mean, <span class="at">sd =</span> um_cl<span class="sc">$</span>sd,</span>
 <span id="cb27-21"><a href="#cb27-21" aria-hidden="true" tabindex="-1"></a>                   <span class="at">digits =</span> <span class="dv">1</span>)</span>
 <span id="cb27-22"><a href="#cb27-22" aria-hidden="true" tabindex="-1"></a>closure_cl <span class="ot">&lt;-</span> <span class="fu">vapply</span>(<span class="fu">seq_len</span>(<span class="fu">nrow</span>(um_cl)), <span class="cf">function</span>(i) {</span>
 <span id="cb27-23"><a href="#cb27-23" aria-hidden="true" tabindex="-1"></a>  r <span class="ot">&lt;-</span> <span class="fu">try</span>(<span class="fu">suppressWarnings</span>(unsum<span class="sc">::</span><span class="fu">closure_generate</span>(</span>
@@ -3344,24 +3344,24 @@ Three jobs:
 <span id="cb27-26"><a href="#cb27-26" aria-hidden="true" tabindex="-1"></a>    <span class="at">silent =</span> <span class="cn">TRUE</span>)</span>
 <span id="cb27-27"><a href="#cb27-27" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (<span class="fu">inherits</span>(r, <span class="st">&quot;try-error&quot;</span>)) <span class="cn">FALSE</span> <span class="cf">else</span> <span class="fu">nrow</span>(r<span class="sc">$</span>results) <span class="sc">&gt;</span> <span class="dv">0</span></span>
 <span id="cb27-28"><a href="#cb27-28" aria-hidden="true" tabindex="-1"></a>}, <span class="fu">logical</span>(<span class="dv">1</span>))</span>
-<span id="cb27-29"><a href="#cb27-29" aria-hidden="true" tabindex="-1"></a>res_cert[[<span class="st">&quot;certify() == unsum::CLOSURE, cell for cell&quot;</span>]] <span class="ot">&lt;-</span></span>
+<span id="cb27-29"><a href="#cb27-29" aria-hidden="true" tabindex="-1"></a>res_cert[[<span class="st">&quot;brimmest() == unsum::CLOSURE, cell for cell&quot;</span>]] <span class="ot">&lt;-</span></span>
 <span id="cb27-30"><a href="#cb27-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">identical</span>(cert_cl<span class="sc">$</span>possible, closure_cl)</span>
 <span id="cb27-31"><a href="#cb27-31" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb27-32"><a href="#cb27-32" aria-hidden="true" tabindex="-1"></a><span class="co"># (iii) the closed-form screen is NECESSARY but not sufficient: it must never</span></span>
-<span id="cb27-33"><a href="#cb27-33" aria-hidden="true" tabindex="-1"></a><span class="co"># reject a tuple certify() proves attainable, while certify() rejects exactly</span></span>
+<span id="cb27-33"><a href="#cb27-33" aria-hidden="true" tabindex="-1"></a><span class="co"># reject a tuple brimmest() proves attainable, while brimmest() rejects exactly</span></span>
 <span id="cb27-34"><a href="#cb27-34" aria-hidden="true" tabindex="-1"></a><span class="co"># the blind-spot cells it admits</span></span>
 <span id="cb27-35"><a href="#cb27-35" aria-hidden="true" tabindex="-1"></a>res_cert[[<span class="st">&quot;screen never rejects a certified-attainable tuple&quot;</span>]] <span class="ot">&lt;-</span></span>
 <span id="cb27-36"><a href="#cb27-36" aria-hidden="true" tabindex="-1"></a>  <span class="fu">sum</span>(<span class="sc">!</span>um_cl<span class="sc">$</span>consistent <span class="sc">&amp;</span> cert_cl<span class="sc">$</span>possible) <span class="sc">==</span> <span class="dv">0</span></span>
-<span id="cb27-37"><a href="#cb27-37" aria-hidden="true" tabindex="-1"></a>res_cert[[<span class="st">&quot;certify() rejects blind-spot cells the screen admits&quot;</span>]] <span class="ot">&lt;-</span></span>
+<span id="cb27-37"><a href="#cb27-37" aria-hidden="true" tabindex="-1"></a>res_cert[[<span class="st">&quot;brimmest() rejects blind-spot cells the screen admits&quot;</span>]] <span class="ot">&lt;-</span></span>
 <span id="cb27-38"><a href="#cb27-38" aria-hidden="true" tabindex="-1"></a>  <span class="fu">sum</span>(um_cl<span class="sc">$</span>consistent <span class="sc">&amp;</span> <span class="sc">!</span>cert_cl<span class="sc">$</span>possible) <span class="sc">&gt;</span> <span class="dv">0</span></span>
 <span id="cb27-39"><a href="#cb27-39" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb27-40"><a href="#cb27-40" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (nm <span class="cf">in</span> <span class="fu">names</span>(res_cert)) <span class="fu">check</span>(res_cert[[nm]], nm)</span>
 <span id="cb27-41"><a href="#cb27-41" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(<span class="fu">tibble</span>(<span class="at">test =</span> <span class="fu">names</span>(res_cert), <span class="at">passed =</span> <span class="fu">unlist</span>(res_cert)),</span>
-<span id="cb27-42"><a href="#cb27-42" aria-hidden="true" tabindex="-1"></a>      <span class="at">caption =</span> <span class="st">&quot;certify(): the analytic CLOSURE certificate.&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb27-42"><a href="#cb27-42" aria-hidden="true" tabindex="-1"></a>      <span class="at">caption =</span> <span class="st">&quot;brimmest(): the analytic CLOSURE certificate.&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
-<caption>certify(): the analytic CLOSURE certificate.</caption>
+<caption>brimmest(): the analytic CLOSURE certificate.</caption>
 <thead>
 <tr class="header">
 <th style="text-align: left;">test</th>
@@ -3370,11 +3370,11 @@ Three jobs:
 </thead>
 <tbody>
 <tr class="odd">
-<td style="text-align: left;">certify() == composition enumeration, cell for cell</td>
+<td style="text-align: left;">brimmest() == composition enumeration, cell for cell</td>
 <td style="text-align: left;">TRUE</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">certify() == unsum::CLOSURE, cell for cell</td>
+<td style="text-align: left;">brimmest() == unsum::CLOSURE, cell for cell</td>
 <td style="text-align: left;">TRUE</td>
 </tr>
 <tr class="odd">
@@ -3382,14 +3382,14 @@ Three jobs:
 <td style="text-align: left;">TRUE</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">certify() rejects blind-spot cells the screen admits</td>
+<td style="text-align: left;">brimmest() rejects blind-spot cells the screen admits</td>
 <td style="text-align: left;">TRUE</td>
 </tr>
 </tbody>
 </table>
 </div>
 </div>
-<p>The blind spot is therefore no longer a limitation of the package, only of the closed-form layer within it. <code>brimmer()</code> remains the fast screen; <code>certify()</code> is the exact adjudicator for whatever survives it.</p>
+<p>The blind spot is therefore no longer a limitation of the package, only of the closed-form layer within it. <code>brimmer()</code> remains the fast screen; <code>brimmest()</code> is the exact adjudicator for whatever survives it.</p>
 </section>
 </section>
 <section id="part-4-multi-item-scoring-pomp-and-the-derived-builders" class="level1">
@@ -3721,7 +3721,7 @@ Three jobs:
 </tr>
 <tr class="even">
 <td>“and, for the tuples that pass every test, against the CLOSURE algorithm implemented in <code>unsum</code>”</td>
-<td>Part 3, the joint blind spot, and <code>certify()</code> vs CLOSURE cell for cell</td>
+<td>Part 3, the joint blind spot, and <code>brimmest()</code> vs CLOSURE cell for cell</td>
 </tr>
 <tr class="odd">
 <td>bounds are <strong>sharp</strong>, not merely valid</td>
@@ -3747,7 +3747,7 @@ Three jobs:
 </table>
 <p>Two things the paper does <strong>not</strong> yet say, and should:</p>
 <ol type="1">
-<li><p><strong><code>certify()</code> exists and is validated.</strong> The paper describes the closed-form layer and cites <code>unsum</code> as the complementary reconstruction tool, but the package now also provides an exact certificate of its own, obtained by dynamic programming over reachable (sum, sum of squares) states rather than by search. It agrees with both exhaustive enumeration and CLOSURE cell for cell, at roughly 700-1000x CLOSURE’s speed, because its cost depends only on <span class="math inline">\((l, u, n)\)</span> and one lattice certifies a whole design at once. The paper’s framing of the trade-off — “the bounds used as a fast screen and reconstruction reserved for the cases that survive it” — is now a three-way one: screen with <code>brimmer()</code>, certify with <code>certify()</code>, reconstruct with CLOSURE only when the <em>witness datasets themselves</em> are wanted.</p></li>
+<li><p><strong><code>brimmest()</code> exists and is validated.</strong> The paper describes the closed-form layer and cites <code>unsum</code> as the complementary reconstruction tool, but the package now also provides an exact certificate of its own, obtained by dynamic programming over reachable (sum, sum of squares) states rather than by search. It agrees with both exhaustive enumeration and CLOSURE cell for cell, at roughly 700-1000x CLOSURE’s speed, because its cost depends only on <span class="math inline">\((l, u, n)\)</span> and one lattice certifies a whole design at once. The paper’s framing of the trade-off — “the bounds used as a fast screen and reconstruction reserved for the cases that survive it” — is now a three-way one: screen with <code>brimmer()</code>, brimmest with <code>brimmest()</code>, reconstruct with CLOSURE only when the <em>witness datasets themselves</em> are wanted.</p></li>
 <li><p><strong>The residual blind spot is closed.</strong> The paper inherits the older framing in which the tuples passing every closed-form test could only be resolved by external enumeration. They can now be resolved inside the package.</p></li>
 </ol>
 <div class="cell">
@@ -3815,7 +3815,7 @@ Three jobs:
 <td style="text-align: left;">TRUE</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">certify() admits a hand-constructed integer witness</td>
+<td style="text-align: left;">brimmest() admits a hand-constructed integer witness</td>
 <td style="text-align: left;">TRUE</td>
 </tr>
 <tr class="odd">
@@ -3871,11 +3871,11 @@ Three jobs:
 <td style="text-align: left;">TRUE</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">certify() == composition enumeration, cell for cell</td>
+<td style="text-align: left;">brimmest() == composition enumeration, cell for cell</td>
 <td style="text-align: left;">TRUE</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">certify() == unsum::CLOSURE, cell for cell</td>
+<td style="text-align: left;">brimmest() == unsum::CLOSURE, cell for cell</td>
 <td style="text-align: left;">TRUE</td>
 </tr>
 <tr class="even">
@@ -3883,7 +3883,7 @@ Three jobs:
 <td style="text-align: left;">TRUE</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">certify() rejects blind-spot cells the screen admits</td>
+<td style="text-align: left;">brimmest() rejects blind-spot cells the screen admits</td>
 <td style="text-align: left;">TRUE</td>
 </tr>
 <tr class="even">
@@ -3973,7 +3973,7 @@ attached base packages:
 [1] stats     graphics  grDevices utils     datasets  methods   base     
 
 other attached packages:
- [1] strait_0.4.5.1 testthat_3.3.2 unsum_0.2.0    scrutiny_0.6.2 knitr_1.51    
+ [1] strait_0.4.6.1 testthat_3.3.2 unsum_0.2.0    scrutiny_0.6.2 knitr_1.51    
  [6] ggplot2_4.0.3  tibble_3.3.1   purrr_1.2.2    tidyr_1.3.2    dplyr_1.2.1   
 
 loaded via a namespace (and not attached):

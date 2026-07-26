@@ -76,8 +76,9 @@
 #'   (linear, against the mean-agnostic parity ceiling) and `pomp_sd_sharp`
 #'   (position within the sharp mean-conditional band), and `note`.
 #'
-#' @seealso [brim()] for the mean-side test, [brimmer_multiple()] to apply
-#'   this across a data frame.
+#' @seealso [brim()] for the mean-side test, [brimmest()] for the exact
+#'   certificate that settles what this test can only screen, and
+#'   [brimmer_multiple()] to apply this across a data frame.
 #' @examples
 #' # a perfectly ordinary report on a 1-7 scale
 #' # (witnessed by c(rep(1, 20), rep(7, 9), 6): mean 2.9667, sd 2.8343)
@@ -199,7 +200,8 @@ brimmer <- function(l = NULL, u = NULL, a = NULL, b = NULL,
 #' @return A one-row data.frame: `consistent` (logical), `failed_tests`
 #'   (comma-separated, "" if none), `in_scale_range`, `grim`, the feasible mean
 #'   band `band_lo` and `band_hi`, `pomp_mean`, and `note`.
-#' @seealso [brimmer()] for the SD-side test.
+#' @seealso [brimmer()] for the SD-side test, [brimmest()] for the exact
+#'   certificate.
 #' @examples
 #' # an ordinary mean on a 1-7 scale
 #' brim(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2)

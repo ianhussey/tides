@@ -124,6 +124,7 @@ brimmer(l = 1, u = 7, n = 30, mean = 3.51, mean_digits = 2,
         sd = 1.00, sd_digits = 2, Z = "integer")
 }
 \seealso{
-\code{\link[=brim]{brim()}} for the mean-side test, \code{\link[=brimmer_multiple]{brimmer_multiple()}} to apply
-this across a data frame.
+\code{\link[=brim]{brim()}} for the mean-side test, \code{\link[=brimmest]{brimmest()}} for the exact
+certificate that settles what this test can only screen, and
+\code{\link[=brimmer_multiple]{brimmer_multiple()}} to apply this across a data frame.
 }

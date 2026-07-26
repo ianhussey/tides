@@ -77,5 +77,6 @@ brim(l = 1, u = 7, n = 30, mean = 7.5, mean_digits = 1)
 brim(a = 1, b = 7, n = 30, mean = 1.10, mean_digits = 2)
 }
 \seealso{
-\code{\link[=brimmer]{brimmer()}} for the SD-side test.
+\code{\link[=brimmer]{brimmer()}} for the SD-side test, \code{\link[=brimmest]{brimmest()}} for the exact
+certificate.
 }

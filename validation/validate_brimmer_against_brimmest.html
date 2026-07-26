@@ -9,7 +9,7 @@
 <meta name="author" content="Ian Hussey">
 <meta name="dcterms.date" content="2026-07-26">
 
-<title>Validating brimmer() against certify()</title>
+<title>Validating brimmer() against brimmest()</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -2236,7 +2236,7 @@ vertical-align: -.125em;
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Validating <code>brimmer()</code> against <code>certify()</code></h1>
+<h1 class="title">Validating <code>brimmer()</code> against <code>brimmest()</code></h1>
 <p class="subtitle lead">Every verdict on whole reporting grids, judged against an exact oracle. <code>brimmer()</code> is applied grid-wise via <code>umbrella_data()</code>, whose equivalence to it is checked first.</p>
 </div>
 
@@ -2269,7 +2269,7 @@ vertical-align: -.125em;
 <!--
 Companion to validate_sd_bounds_functions.qmd. That document validates claims
 about individual functions; this one validates the VERDICTS brimmer() returns,
-over whole reporting grids, against certify() as an exact oracle.
+over whole reporting grids, against brimmest() as an exact oracle.
 
 brimmer() is exercised grid-wise through umbrella_data(), which applies the same
 three tests (SD bounds, GRIM, GRIMMER) to every cell of a reporting grid in one
@@ -2319,16 +2319,16 @@ data can produce it. Everything else here is a measurement, not a guarantee.
 <h1>What is verified, and against what</h1>
 <p><code>brimmer()</code> screens a reported (mean, SD, <em>n</em>) triple with three tests: the closed-form SD bounds, plus GRIM and GRIMMER, which are deferred to <code>scrutiny</code>. Each is <strong>necessary</strong> — failing one proves the report impossible — and none is sufficient.</p>
 <p>Throughout the sweeps below, <code>brimmer()</code> is applied through <code>umbrella_data()</code>, which runs those same three tests across an entire reporting grid in one pass. The two are shown to return identical verdicts before any sweep is run; the witness datasets at the end call <code>brimmer()</code> directly.</p>
-<p><code>certify()</code> is exact in both directions. It enumerates the reachable <em>(sum, sum of squares)</em> states for the design by dynamic programming, rounds the resulting lattice to the reporting precision, and tests membership. So for any reported tuple it answers <em>possible</em> or <em>impossible</em> outright, and can serve as the oracle the screen is measured against.</p>
+<p><code>brimmest()</code> is exact in both directions. It enumerates the reachable <em>(sum, sum of squares)</em> states for the design by dynamic programming, rounds the resulting lattice to the reporting precision, and tests membership. So for any reported tuple it answers <em>possible</em> or <em>impossible</em> outright, and can serve as the oracle the screen is measured against.</p>
 <p>That gives two quantities per tuple, and they are not symmetric:</p>
 <ul>
-<li>a <strong>false flag</strong> — screen says impossible, <code>certify()</code> says possible — is a fatal error. It accuses real data.</li>
-<li>a <strong>blind-spot cell</strong> — screen says possible, <code>certify()</code> says impossible — is the expected price of a necessary-only test. It is a missed detection, not a false accusation.</li>
+<li>a <strong>false flag</strong> — screen says impossible, <code>brimmest()</code> says possible — is a fatal error. It accuses real data.</li>
+<li>a <strong>blind-spot cell</strong> — screen says possible, <code>brimmest()</code> says impossible — is the expected price of a necessary-only test. It is a missed detection, not a false accusation.</li>
 </ul>
 <p>This document sweeps both across designs. The false-flag count is asserted to be zero everywhere; the blind spot is measured.</p>
 <section id="verifying-the-oracle-first" class="level2">
 <h2 class="anchored" data-anchor-id="verifying-the-oracle-first">Verifying the oracle first</h2>
-<p>Anchoring a sweep on <code>certify()</code> is only meaningful if <code>certify()</code> is itself right, so it is checked against two independent constructions before use.</p>
+<p>Anchoring a sweep on <code>brimmest()</code> is only meaningful if <code>brimmest()</code> is itself right, so it is checked against two independent constructions before use.</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
@@ -2337,7 +2337,7 @@ data can produce it. Everything else here is a measurement, not a guarantee.
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  g <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">expand.grid</span>(<span class="fu">rep</span>(<span class="fu">list</span>(l<span class="sc">:</span>u), n)))</span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  m <span class="ot">&lt;-</span> <span class="fu">cbind</span>(<span class="fu">rowMeans</span>(g), <span class="fu">apply</span>(g, <span class="dv">1</span>, stats<span class="sc">::</span>sd))</span>
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># a reported pair is achievable if some exact pair rounds to it, under either</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="co"># convention, matching certify()&#39;s default rule set</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  <span class="co"># convention, matching brimmest()&#39;s default rule set</span></span>
 <span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  up   <span class="ot">&lt;-</span> <span class="fu">cbind</span>(<span class="fu">round_up</span>(m[, <span class="dv">1</span>], digits),   <span class="fu">round_up</span>(m[, <span class="dv">2</span>], digits))</span>
 <span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  down <span class="ot">&lt;-</span> <span class="fu">cbind</span>(<span class="fu">round_down</span>(m[, <span class="dv">1</span>], digits), <span class="fu">round_down</span>(m[, <span class="dv">2</span>], digits))</span>
 <span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">unique</span>(<span class="fu">rbind</span>(up, down))</span>
@@ -2348,19 +2348,19 @@ data can produce it. Everything else here is a measurement, not a guarantee.
 <span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>  b <span class="ot">&lt;-</span> <span class="fu">brute_pairs</span>(n, l, u, d)</span>
 <span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>  grid <span class="ot">&lt;-</span> <span class="fu">expand_grid</span>(<span class="at">mean =</span> <span class="fu">round</span>(<span class="fu">seq</span>(l, u, <span class="at">by =</span> <span class="dv">10</span><span class="sc">^-</span>d), d),</span>
 <span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>                      <span class="at">sd   =</span> <span class="fu">round</span>(<span class="fu">seq</span>(<span class="dv">0</span>, (u <span class="sc">-</span> l), <span class="at">by =</span> <span class="dv">10</span><span class="sc">^-</span>d), d))</span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>  cert <span class="ot">&lt;-</span> <span class="fu">certify</span>(<span class="at">l =</span> l, <span class="at">u =</span> u, <span class="at">n =</span> n, <span class="at">mean =</span> grid<span class="sc">$</span>mean, <span class="at">sd =</span> grid<span class="sc">$</span>sd, <span class="at">digits =</span> d)</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>  cert <span class="ot">&lt;-</span> <span class="fu">brimmest</span>(<span class="at">l =</span> l, <span class="at">u =</span> u, <span class="at">n =</span> n, <span class="at">mean =</span> grid<span class="sc">$</span>mean, <span class="at">sd =</span> grid<span class="sc">$</span>sd, <span class="at">digits =</span> d)</span>
 <span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>  bk <span class="ot">&lt;-</span> <span class="fu">paste</span>(<span class="fu">sprintf</span>(<span class="st">&quot;%.6f&quot;</span>, b[, <span class="dv">1</span>]), <span class="fu">sprintf</span>(<span class="st">&quot;%.6f&quot;</span>, b[, <span class="dv">2</span>]))</span>
 <span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>  gk <span class="ot">&lt;-</span> <span class="fu">paste</span>(<span class="fu">sprintf</span>(<span class="st">&quot;%.6f&quot;</span>, grid<span class="sc">$</span>mean), <span class="fu">sprintf</span>(<span class="st">&quot;%.6f&quot;</span>, grid<span class="sc">$</span>sd))</span>
 <span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">identical</span>(<span class="fu">sort</span>(gk[cert<span class="sc">$</span>possible]), <span class="fu">sort</span>(<span class="fu">intersect</span>(gk, bk)))</span>
 <span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>})</span>
 <span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a><span class="fu">check</span>(<span class="fu">all</span>(brute_ok), <span class="st">&quot;certify() == brute-force enumeration (3 small designs)&quot;</span>)</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a><span class="fu">check</span>(<span class="fu">all</span>(brute_ok), <span class="st">&quot;brimmest() == brute-force enumeration (3 small designs)&quot;</span>)</span>
 <span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(<span class="at">design =</span> <span class="fu">c</span>(<span class="st">&quot;n=4 on 1-5&quot;</span>, <span class="st">&quot;n=5 on 0-3&quot;</span>, <span class="st">&quot;n=6 on 1-4&quot;</span>), <span class="at">agrees =</span> brute_ok) <span class="sc">|&gt;</span></span>
-<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">&quot;certify() against exhaustive enumeration of every integer sample.&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">&quot;brimmest() against exhaustive enumeration of every integer sample.&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
-<caption>certify() against exhaustive enumeration of every integer sample.</caption>
+<caption>brimmest() against exhaustive enumeration of every integer sample.</caption>
 <thead>
 <tr class="header">
 <th style="text-align: left;">design</th>
@@ -2390,7 +2390,7 @@ data can produce it. Everything else here is a measurement, not a guarantee.
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># (ii) CLOSURE: an independent reconstruction algorithm in another package</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>n_c <span class="ot">&lt;-</span> <span class="dv">9</span>; l_c <span class="ot">&lt;-</span> <span class="dv">1</span>; u_c <span class="ot">&lt;-</span> <span class="dv">5</span>; d_c <span class="ot">&lt;-</span> <span class="dv">1</span></span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>um_c <span class="ot">&lt;-</span> <span class="fu">umbrella_data</span>(<span class="at">n =</span> n_c, <span class="at">l =</span> l_c, <span class="at">u =</span> u_c, <span class="at">digits =</span> d_c, <span class="at">Z =</span> <span class="st">&quot;integer&quot;</span>)</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>cert_c <span class="ot">&lt;-</span> <span class="fu">certify</span>(<span class="at">l =</span> l_c, <span class="at">u =</span> u_c, <span class="at">n =</span> n_c, <span class="at">mean =</span> um_c<span class="sc">$</span>mean, <span class="at">sd =</span> um_c<span class="sc">$</span>sd,</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>cert_c <span class="ot">&lt;-</span> <span class="fu">brimmest</span>(<span class="at">l =</span> l_c, <span class="at">u =</span> u_c, <span class="at">n =</span> n_c, <span class="at">mean =</span> um_c<span class="sc">$</span>mean, <span class="at">sd =</span> um_c<span class="sc">$</span>sd,</span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>                  <span class="at">digits =</span> d_c)</span>
 <span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>closure_says <span class="ot">&lt;-</span> <span class="fu">cached</span>(<span class="st">&quot;closure_n9_1to5.rds&quot;</span>, {</span>
@@ -2403,15 +2403,15 @@ data can produce it. Everything else here is a measurement, not a guarantee.
 <span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  }, <span class="fu">logical</span>(<span class="dv">1</span>))</span>
 <span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>})</span>
 <span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="fu">check</span>(<span class="fu">all</span>(closure_says <span class="sc">==</span> cert_c<span class="sc">$</span>possible), <span class="st">&quot;certify() == unsum::CLOSURE, cell for cell&quot;</span>)</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="fu">check</span>(<span class="fu">all</span>(closure_says <span class="sc">==</span> cert_c<span class="sc">$</span>possible), <span class="st">&quot;brimmest() == unsum::CLOSURE, cell for cell&quot;</span>)</span>
 <span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(<span class="at">cells =</span> <span class="fu">nrow</span>(um_c),</span>
 <span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>       <span class="at">agree =</span> <span class="fu">sum</span>(closure_says <span class="sc">==</span> cert_c<span class="sc">$</span>possible),</span>
 <span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>       <span class="at">disagree =</span> <span class="fu">sum</span>(closure_says <span class="sc">!=</span> cert_c<span class="sc">$</span>possible)) <span class="sc">|&gt;</span></span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">&quot;certify() against CLOSURE reconstruction.&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">&quot;brimmest() against CLOSURE reconstruction.&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
-<caption>certify() against CLOSURE reconstruction.</caption>
+<caption>brimmest() against CLOSURE reconstruction.</caption>
 <thead>
 <tr class="header">
 <th style="text-align: right;">cells</th>
@@ -2514,7 +2514,7 @@ data can produce it. Everything else here is a measurement, not a guarantee.
 <span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>           <span class="at">in_bounds =</span> <span class="fu">coalesce</span>(in_bounds, <span class="cn">FALSE</span>),</span>
 <span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>           <span class="at">grimmer   =</span> <span class="fu">coalesce</span>(grimmer, <span class="cn">FALSE</span>),</span>
 <span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>           <span class="at">screened  =</span> <span class="fu">coalesce</span>(consistent, <span class="cn">FALSE</span>),</span>
-<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>           <span class="at">certified =</span> <span class="fu">certify</span>(<span class="at">l =</span> l, <span class="at">u =</span> u, <span class="at">n =</span> n, <span class="at">mean =</span> mean, <span class="at">sd =</span> sd,</span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>           <span class="at">certified =</span> <span class="fu">brimmest</span>(<span class="at">l =</span> l, <span class="at">u =</span> u, <span class="at">n =</span> n, <span class="at">mean =</span> mean, <span class="at">sd =</span> sd,</span>
 <span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>                               <span class="at">digits =</span> digits)<span class="sc">$</span>possible)</span>
 <span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>  ff <span class="ot">&lt;-</span> g<span class="sc">$</span>certified <span class="sc">&amp;</span> <span class="sc">!</span>g<span class="sc">$</span>screened          <span class="co"># false flags, by the test responsible</span></span>
@@ -2741,7 +2741,7 @@ data can produce it. Everything else here is a measurement, not a guarantee.
 </table>
 </div>
 </div>
-<p>Across 556,975 reported tuples the screen never once rejected a report that real integer data can produce. That is the property the tool is for: a <code>brimmer()</code> failure is a proof of impossibility, and can be acted on. A <code>brimmer()</code> pass is not a proof of possibility, and 758 of the passes are in fact impossible — which is what <code>certify()</code> exists to settle.</p>
+<p>Across 556,975 reported tuples the screen never once rejected a report that real integer data can produce. That is the property the tool is for: a <code>brimmer()</code> failure is a proof of impossibility, and can be acted on. A <code>brimmer()</code> pass is not a proof of possibility, and 758 of the passes are in fact impossible — which is what <code>brimmest()</code> exists to settle.</p>
 </section>
 <section id="which-test-earns-the-catch" class="level2">
 <h2 class="anchored" data-anchor-id="which-test-earns-the-catch">Which test earns the catch</h2>
@@ -2969,7 +2969,7 @@ data can produce it. Everything else here is a measurement, not a guarantee.
 </div>
 </div>
 <p>The share does not rise monotonically, and the shape is worth reading carefully. The spike at <em>n</em> = 40 is not a property of the bounds: 40 is one of the sample sizes affected by <code>scrutiny</code> issue <code>#86</code>, where floating-point error in the candidate-sum range admits phantom sums, so GRIMMER passes cells it should reject and they land in the blind spot. The measurement is therefore partly a measurement of the installed <code>scrutiny</code> build, which is why it is recorded rather than asserted.</p>
-<p>The broader point survives regardless: a screen made of necessary conditions leaves a residue at every <em>n</em>, so the value of settling survivors exactly with <code>certify()</code> does not go away as designs get larger.</p>
+<p>The broader point survives regardless: a screen made of necessary conditions leaves a residue at every <em>n</em>, so the value of settling survivors exactly with <code>brimmest()</code> does not go away as designs get larger.</p>
 </section>
 <section id="rounding-conventions" class="level1">
 <h1>Rounding conventions</h1>
@@ -2980,7 +2980,7 @@ data can produce it. Everything else here is a measurement, not a guarantee.
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>round_check <span class="ot">&lt;-</span> <span class="cf">function</span>(rules) {</span>
 <span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  n <span class="ot">&lt;-</span> <span class="dv">12</span>; l <span class="ot">&lt;-</span> <span class="dv">0</span>; u <span class="ot">&lt;-</span> <span class="dv">6</span>; d <span class="ot">&lt;-</span> <span class="dv">1</span></span>
 <span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  um <span class="ot">&lt;-</span> <span class="fu">umbrella_data</span>(<span class="at">n =</span> n, <span class="at">l =</span> l, <span class="at">u =</span> u, <span class="at">digits =</span> d, <span class="at">Z =</span> <span class="st">&quot;integer&quot;</span>)</span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  ce <span class="ot">&lt;-</span> <span class="fu">certify</span>(<span class="at">l =</span> l, <span class="at">u =</span> u, <span class="at">n =</span> n, <span class="at">mean =</span> um<span class="sc">$</span>mean, <span class="at">sd =</span> um<span class="sc">$</span>sd, <span class="at">digits =</span> d,</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>  ce <span class="ot">&lt;-</span> <span class="fu">brimmest</span>(<span class="at">l =</span> l, <span class="at">u =</span> u, <span class="at">n =</span> n, <span class="at">mean =</span> um<span class="sc">$</span>mean, <span class="at">sd =</span> um<span class="sc">$</span>sd, <span class="at">digits =</span> d,</span>
 <span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>                <span class="at">rounding =</span> rules)</span>
 <span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(<span class="at">rules =</span> <span class="fu">paste</span>(rules, <span class="at">collapse =</span> <span class="st">&quot; + &quot;</span>),</span>
 <span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>         <span class="at">certified =</span> <span class="fu">sum</span>(ce<span class="sc">$</span>possible))</span>
@@ -3021,8 +3021,8 @@ data can produce it. Everything else here is a measurement, not a guarantee.
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># a real sample whose report is reachable ONLY when halves round down</span></span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>x_w <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">rep</span>(<span class="dv">0</span>, <span class="dv">9</span>), <span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">1</span>)</span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>w_up   <span class="ot">&lt;-</span> <span class="fu">certify</span>(<span class="at">l =</span> <span class="dv">0</span>, <span class="at">u =</span> <span class="dv">6</span>, <span class="at">n =</span> <span class="dv">12</span>, <span class="at">mean =</span> <span class="fl">0.2</span>, <span class="at">sd =</span> <span class="fl">0.5</span>, <span class="at">digits =</span> <span class="dv">1</span>, <span class="at">rounding =</span> <span class="st">&quot;half_up&quot;</span>)</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>w_both <span class="ot">&lt;-</span> <span class="fu">certify</span>(<span class="at">l =</span> <span class="dv">0</span>, <span class="at">u =</span> <span class="dv">6</span>, <span class="at">n =</span> <span class="dv">12</span>, <span class="at">mean =</span> <span class="fl">0.2</span>, <span class="at">sd =</span> <span class="fl">0.5</span>, <span class="at">digits =</span> <span class="dv">1</span>)</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>w_up   <span class="ot">&lt;-</span> <span class="fu">brimmest</span>(<span class="at">l =</span> <span class="dv">0</span>, <span class="at">u =</span> <span class="dv">6</span>, <span class="at">n =</span> <span class="dv">12</span>, <span class="at">mean =</span> <span class="fl">0.2</span>, <span class="at">sd =</span> <span class="fl">0.5</span>, <span class="at">digits =</span> <span class="dv">1</span>, <span class="at">rounding =</span> <span class="st">&quot;half_up&quot;</span>)</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>w_both <span class="ot">&lt;-</span> <span class="fu">brimmest</span>(<span class="at">l =</span> <span class="dv">0</span>, <span class="at">u =</span> <span class="dv">6</span>, <span class="at">n =</span> <span class="dv">12</span>, <span class="at">mean =</span> <span class="fl">0.2</span>, <span class="at">sd =</span> <span class="fl">0.5</span>, <span class="at">digits =</span> <span class="dv">1</span>)</span>
 <span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="fu">check</span>(<span class="sc">!</span>w_up<span class="sc">$</span>possible <span class="sc">&amp;&amp;</span> w_both<span class="sc">$</span>possible,</span>
 <span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>      <span class="st">&quot;narrowing the rule set can wrongly reject a real sample&quot;</span>)</span>
@@ -3030,8 +3030,8 @@ data can produce it. Everything else here is a measurement, not a guarantee.
 <span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="fu">tibble</span>(<span class="at">sample =</span> <span class="st">&quot;c(rep(0, 9), 1, 1, 1)&quot;</span>,</span>
 <span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>       <span class="at">mean =</span> <span class="fu">mean</span>(x_w), <span class="at">sd =</span> <span class="fu">sd</span>(x_w),</span>
 <span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>       <span class="st">`</span><span class="at">reported 1 dp</span><span class="st">`</span> <span class="ot">=</span> <span class="st">&quot;0.2, 0.5&quot;</span>,</span>
-<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>       <span class="st">`</span><span class="at">certify, half_up only</span><span class="st">`</span> <span class="ot">=</span> w_up<span class="sc">$</span>possible,</span>
-<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>       <span class="st">`</span><span class="at">certify, default rules</span><span class="st">`</span> <span class="ot">=</span> w_both<span class="sc">$</span>possible) <span class="sc">|&gt;</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>       <span class="st">`</span><span class="at">brimmest, half_up only</span><span class="st">`</span> <span class="ot">=</span> w_up<span class="sc">$</span>possible,</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>       <span class="st">`</span><span class="at">brimmest, default rules</span><span class="st">`</span> <span class="ot">=</span> w_both<span class="sc">$</span>possible) <span class="sc">|&gt;</span></span>
 <span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">kable</span>(<span class="at">digits =</span> <span class="dv">4</span>,</span>
 <span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>        <span class="at">caption =</span> <span class="st">&quot;Restricting rounding to a convention the source did not use is itself a false-flag risk.&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
@@ -3042,9 +3042,9 @@ data can produce it. Everything else here is a measurement, not a guarantee.
 <col style="width: 23%">
 <col style="width: 5%">
 <col style="width: 7%">
-<col style="width: 15%">
-<col style="width: 23%">
+<col style="width: 14%">
 <col style="width: 24%">
+<col style="width: 25%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -3052,8 +3052,8 @@ data can produce it. Everything else here is a measurement, not a guarantee.
 <th style="text-align: right;">mean</th>
 <th style="text-align: right;">sd</th>
 <th style="text-align: left;">reported 1 dp</th>
-<th style="text-align: left;">certify, half_up only</th>
-<th style="text-align: left;">certify, default rules</th>
+<th style="text-align: left;">brimmest, half_up only</th>
+<th style="text-align: left;">brimmest, default rules</th>
 </tr>
 </thead>
 <tbody>
@@ -3072,14 +3072,14 @@ data can produce it. Everything else here is a measurement, not a guarantee.
 </section>
 <section id="multi-item-scoring" class="level1">
 <h1>Multi-item scoring</h1>
-<p>Composite scores move the data onto a <code>1/k</code> grid. <code>certify()</code> and the screen must agree about that grid, in both sum-scored and mean-scored form.</p>
+<p>Composite scores move the data onto a <code>1/k</code> grid. <code>brimmest()</code> and the screen must agree about that grid, in both sum-scored and mean-scored form.</p>
 <div class="cell">
 <details class="code-fold">
 <summary>Code</summary>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>scoring_one <span class="ot">&lt;-</span> <span class="cf">function</span>(scoring, n_items, l, u, n, digits) {</span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  um <span class="ot">&lt;-</span> <span class="fu">umbrella_data</span>(<span class="at">n =</span> n, <span class="at">l =</span> l, <span class="at">u =</span> u, <span class="at">digits =</span> digits, <span class="at">Z =</span> <span class="st">&quot;integer&quot;</span>,</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>                      <span class="at">scoring =</span> scoring, <span class="at">n_items =</span> n_items)</span>
-<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  ce <span class="ot">&lt;-</span> <span class="fu">certify</span>(<span class="at">l =</span> l, <span class="at">u =</span> u, <span class="at">n =</span> n, <span class="at">mean =</span> um<span class="sc">$</span>mean, <span class="at">sd =</span> um<span class="sc">$</span>sd, <span class="at">digits =</span> digits,</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  ce <span class="ot">&lt;-</span> <span class="fu">brimmest</span>(<span class="at">l =</span> l, <span class="at">u =</span> u, <span class="at">n =</span> n, <span class="at">mean =</span> um<span class="sc">$</span>mean, <span class="at">sd =</span> um<span class="sc">$</span>sd, <span class="at">digits =</span> digits,</span>
 <span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>                <span class="at">scoring =</span> scoring, <span class="at">n_items =</span> n_items)</span>
 <span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  ff <span class="ot">&lt;-</span> ce<span class="sc">$</span>possible <span class="sc">&amp;</span> <span class="sc">!</span>um<span class="sc">$</span>consistent</span>
 <span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(<span class="at">scoring =</span> scoring, <span class="at">n_items =</span> n_items,</span>
@@ -3104,11 +3104,11 @@ data can produce it. Everything else here is a measurement, not a guarantee.
 <span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a><span class="fu">check</span>(<span class="fu">sum</span>(scoring_res<span class="sc">$</span>ff_bounds) <span class="sc">==</span> <span class="dv">0</span>, <span class="st">&quot;the SD bounds never false-flag in any scoring mode&quot;</span>)</span>
 <span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>scoring_res <span class="sc">|&gt;</span> <span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">&quot;Screen against certify() across scoring modes. `ff_grimmer` is attributable to scrutiny, not to this package.&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>scoring_res <span class="sc">|&gt;</span> <span class="fu">kable</span>(<span class="at">caption =</span> <span class="st">&quot;Screen against brimmest() across scoring modes. `ff_grimmer` is attributable to scrutiny, not to this package.&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
-<caption>Screen against certify() across scoring modes. <code>ff_grimmer</code> is attributable to scrutiny, not to this package.</caption>
+<caption>Screen against brimmest() across scoring modes. <code>ff_grimmer</code> is attributable to scrutiny, not to this package.</caption>
 <colgroup>
 <col style="width: 12%">
 <col style="width: 8%">
@@ -3210,12 +3210,12 @@ data can produce it. Everything else here is a measurement, not a guarantee.
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>mi <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
 <span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">quantity =</span> <span class="fu">c</span>(<span class="st">&quot;n&quot;</span>, <span class="st">&quot;exact mean&quot;</span>, <span class="st">&quot;exact SD&quot;</span>, <span class="st">&quot;reported at 1 dp&quot;</span>,</span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>               <span class="st">&quot;certify(meanscored, k = 2)&quot;</span>,</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>               <span class="st">&quot;brimmest(meanscored, k = 2)&quot;</span>,</span>
 <span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>               <span class="st">&quot;scrutiny grimmer(items = 2)&quot;</span>,</span>
 <span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>               <span class="st">&quot;scrutiny grimmer on the sum scale (items = 1)&quot;</span>),</span>
 <span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">value =</span> <span class="fu">c</span>(<span class="fu">length</span>(x_mi), <span class="fu">sprintf</span>(<span class="st">&quot;%.4f&quot;</span>, <span class="fu">mean</span>(x_mi)), <span class="fu">sprintf</span>(<span class="st">&quot;%.4f&quot;</span>, <span class="fu">sd</span>(x_mi)),</span>
 <span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;2.2, 0.2&quot;</span>,</span>
-<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>            <span class="fu">as.character</span>(<span class="fu">certify</span>(<span class="at">l =</span> <span class="dv">1</span>, <span class="at">u =</span> <span class="dv">5</span>, <span class="at">n =</span> <span class="dv">10</span>, <span class="at">mean =</span> <span class="fl">2.2</span>, <span class="at">sd =</span> <span class="fl">0.2</span>,</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>            <span class="fu">as.character</span>(<span class="fu">brimmest</span>(<span class="at">l =</span> <span class="dv">1</span>, <span class="at">u =</span> <span class="dv">5</span>, <span class="at">n =</span> <span class="dv">10</span>, <span class="at">mean =</span> <span class="fl">2.2</span>, <span class="at">sd =</span> <span class="fl">0.2</span>,</span>
 <span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>                                 <span class="at">digits =</span> <span class="dv">1</span>, <span class="at">scoring =</span> <span class="st">&quot;meanscored&quot;</span>, <span class="at">n_items =</span> <span class="dv">2</span>)<span class="sc">$</span>possible),</span>
 <span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>            <span class="fu">as.character</span>(<span class="fu">as.logical</span>(<span class="fu">grimmer</span>(<span class="at">x =</span> <span class="fl">2.2</span>, <span class="at">sd =</span> <span class="fl">0.2</span>, <span class="at">n =</span> <span class="dv">10</span>, <span class="at">digits_x =</span> <span class="dv">1</span>,</span>
 <span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>                                            <span class="at">digits_sd =</span> <span class="dv">1</span>, <span class="at">items =</span> <span class="dv">2</span>))),</span>
@@ -3251,7 +3251,7 @@ data can produce it. Everything else here is a measurement, not a guarantee.
 <td style="text-align: left;">2.2, 0.2</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">certify(meanscored, k = 2)</td>
+<td style="text-align: left;">brimmest(meanscored, k = 2)</td>
 <td style="text-align: left;">TRUE</td>
 </tr>
 <tr class="even">
@@ -3270,7 +3270,7 @@ data can produce it. Everything else here is a measurement, not a guarantee.
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">check</span>(<span class="fu">all</span>(x_mi <span class="sc">*</span> <span class="dv">2</span> <span class="sc">==</span> <span class="fu">round</span>(x_mi <span class="sc">*</span> <span class="dv">2</span>)), <span class="st">&quot;witness lies on the 1/2 mean-score grid&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </details>
 </div>
-<p>Every value is a legal 2-item mean, the reported pair is what a journal would print, and <code>certify()</code> confirms attainability. <code>scrutiny::grimmer()</code> returns <code>FALSE</code> under every rounding rule when told <code>items = 2</code>, while the same data expressed on the sum scale passes. This is a <strong>false flag in the <code>items</code> handling</strong>, distinct from the two issues already filed against <code>scrutiny</code> (<code>#85</code>, the test-2/3 conjunction bug, and <code>#86</code>, floating-point boundary errors), both of which are single-item problems.</p>
+<p>Every value is a legal 2-item mean, the reported pair is what a journal would print, and <code>brimmest()</code> confirms attainability. <code>scrutiny::grimmer()</code> returns <code>FALSE</code> under every rounding rule when told <code>items = 2</code>, while the same data expressed on the sum scale passes. This is a <strong>false flag in the <code>items</code> handling</strong>, distinct from the two issues already filed against <code>scrutiny</code> (<code>#85</code>, the test-2/3 conjunction bug, and <code>#86</code>, floating-point boundary errors), both of which are single-item problems.</p>
 <p>Because it originates in a dependency and is version-dependent, it is recorded here rather than asserted. What <em>is</em> asserted is that this package’s own test — the SD bounds — never contributes a false flag in any scoring mode.</p>
 </section>
 </section>
@@ -3297,7 +3297,7 @@ data can produce it. Everything else here is a measurement, not a guarantee.
 <span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">tibble</span>(<span class="at">n =</span> n, <span class="at">scale =</span> <span class="fu">sprintf</span>(<span class="st">&quot;%d-%d&quot;</span>, w<span class="sc">$</span>l, w<span class="sc">$</span>u),</span>
 <span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>         <span class="at">reported =</span> <span class="fu">sprintf</span>(<span class="st">&quot;%.*f, %.*f&quot;</span>, w<span class="sc">$</span>d, m_r, w<span class="sc">$</span>d, s_r),</span>
 <span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>         <span class="at">brimmer_consistent =</span> <span class="fu">isTRUE</span>(b<span class="sc">$</span>consistent),</span>
-<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>         <span class="at">certified =</span> <span class="fu">certify</span>(<span class="at">l =</span> w<span class="sc">$</span>l, <span class="at">u =</span> w<span class="sc">$</span>u, <span class="at">n =</span> n, <span class="at">mean =</span> m_r, <span class="at">sd =</span> s_r,</span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>         <span class="at">certified =</span> <span class="fu">brimmest</span>(<span class="at">l =</span> w<span class="sc">$</span>l, <span class="at">u =</span> w<span class="sc">$</span>u, <span class="at">n =</span> n, <span class="at">mean =</span> m_r, <span class="at">sd =</span> s_r,</span>
 <span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>                             <span class="at">digits =</span> w<span class="sc">$</span>d)<span class="sc">$</span>possible)</span>
 <span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a>})</span>
 <span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a></span>
@@ -3368,8 +3368,8 @@ data can produce it. Everything else here is a measurement, not a guarantee.
 </section>
 <section id="what-this-document-does-not-verify" class="level1">
 <h1>What this document does not verify</h1>
-<p>The sweep is anchored on <code>certify()</code>, so it can only reach claims <code>certify()</code> can express: whether a reported (mean, SD) is attainable by integer data on a bounded scale, under a given scoring and precision. Four things fall outside that, and are checked in <code>validate_sd_bounds_functions.qmd</code> instead.</p>
-<p><strong>The alpha-conditional bounds.</strong> <code>certify()</code> has no <code>alpha</code> argument — the attainable lattice it builds is over sum and sum of squares, which carry no information about how a composite decomposes into items. So nothing here tests the internal-consistency ceiling, the amplified floor, or the sharp Gini envelope of Theorem H5. Those need their own brute-force allocation searches.</p>
+<p>The sweep is anchored on <code>brimmest()</code>, so it can only reach claims <code>brimmest()</code> can express: whether a reported (mean, SD) is attainable by integer data on a bounded scale, under a given scoring and precision. Four things fall outside that, and are checked in <code>validate_sd_bounds_functions.qmd</code> instead.</p>
+<p><strong>The alpha-conditional bounds.</strong> <code>brimmest()</code> has no <code>alpha</code> argument — the attainable lattice it builds is over sum and sum of squares, which carry no information about how a composite decomposes into items. So nothing here tests the internal-consistency ceiling, the amplified floor, or the sharp Gini envelope of Theorem H5. Those need their own brute-force allocation searches.</p>
 <p><strong>Sharpness.</strong> A sweep can show the bounds are never violated. It cannot show they are <em>attained</em>, which is the stronger claim that they cannot be tightened. That requires exhibiting the enumerated configuration that sits exactly on each bound.</p>
 <p><strong>The POMP transforms and derived builders.</strong> <code>pomp_sd_parity</code> and <code>pomp_sd_sharp</code>, <code>brimmer_multiple()</code>, <code>sd_bounds_curve()</code> and <code>plot_*()</code> are verified by identity rather than by oracle.</p>
 <p><strong>The gap-ladder threshold</strong>, which bounds how close to the ceiling a blind-spot cell can hide and is what makes selective reconstruction affordable.</p>
@@ -3398,11 +3398,11 @@ data can produce it. Everything else here is a measurement, not a guarantee.
 </thead>
 <tbody>
 <tr class="odd">
-<td style="text-align: left;">certify() == brute-force enumeration (3 small designs)</td>
+<td style="text-align: left;">brimmest() == brute-force enumeration (3 small designs)</td>
 <td style="text-align: left;">TRUE</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">certify() == unsum::CLOSURE, cell for cell</td>
+<td style="text-align: left;">brimmest() == unsum::CLOSURE, cell for cell</td>
 <td style="text-align: left;">TRUE</td>
 </tr>
 <tr class="odd">
@@ -3473,7 +3473,7 @@ attached base packages:
 [1] stats     graphics  grDevices utils     datasets  methods   base     
 
 other attached packages:
-[1] strait_0.4.5.1 testthat_3.3.2 scrutiny_0.6.2 knitr_1.51     ggplot2_4.0.3 
+[1] strait_0.4.6.1 testthat_3.3.2 scrutiny_0.6.2 knitr_1.51     ggplot2_4.0.3 
 [6] tibble_3.3.1   purrr_1.2.2    tidyr_1.3.2    dplyr_1.2.1   
 
 loaded via a namespace (and not attached):

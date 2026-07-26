@@ -1,4 +1,4 @@
-# strait 0.4.5.1
+# strait 0.4.6
 
 ## Breaking changes
 
@@ -20,16 +20,21 @@
 
 ## New features
 
-* `certify()` gives an exact possible / impossible certificate for reported
-  `(mean, sd)` tuples on a bounded integer scale, closing the residual blind
+* `brimmest()` completes the `brim()` / `brimmer()` / `brimmest()` family with
+  an exact possible / impossible certificate for reported `(mean, sd)` tuples
+  on a bounded integer scale. The superlative marks the substantive
+  difference: `brim()` and `brimmer()`, like GRIM and GRIMMER, test conditions
+  that are necessary but not sufficient, so passing them proves nothing;
+  `brimmest()` is necessary *and* sufficient, and so can certify a report as
+  having an integer solution or as having none. It closes the residual blind
   spot the closed-form screen admits. It enumerates the attainable lattice by
   dynamic programming over the reachable (sum, sum of squares) states and tests
   membership after rounding, so no dataset is reconstructed — the same
   certificate `unsum::closure_generate()` provides, obtained analytically. It
   is vectorised over tuples, since one lattice serves a whole design. Verified
   cell-for-cell against CLOSURE across six designs (~5,700 tuples, zero
-  disagreements) at roughly 700-1000x the speed. New vignette
-  `vignette("certification")` covers the comparison; `unsum` is now suggested.
+  disagreements) at roughly 700-1000x the speed. The certification document in
+  `validation/` covers the comparison; `unsum` is now suggested.
 * `brim()` is the mean-side bounds test: is the reported mean attainable at
   all, given the scale limits, `n` and any attained extremes? It reports the
   feasible mean band (`band_lo`, `band_hi`) alongside the verdict. Under
@@ -49,8 +54,9 @@
 ## Documentation
 
 * Every exported function now carries a running example.
-* New vignette `vignette("certification")`, comparing CLOSURE reconstruction
-  with analytic certification and reporting the measured cost of each.
+* New validation document `validation/certification.qmd`, comparing CLOSURE
+  reconstruction with analytic certification and reporting the measured cost
+  of each.
 * `Language` is now `en-GB`, matching the prose, with `inst/WORDLIST`
   regenerated; `spelling::spell_check_package()` reports nothing.
 * The copyright year is recorded as a range (2024-2026) in `LICENSE` and
@@ -63,10 +69,10 @@
   (<https://github.com/lhdjung/scrutiny/issues/80>), so `brimmer()`,
   `umbrella_data()` and the lattice rules inherit those false flags when run
   against it — about 2% of grid cells in the designs tested, always in the
-  direction of wrongly rejecting a legitimate report. `certify()` is
+  direction of wrongly rejecting a legitimate report. `brimmest()` is
   unaffected, and disproves the false flags constructively. Until `scrutiny`
   0.6.2 reaches CRAN, prefer the development version of `scrutiny`, or read
-  `grimmer` verdicts alongside `certify()`. GRIMMER on 0.6.1 is also roughly
+  `grimmer` verdicts alongside `brimmest()`. GRIMMER on 0.6.1 is also roughly
   25x slower, which dominates check time.
 
 # strait 0.4.4

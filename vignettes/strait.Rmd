@@ -70,6 +70,11 @@ brimmer(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
         sd = 0.10, sd_digits = 2, Z = "quasiinteger")
 ```
 
+Each of these tests is *necessary*: failing one proves the report impossible. None
+is sufficient, so a pass means "not ruled out" rather than "achievable" — a small
+residue of reports clears every test and still corresponds to no integer data
+set. `brimmest()` settles those; see [Settling what survives].
+
 The check also returns percent-of-maximum-possible (POMP) transforms:
 `pomp_mean`, a linear `pomp_sd_parity` (SD as a fraction of the mean-agnostic
 maximum), and `pomp_sd_sharp` (the SD's position within the sharp
@@ -125,6 +130,45 @@ bounds; `plot_umbrella()` renders it.
 um <- umbrella_data(n = 14, l = 1, u = 7, digits = 2)
 plot_umbrella(um, curve = sd_bounds_curve(l = 1, u = 7, n = 14, Z = "quasiinteger"))
 ```
+
+## Settling what survives
+
+The umbrella above is drawn from the *screen*, so some of the cells it marks
+consistent are nonetheless unreachable. `brimmest()` decides the question
+outright: it enumerates the exact attainable `(mean, SD)` lattice for the design
+by dynamic programming, rounds it to the reporting precision, and tests
+membership. No data set is constructed — the lattice records which pairs are
+reachable, not how.
+
+```{r}
+# a report a real 1-5 sample can produce
+brimmest(l = 1, u = 5, n = 9, mean = 3.0, sd = 1.0, digits = 1)
+
+# a blind-spot cell: it passes the bounds, GRIM and GRIMMER, yet no sample exists
+brimmest(l = 1, u = 5, n = 9, mean = 1.3, sd = 0.9, digits = 1)
+```
+
+`possible` is the verdict and `rules` names the rounding conventions under which
+the report is reachable. One lattice is built per design and reused, so
+certifying a whole table costs barely more than certifying one report.
+
+```{r}
+brimmest(l = 1, u = 5, n = 9, digits = 1,
+        mean = c(3.0, 1.3, 2.5, 2.0),
+        sd   = c(1.0, 0.9, 1.2, 1.1))
+```
+
+The two directions of the certificate are not symmetric. A *hit* proves
+possibility outright: some sample rounds to exactly this report. A *miss* proves
+impossibility only relative to the rounding rules admitted, which is why the
+default admits both `"half_up"` and `"half_down"`. Narrowing `rounding` to a
+convention the source did not use risks calling a real sample impossible, and in
+forensic work that is the costly error.
+
+`brimmest()` returns a verdict, not witnesses. When the actual candidate data sets
+matter — their shape, or how many there are — reconstruct them with
+[unsum](https://lhdjung.github.io/unsum/), whose CLOSURE algorithm `brimmest()`
+agrees with cell for cell.
 
 ## Multi-item scales and composites
 
