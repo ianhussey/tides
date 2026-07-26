@@ -1,0 +1,184 @@
+---
+title: "GRIM/MER + TIDES Consistency Report"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    df_print: paged
+    self_contained: true
+    code_folding: hide
+    highlight: haddock
+    theme: flatly
+    toc_float: yes
+params:
+  mean: 0
+  sd: 0
+  n: 0
+  digits: 2
+  n_items: 1
+  min: ~
+  max: ~
+  show_umbrella: false
+---
+
+```{r setup, message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+library(scrutiny)
+library(tides)
+
+# helper functions (copy of those in app.R)
+
+compute_with_tides <- function(mean, sd, n, min, max, digits, n_items) {
+  dat <- tibble(
+    mean = mean, sd = sd, n = n, min = min, max = max,
+    digits = digits, n_items = n_items, calculate_min_sd = TRUE
+  )
+
+  dat %>%
+    mutate(method = "approximate", verbose = FALSE) %>%
+    mutate(
+      tides = pmap_dfr(
+        list(
+          mean = mean, sd = sd, n = n, min = min, max = max,
+          n_items = n_items, digits = digits, method = method, verbose = FALSE
+        ),
+        tides
+      )
+    ) %>%
+    unnest(tides) %>%
+    mutate(
+      mean_str = restore_zeros(as.character(mean), width = digits),
+      sd_str   = restore_zeros(as.character(sd),   width = digits)
+    ) %>%
+    mutate(grim = pmap(list(x = mean_str, n = n, items = n_items), scrutiny::grim)) %>%
+    unnest(grim) %>%
+    rename(grim_only = grim) %>%
+    mutate(
+      grimmer = pmap(
+        list(x = mean_str, sd = sd_str, n = n, items = n_items),
+        show_reason = TRUE, scrutiny::grimmer
+      )
+    ) %>%
+    unnest_wider(grimmer, names_sep = "_") %>%
+    rename(grim_grimmer = grimmer_1, grimmer_reason = grimmer_2) %>%
+    mutate(
+      grimmer_only = !grepl("GRIMMER inconsistent", grimmer_reason)
+    )
+}
+
+compute_without_tides <- function(mean, sd, n, digits, n_items) {
+  dat <- tibble(
+    mean = mean, sd = sd, n = n,
+    digits = digits, n_items = n_items
+  )
+
+  dat %>%
+    mutate(
+      mean_str = restore_zeros(as.character(mean), width = digits),
+      sd_str   = restore_zeros(as.character(sd),   width = digits)
+    ) %>%
+    mutate(grim = pmap(list(x = mean_str, n = n, items = n_items), scrutiny::grim)) %>%
+    unnest(grim) %>%
+    rename(grim_only = grim) %>%
+    mutate(
+      grimmer = pmap(
+        list(x = mean_str, sd = sd_str, n = n, items = n_items),
+        show_reason = TRUE, scrutiny::grimmer
+      )
+    ) %>%
+    unnest_wider(grimmer, names_sep = "_") %>%
+    rename(grim_grimmer = grimmer_1, grimmer_reason = grimmer_2) %>%
+    mutate(
+      grimmer_only = !grepl("GRIMMER inconsistent", grimmer_reason)
+    )
+}
+
+make_summary_table <- function(res, include_tides) {
+  if (isTRUE(include_tides) && "tides_consistent" %in% names(res)) {
+    res %>%
+      select(grim_only, grimmer_only, tides_only = tides_consistent, grim_grimmer) %>%
+      mutate(all_pass = (grim_grimmer + tides_only) >= 2) %>%
+      pivot_longer(everything(), names_to = "Test", values_to = "Result")
+  } else {
+    res %>%
+      select(grim_only, grimmer_only, grim_grimmer) %>%
+      pivot_longer(everything(), names_to = "Test", values_to = "Result")
+  }
+}
+```
+
+## Inputs
+
+```{r}
+data.frame(
+  digits = params$digits,
+  n_items = params$n_items,
+  Mean = params$mean,
+  SD = params$sd,
+  n = params$n,
+  min = params$min,
+  max = params$max
+) %>%
+  pivot_longer(everything(), names_to = "Parameter", values_to = "Value")
+```
+
+```{r compute_results}
+use_tides <- !is.null(params$min) && !is.null(params$max) && params$n_items == 1
+
+if (use_tides) {
+  res <- compute_with_tides(
+    mean    = params$mean,
+    sd      = params$sd,
+    n       = params$n,
+    min     = params$min,
+    max     = params$max,
+    digits  = params$digits,
+    n_items = params$n_items
+  )
+} else {
+  res <- compute_without_tides(
+    mean    = params$mean,
+    sd      = params$sd,
+    n       = params$n,
+    digits  = params$digits,
+    n_items = params$n_items
+  )
+}
+
+sumtab <- make_summary_table(res, include_tides = use_tides)
+```
+
+## Results
+
+```{r}
+sumtab
+```
+
+## TIDES plot
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+if (use_tides) {
+  gp <- plot_tides(res)
+  if (isTRUE(params$show_umbrella)) {
+    umb <- tides::umbrella(
+      n       = unique(res$n),
+      min     = unique(res$min),
+      max     = unique(res$max),
+      n_items = 1,
+      digits  = unique(res$digits)
+    )
+    gp <- gp + geom_tile(
+      data = umb,
+      aes(x = mean, y = sd),
+      width = 0.02, height = 0.02, alpha = 0.8
+    )
+  }
+  print(gp)
+} else {
+  cat("TIDES plot not shown (min/max missing or n_items != 1).")
+}
+```
