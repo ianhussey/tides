@@ -1,15 +1,4 @@
-# strait 0.4.4
-
-First CRAN release.
-
-## Package rename
-
-* The package has been renamed from `tides` to `strait`, to avoid a collision
-  with the existing CRAN package `Tides`. The exported API is unchanged; only
-  the package name, its vignette (`vignette("strait")`) and the repository URL
-  differ. Entries below describe the package under its former name, and
-  historical function names (`tides()`, `tides_df()`, `plot_tides()`,
-  `plot_tides_relative()`) are left as they were written.
+# strait 0.4.5.1
 
 ## Breaking changes
 
@@ -25,7 +14,7 @@ First CRAN release.
   `sd_bounds()` folds GRIM into `feasible` — correctly, since with no
   GRIM-consistent mean no bounds exist, but that made an out-of-range mean and
   a granular-impossible one indistinguishable. `in_scale_range` is now
-  computed independently from [feasible_mean_band()] and the mean's rounding
+  computed independently from `feasible_mean_band()` and the mean's rounding
   interval, so the two defects are named separately, and `feasibility` is
   reserved as a residual for infeasibility no other test accounts for.
 
@@ -47,9 +36,47 @@ First CRAN release.
   `Z = "integer"` it also runs GRIM (deferred to `scrutiny`) but never
   GRIMMER, so `brimmer()` is nested on `brim()` exactly as GRIMMER is on GRIM.
 
+## Compatibility
+
+* The package now works against both generations of the `scrutiny` GRIM /
+  GRIMMER interface. CRAN `scrutiny` (0.6.1 and earlier) takes the reported
+  mean and SD as zero-padded strings; later versions take numbers plus their
+  decimal places and reject strings outright, so no single call satisfies
+  both. `R/scrutiny-compat.R` detects which interface is installed, per
+  function, and dispatches accordingly. Without this the package failed on
+  CRAN `scrutiny` with `unused argument (digits_x = ...)`.
+
 ## Documentation
 
 * Every exported function now carries a running example.
+* New vignette `vignette("certification")`, comparing CLOSURE reconstruction
+  with analytic certification and reporting the measured cost of each.
+* `Language` is now `en-GB`, matching the prose, with `inst/WORDLIST`
+  regenerated; `spelling::spell_check_package()` reports nothing.
+* The copyright year is recorded as a range (2024-2026) in `LICENSE` and
+  `LICENSE.md`, which had drifted apart in format.
+
+## Known issues
+
+* **CRAN `scrutiny` (0.6.1) returns wrong GRIMMER verdicts.** Its GRIMMER
+  test 3 flags attainable values as inconsistent
+  (<https://github.com/lhdjung/scrutiny/issues/80>), so `brimmer()`,
+  `umbrella_data()` and the lattice rules inherit those false flags when run
+  against it — about 2% of grid cells in the designs tested, always in the
+  direction of wrongly rejecting a legitimate report. `certify()` is
+  unaffected, and disproves the false flags constructively. Until `scrutiny`
+  0.6.2 reaches CRAN, prefer the development version of `scrutiny`, or read
+  `grimmer` verdicts alongside `certify()`. GRIMMER on 0.6.1 is also roughly
+  25x slower, which dominates check time.
+
+# strait 0.4.4
+
+* The package was renamed from `tides` to `strait`, to avoid a collision with
+  the existing CRAN package `Tides`. The exported API was unchanged; only the
+  package name, its vignette (`vignette("strait")`) and the repository URL
+  differed. Entries below describe the package under its former name, and
+  historical function names (`tides()`, `tides_df()`, `plot_tides()`,
+  `plot_tides_relative()`) are left as they were written.
 
 # strait 0.4.0
 
