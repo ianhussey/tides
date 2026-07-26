@@ -1,5 +1,5 @@
 ---
-title: 'strait: Bounds tests for Trustworthiness Assessment'
+title: 'strait: Bounds tests for reported summary statistics'
 tags:
   - R
   - metascience
