@@ -67,3 +67,14 @@ The \verb{(mean, lo, hi)} band, or the lattice of attainable reported \verb{(mea
 tuples, for a chosen constraint set. See \code{\link[=plot_sd_region]{plot_sd_region()}} for the \code{rule}
 vocabulary; this is the data behind that plot.
 }
+\examples{
+# a band rule returns (mean, lo, hi) across the scale
+band <- sd_region_data(l = 1, u = 5, n = 7, rule = "quasi")
+head(band)
+attr(band, "type")
+
+# a lattice rule returns the attainable (mean, sd) tuples themselves
+pts <- sd_region_data(l = 1, u = 5, n = 7, rule = "integer")
+head(pts)
+attr(pts, "type")
+}

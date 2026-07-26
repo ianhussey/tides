@@ -32,3 +32,12 @@ feasible region is exactly the unit square and a point's height is its
 position within the band (\code{pomp_sd_sharp}); regions outside \verb{[0, 1]^2} are
 shaded infeasible.
 }
+\examples{
+curve <- sd_bounds_curve(l = 1, u = 7, n = 30, by = 0.1)
+
+# "sharp" makes the feasible region exactly the unit square
+plot_sd_bounds_pomp(curve)
+
+# "parity" is a linear rescaling, so the umbrella keeps its shape
+plot_sd_bounds_pomp(curve, reference = "parity")
+}

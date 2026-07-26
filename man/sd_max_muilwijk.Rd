@@ -24,3 +24,10 @@ smooth arch obtained by allowing fractional counts at the two limits, so it is
 \code{\link[=sd_max_structure_s]{sd_max_structure_s()}}, which never exceeds this. Retained because it is the
 form most often cited in the literature and is useful as a reference curve.
 }
+\examples{
+# the smooth arch, highest at the scale midpoint
+sd_max_muilwijk(mean = c(2, 4, 6), n = 30, lower = 1, upper = 7)
+
+# it is not sharp: the parity-corrected ceiling never exceeds it
+sd_max_structure_s(mean = c(2, 4, 6), n = 30, lower = 1, upper = 7)
+}

@@ -21,3 +21,7 @@ Renders the \verb{(mean, sd)} grid from \code{\link[=umbrella_data]{umbrella_dat
 verdict: consistent, GRIMMER-inconsistent (passes bounds, fails GRIMMER), or
 out of bounds. Optionally overlays the bound curves from \code{\link[=sd_bounds_curve]{sd_bounds_curve()}}.
 }
+\examples{
+grid <- umbrella_data(n = 20, l = 1, u = 5, digits = 1)
+plot_umbrella(grid, title = "n = 20, 1-5 scale")
+}

@@ -20,3 +20,8 @@ All observations on the two integers adjacent to the mean (Pesant & Regin
 GRIM-consistent means; the caller is responsible for that check (see
 \code{\link[=is_grim_consistent]{is_grim_consistent()}}), otherwise use \code{\link[=sd_min_quasi_integer]{sd_min_quasi_integer()}}.
 }
+\examples{
+# zero at a whole-number mean, largest half way between two integers
+sd_min_integer(mean = 3, n = 30)
+sd_min_integer(mean = 3.5, n = 30)
+}

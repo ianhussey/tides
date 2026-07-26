@@ -17,3 +17,7 @@ The n-free maximum over all sample sizes: attained at \code{n = 2} with one
 observation at each limit (Popoviciu's configuration).
 Valid whether the limits are walls or attained extremes.
 }
+\examples{
+# the n-free maximum for a 1-7 scale, attained at n = 2
+sd_max_span(lower = 1, upper = 7)
+}

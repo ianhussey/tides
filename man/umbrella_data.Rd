@@ -44,8 +44,16 @@ which is why they are absent from the grid.
 For each reported mean on the \code{10^-digits} grid over \verb{[l, u]}, computes the
 SD-bounds envelope once, then evaluates every reported SD on the same grid
 from 0 up to that mean's ceiling, tagging each \verb{(mean, sd)} cell with the
-bounds-overlap and (under \code{Z = "integer"}) GRIMMER verdicts. Unlike
-\code{strait::umbrella()} this returns the FULL grid — feasible means x candidate
-SDs — with verdict columns, so the plotting layer can render failures as
+bounds-overlap and (under \code{Z = "integer"}) GRIMMER verdicts. This returns the
+FULL grid — feasible means x candidate SDs — with verdict columns, rather
+than only the passing tuples, so the plotting layer can render failures as
 well as the passing "umbrella".
+}
+\examples{
+# the full grid of reportable (mean, sd) pairs for a small design
+grid <- umbrella_data(n = 20, l = 1, u = 5, digits = 1)
+head(grid)
+
+# how many pairs survive every test
+table(grid$consistent)
 }

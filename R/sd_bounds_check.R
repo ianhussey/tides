@@ -152,6 +152,16 @@ sd_bounds_check <- function(l = NULL, u = NULL, a = NULL, b = NULL,
 #'   use inside a `dplyr::mutate()`/`purrr` pipeline.
 #' @return A data frame of the [sd_bounds_check()] columns, one row per input
 #'   row (optionally with the inputs prepended).
+#' @examples
+#' reports <- data.frame(mean = c(2.97, 3.51, 4.20),
+#'                       sd   = c(2.83, 3.50, 0.90),
+#'                       n    = c(30, 30, 30))
+#'
+#' # the scale limits and reported precision are constant across rows;
+#' # row 2 reports an SD above the ceiling for a 1-7 scale at n = 30
+#' out <- sd_bounds_check_multiple(reports, l = 1, u = 7,
+#'                                 mean_digits = 2, sd_digits = 2)
+#' out[, c("mean", "sd", "n", "consistent", "failed_tests")]
 #' @export
 sd_bounds_check_multiple <- function(data, ..., include_inputs = TRUE) {
   if (!is.data.frame(data)) stop("data must be a data frame")
@@ -209,6 +219,12 @@ sd_bounds_check_multiple <- function(data, ..., include_inputs = TRUE) {
 #' @param by Numeric or NULL; mean-grid spacing (default ~ `(u - l) / 1000`).
 #' @return A data.frame: `mean`, `min_sd`, `max_sd`, `feasible`, `pomp_mean`,
 #'   `parity_max`, `ceil_parity` (= `max_sd / parity_max`), `floor_parity`.
+#' @examples
+#' curve <- sd_bounds_curve(l = 1, u = 7, n = 30, by = 0.1)
+#' head(curve[, c("mean", "min_sd", "max_sd")])
+#'
+#' # the ceiling peaks near the scale midpoint
+#' curve[which.max(curve$max_sd), c("mean", "min_sd", "max_sd")]
 #' @export
 sd_bounds_curve <- function(l, u, n, Z = "quasiinteger",
                             scoring = "singleitem", n_items = 1,
@@ -239,9 +255,9 @@ sd_bounds_curve <- function(l, u, n, Z = "quasiinteger",
 #' For each reported mean on the `10^-digits` grid over `[l, u]`, computes the
 #' SD-bounds envelope once, then evaluates every reported SD on the same grid
 #' from 0 up to that mean's ceiling, tagging each `(mean, sd)` cell with the
-#' bounds-overlap and (under `Z = "integer"`) GRIMMER verdicts. Unlike
-#' `strait::umbrella()` this returns the FULL grid — feasible means x candidate
-#' SDs — with verdict columns, so the plotting layer can render failures as
+#' bounds-overlap and (under `Z = "integer"`) GRIMMER verdicts. This returns the
+#' FULL grid — feasible means x candidate SDs — with verdict columns, rather
+#' than only the passing tuples, so the plotting layer can render failures as
 #' well as the passing "umbrella".
 #'
 #' @param n Integer scalar, sample size.
@@ -258,6 +274,13 @@ sd_bounds_curve <- function(l, u, n, Z = "quasiinteger",
 #'   sharp bounds (elsewhere the tuple is already inconsistent and `grimmer`
 #'   is `NA`); GRIM-inconsistent means are pruned before any SD is tested,
 #'   which is why they are absent from the grid.
+#' @examples
+#' # the full grid of reportable (mean, sd) pairs for a small design
+#' grid <- umbrella_data(n = 20, l = 1, u = 5, digits = 1)
+#' head(grid)
+#'
+#' # how many pairs survive every test
+#' table(grid$consistent)
 #' @export
 umbrella_data <- function(n, l, u, digits = 2, Z = "integer",
                           scoring = "singleitem", n_items = 1,

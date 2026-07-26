@@ -156,6 +156,16 @@
 #'   rules (`"integer"`, `"integer_alpha"`, `"attainable"`,
 #'   `"attainable_alpha"`), a data frame with `mean`, `sd`: the tuples passing
 #'   every applicable test. The `type` attribute is `"band"` or `"points"`.
+#' @examples
+#' # a band rule returns (mean, lo, hi) across the scale
+#' band <- sd_region_data(l = 1, u = 5, n = 7, rule = "quasi")
+#' head(band)
+#' attr(band, "type")
+#'
+#' # a lattice rule returns the attainable (mean, sd) tuples themselves
+#' pts <- sd_region_data(l = 1, u = 5, n = 7, rule = "integer")
+#' head(pts)
+#' attr(pts, "type")
 #' @export
 sd_region_data <- function(l, u, n,
                            rule = c("quasi", "range", "range_n", "mean",

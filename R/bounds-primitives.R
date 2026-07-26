@@ -99,6 +99,9 @@ sd_from_ss <- function(ss, n) sqrt(pmax(0, ss) / (n - 1))
 #'
 #' @param lower,upper Numeric scalars, the effective lower and upper limits.
 #' @return `(upper - lower) / sqrt(2)`.
+#' @examples
+#' # the n-free maximum for a 1-7 scale, attained at n = 2
+#' sd_max_span(lower = 1, upper = 7)
 #' @export
 sd_max_span <- function(lower, upper) (upper - lower) / sqrt(2)
 
@@ -112,6 +115,13 @@ sd_max_span <- function(lower, upper) (upper - lower) / sqrt(2)
 #' @param lower,upper Numeric scalars, the effective limits.
 #' @param n Integer scalar, sample size, `n >= 2`.
 #' @return Numeric scalar, the maximum sample SD.
+#' @examples
+#' # an even n splits exactly; an odd n pays the parity correction
+#' sd_max_span_n(lower = 1, upper = 7, n = 30)
+#' sd_max_span_n(lower = 1, upper = 7, n = 31)
+#'
+#' # both sit below the n-free maximum
+#' sd_max_span(lower = 1, upper = 7)
 #' @export
 sd_max_span_n <- function(lower, upper, n) {
   R <- upper - lower
@@ -131,6 +141,12 @@ sd_max_span_n <- function(lower, upper, n) {
 #' @param n Integer scalar, sample size, `n >= 2`.
 #' @param lower,upper Numeric scalars, the limits.
 #' @return Numeric vector, the Muilwijk / Bhatia-Davis maximum sample SD.
+#' @examples
+#' # the smooth arch, highest at the scale midpoint
+#' sd_max_muilwijk(mean = c(2, 4, 6), n = 30, lower = 1, upper = 7)
+#'
+#' # it is not sharp: the parity-corrected ceiling never exceeds it
+#' sd_max_structure_s(mean = c(2, 4, 6), n = 30, lower = 1, upper = 7)
 #' @export
 sd_max_muilwijk <- function(mean, n, lower, upper) {
   bessel_factor(n) * sqrt(pmax(0, (upper - mean) * (mean - lower)))
@@ -150,6 +166,12 @@ sd_max_muilwijk <- function(mean, n, lower, upper) {
 #' @param n Integer scalar, sample size, `n >= 2`.
 #' @param lower,upper Numeric scalars, the effective limits.
 #' @return Numeric vector, the maximum sample SD at each mean.
+#' @examples
+#' # the sharp mean-conditional ceiling across a 1-7 scale
+#' sd_max_structure_s(mean = c(2, 4, 6), n = 30, lower = 1, upper = 7)
+#'
+#' # a mean at a limit forces every observation there, so the SD is 0
+#' sd_max_structure_s(mean = 1, n = 30, lower = 1, upper = 7)
 #' @export
 sd_max_structure_s <- function(mean, n, lower, upper) {
   R <- upper - lower
@@ -173,6 +195,10 @@ sd_max_structure_s <- function(mean, n, lower, upper) {
 #' @param mean Numeric vector, GRIM-consistent mean(s).
 #' @param n Integer scalar, sample size, `n >= 2`.
 #' @return Numeric vector, the minimum sample SD at each mean.
+#' @examples
+#' # zero at a whole-number mean, largest half way between two integers
+#' sd_min_integer(mean = 3, n = 30)
+#' sd_min_integer(mean = 3.5, n = 30)
 #' @export
 sd_min_integer <- function(mean, n) {
   d <- frac(mean)
@@ -189,6 +215,13 @@ sd_min_integer <- function(mean, n) {
 #' @param mean Numeric vector, mean(s).
 #' @param n Integer scalar, sample size, `n >= 2`.
 #' @return Numeric vector, the minimum sample SD at each mean.
+#' @examples
+#' # at a GRIM-consistent mean it agrees with the strict-integer floor
+#' sd_min_quasi_integer(mean = 3.5, n = 30)
+#' sd_min_integer(mean = 3.5, n = 30)
+#'
+#' # between GRIM means it dips below, so it is defined at every mean
+#' sd_min_quasi_integer(mean = 3.51, n = 30)
 #' @export
 sd_min_quasi_integer <- function(mean, n) {
   d <- frac(mean)
@@ -214,6 +247,13 @@ sd_min_quasi_integer <- function(mean, n) {
 #' @param mean Numeric scalar or NULL. If NULL, the mean-agnostic floor.
 #' @param Z One of "continuous", "integer", "quasiinteger".
 #' @return Numeric scalar, the minimum sample SD.
+#' @examples
+#' # mean-agnostic floor: one observation pinned at each observed extreme
+#' sd_min_two_pin(a = 1, b = 7, n = 30)
+#'
+#' # knowing the mean sharpens it, and granularity sharpens it again
+#' sd_min_two_pin(a = 1, b = 7, n = 30, mean = 3)
+#' sd_min_two_pin(a = 1, b = 7, n = 30, mean = 3, Z = "integer")
 #' @export
 sd_min_two_pin <- function(a, b, n, mean = NULL, Z = "continuous") {
   W <- b - a
@@ -251,6 +291,12 @@ sd_min_two_pin <- function(a, b, n, mean = NULL, Z = "continuous") {
 #' @param Z One of "continuous", "integer", "quasiinteger".
 #' @param side "max" if the pin is the observed maximum, "min" if the minimum.
 #' @return Numeric scalar, the minimum sample SD.
+#' @examples
+#' # an observed maximum of 7 alongside a mean of 3 forces some spread
+#' sd_min_one_pin(pin = 7, n = 30, mean = 3)
+#'
+#' # the mirror case: an observed minimum of 1 alongside a mean of 5
+#' sd_min_one_pin(pin = 1, n = 30, mean = 5, side = "min")
 #' @export
 sd_min_one_pin <- function(pin, n, mean, Z = "continuous", side = c("max", "min")) {
   side <- match.arg(side)
@@ -284,6 +330,16 @@ sd_min_one_pin <- function(pin, n, mean, Z = "continuous", side = c("max", "min"
 #' @param lower_attained,upper_attained Logical, is each limit attained?
 #' @param n Integer scalar or NULL.
 #' @return Numeric length-2 vector, the closed feasible mean interval.
+#' @examples
+#' # walls alone admit any mean on the scale
+#' feasible_mean_band(lower = 1, upper = 7, n = 30)
+#'
+#' # an attained maximum pins one observation at 7, lifting the lowest mean
+#' feasible_mean_band(lower = 1, upper = 7, upper_attained = TRUE, n = 30)
+#'
+#' # both extremes attained narrows the band at each end
+#' feasible_mean_band(lower = 1, upper = 7, lower_attained = TRUE,
+#'                    upper_attained = TRUE, n = 30)
 #' @export
 feasible_mean_band <- function(lower = NULL, upper = NULL,
                                lower_attained = FALSE, upper_attained = FALSE,
@@ -315,6 +371,9 @@ feasible_mean_band <- function(lower = NULL, upper = NULL,
 #' @param n Integer scalar, sample size.
 #' @param item_l,item_u Numeric scalars, the per-item limits.
 #' @return Numeric vector, the maximum of the population item-variance sum.
+#' @examples
+#' # a 3-item 1-5 battery (sum score 3-15) at a sum-score mean of 9
+#' v_max_alpha(mean_sum = 9, k = 3, n = 50, item_l = 1, item_u = 5)
 #' @keywords internal
 #' @export
 v_max_alpha <- function(mean_sum, k, n, item_l, item_u) {
@@ -432,6 +491,14 @@ sd_min_alpha_gini <- function(l, u, n, mean, m, max_profiles = 5e5) {
 #' @param alpha Numeric scalar, reported Cronbach's alpha, `alpha < 1`.
 #' @param k_items Integer scalar, number of items, `k_items >= 1`.
 #' @return List with `min_sd`, `max_sd`, `feasible`, `min_rule`, `note`.
+#' @examples
+#' # a 3-item 1-5 battery, so the sum score runs 3-15
+#' sd_bounds_alpha(l = 3, u = 15, n = 50, mean = 9.4, Z = "continuous",
+#'                 alpha = 0.8, k_items = 3)
+#'
+#' # integer items lift the floor off zero and tighten the ceiling
+#' sd_bounds_alpha(l = 3, u = 15, n = 50, mean = 9.4, Z = "integer",
+#'                 alpha = 0.8, k_items = 3)
 #' @export
 sd_bounds_alpha <- function(l, u, n, mean, Z, alpha, k_items) {
   k <- k_items
@@ -480,6 +547,13 @@ sd_bounds_alpha <- function(l, u, n, mean, Z, alpha, k_items) {
 #'
 #' @param x Character or numeric scalar, the reported value.
 #' @return Integer, the inferred number of decimal places.
+#' @examples
+#' # a string preserves trailing zeros
+#' infer_digits("2.90")
+#'
+#' # a numeric cannot: 2.90 is stored as 2.9
+#' infer_digits(2.90)
+#' infer_digits(3)
 #' @export
 infer_digits <- function(x) {
   s <- if (is.character(x)) x else as.character(x)
@@ -519,6 +593,15 @@ infer_digits <- function(x) {
 #' @param rounding One of the options above.
 #' @return List: `lo`, `hi` (numeric), `lo_incl`, `hi_incl` (logical),
 #'   `digits` (integer used).
+#' @examples
+#' # the exact values that could have been reported as 2.97
+#' unround_interval(2.97, digits = 2)
+#'
+#' # truncation rather than rounding shifts the interval
+#' unround_interval(2.97, digits = 2, rounding = "trunc")
+#'
+#' # digits are inferred from a string, so trailing zeros are honoured
+#' unround_interval("2.90")
 #' @export
 unround_interval <- function(x, digits = NULL,
                              rounding = c("up_or_down", "up", "down", "even",

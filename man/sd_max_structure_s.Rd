@@ -25,3 +25,10 @@ must be whole numbers regardless of data continuity), and it is unchanged by
 attainment of the limits inside the feasible mean band. Under the
 quasi-integer constraint the remainder observation is the one free real.
 }
+\examples{
+# the sharp mean-conditional ceiling across a 1-7 scale
+sd_max_structure_s(mean = c(2, 4, 6), n = 30, lower = 1, upper = 7)
+
+# a mean at a limit forces every observation there, so the SD is 0
+sd_max_structure_s(mean = 1, n = 30, lower = 1, upper = 7)
+}

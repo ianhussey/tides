@@ -24,6 +24,16 @@
 #' @param title Optional plot title.
 #' @param fill,line_colour Band fill and outline colours.
 #' @return A ggplot object.
+#' @examples
+#' curve <- sd_bounds_curve(l = 1, u = 7, n = 30, by = 0.1)
+#' plot_sd_bounds(curve, title = "Feasible SDs, 1-7 scale, n = 30")
+#'
+#' # overlay reported values, coloured by consistency (the second is
+#' # above the ceiling, so it plots as inconsistent)
+#' reports <- data.frame(mean = c(2.97, 3.51), sd = c(2.83, 3.50))
+#' checked <- sd_bounds_check_multiple(reports, l = 1, u = 7, n = 30,
+#'                                     mean_digits = 2, sd_digits = 2)
+#' plot_sd_bounds(curve, points = checked)
 #' @export
 plot_sd_bounds <- function(curve, points = NULL, title = NULL,
                            fill = "grey85", line_colour = "grey30") {
@@ -56,6 +66,14 @@ plot_sd_bounds <- function(curve, points = NULL, title = NULL,
 #' @param reference `"sharp"` (default) or `"parity"`.
 #' @param title Optional plot title.
 #' @return A ggplot object.
+#' @examples
+#' curve <- sd_bounds_curve(l = 1, u = 7, n = 30, by = 0.1)
+#'
+#' # "sharp" makes the feasible region exactly the unit square
+#' plot_sd_bounds_pomp(curve)
+#'
+#' # "parity" is a linear rescaling, so the umbrella keeps its shape
+#' plot_sd_bounds_pomp(curve, reference = "parity")
 #' @export
 plot_sd_bounds_pomp <- function(curve, points = NULL,
                                 reference = c("sharp", "parity"),
@@ -102,6 +120,9 @@ plot_sd_bounds_pomp <- function(curve, points = NULL,
 #' @param curve Optional [sd_bounds_curve()] output to overlay as bound lines.
 #' @param title Optional plot title.
 #' @return A ggplot object.
+#' @examples
+#' grid <- umbrella_data(n = 20, l = 1, u = 5, digits = 1)
+#' plot_umbrella(grid, title = "n = 20, 1-5 scale")
 #' @export
 plot_umbrella <- function(umbrella, curve = NULL, title = NULL) {
   stopifnot(requireNamespace("ggplot2", quietly = TRUE))

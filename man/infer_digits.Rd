@@ -18,3 +18,11 @@ From a character input, the count of digits after the decimal point (so
 which cannot see trailing zeros (\code{2.90} gives 1) — pass the reported value
 as a string to preserve them, as the scrutiny package advises.
 }
+\examples{
+# a string preserves trailing zeros
+infer_digits("2.90")
+
+# a numeric cannot: 2.90 is stored as 2.9
+infer_digits(2.90)
+infer_digits(3)
+}

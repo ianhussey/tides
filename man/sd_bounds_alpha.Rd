@@ -35,3 +35,12 @@ whole-number means; Theorem H5) when that enumeration is affordable, else 0.
 The floor can exceed the ceiling for small k (a genuinely infeasible
 constraint set); this is reported rather than clipped.
 }
+\examples{
+# a 3-item 1-5 battery, so the sum score runs 3-15
+sd_bounds_alpha(l = 3, u = 15, n = 50, mean = 9.4, Z = "continuous",
+                alpha = 0.8, k_items = 3)
+
+# integer items lift the floor off zero and tighten the ceiling
+sd_bounds_alpha(l = 3, u = 15, n = 50, mean = 9.4, Z = "integer",
+                alpha = 0.8, k_items = 3)
+}

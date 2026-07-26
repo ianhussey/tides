@@ -39,3 +39,10 @@ defined at every mean, so the curves have no gaps — unlike a strict-integer
 floor, which exists only at GRIM means. Returns raw bounds and their
 parity-normalised counterparts for the POMP plot.
 }
+\examples{
+curve <- sd_bounds_curve(l = 1, u = 7, n = 30, by = 0.1)
+head(curve[, c("mean", "min_sd", "max_sd")])
+
+# the ceiling peaks near the scale midpoint
+curve[which.max(curve$max_sd), c("mean", "min_sd", "max_sd")]
+}

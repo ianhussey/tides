@@ -29,3 +29,14 @@ A ggplot object.
 The feasible SD band (floor to ceiling) against the mean, optionally with
 reported points coloured by consistency (green/red outlined dots).
 }
+\examples{
+curve <- sd_bounds_curve(l = 1, u = 7, n = 30, by = 0.1)
+plot_sd_bounds(curve, title = "Feasible SDs, 1-7 scale, n = 30")
+
+# overlay reported values, coloured by consistency (the second is
+# above the ceiling, so it plots as inconsistent)
+reports <- data.frame(mean = c(2.97, 3.51), sd = c(2.83, 3.50))
+checked <- sd_bounds_check_multiple(reports, l = 1, u = 7, n = 30,
+                                    mean_digits = 2, sd_digits = 2)
+plot_sd_bounds(curve, points = checked)
+}

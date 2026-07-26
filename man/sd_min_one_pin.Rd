@@ -30,3 +30,10 @@ Laguerre-Samuelson corollary), plus the same granularity terms on the
 all observations may sit at the pin). The mirror case is handled by
 reflection.
 }
+\examples{
+# an observed maximum of 7 alongside a mean of 3 forces some spread
+sd_min_one_pin(pin = 7, n = 30, mean = 3)
+
+# the mirror case: an observed minimum of 1 alongside a mean of 5
+sd_min_one_pin(pin = 1, n = 30, mean = 5, side = "min")
+}

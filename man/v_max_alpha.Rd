@@ -22,4 +22,8 @@ Numeric vector, the maximum of the population item-variance sum.
 The quasi-integer maximum of the summed item variances of a k-item integer
 battery at a given sum-score mean (the STRAIT article, Appendix H).
 }
+\examples{
+# a 3-item 1-5 battery (sum score 3-15) at a sum-score mean of 9
+v_max_alpha(mean_sum = 9, k = 3, n = 50, item_l = 1, item_u = 5)
+}
 \keyword{internal}

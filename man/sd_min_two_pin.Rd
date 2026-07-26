@@ -28,3 +28,11 @@ quasi-integer data the \code{g (1 - g)} relaxation. The mean must lie in the
 feasible band \verb{[a + W/n, b - W/n]} (see \code{\link[=feasible_mean_band]{feasible_mean_band()}}); this
 function does not check it.
 }
+\examples{
+# mean-agnostic floor: one observation pinned at each observed extreme
+sd_min_two_pin(a = 1, b = 7, n = 30)
+
+# knowing the mean sharpens it, and granularity sharpens it again
+sd_min_two_pin(a = 1, b = 7, n = 30, mean = 3)
+sd_min_two_pin(a = 1, b = 7, n = 30, mean = 3, Z = "integer")
+}

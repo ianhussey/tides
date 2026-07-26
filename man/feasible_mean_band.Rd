@@ -29,3 +29,14 @@ observation and narrows the band: both attained gives
 gives \verb{[lower + (b - lower)/n, b]} (and the mirror for an attained
 minimum). \code{-Inf}/\code{Inf} when a side is absent.
 }
+\examples{
+# walls alone admit any mean on the scale
+feasible_mean_band(lower = 1, upper = 7, n = 30)
+
+# an attained maximum pins one observation at 7, lifting the lowest mean
+feasible_mean_band(lower = 1, upper = 7, upper_attained = TRUE, n = 30)
+
+# both extremes attained narrows the band at each end
+feasible_mean_band(lower = 1, upper = 7, lower_attained = TRUE,
+                   upper_attained = TRUE, n = 30)
+}

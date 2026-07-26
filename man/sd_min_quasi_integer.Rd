@@ -20,3 +20,11 @@ but one observation on the grid). Defined at every real mean; coincides with
 \code{\link[=sd_min_integer]{sd_min_integer()}} at GRIM-consistent means and dips between them, so it is
 a valid floor under either the strict or the relaxed hypothesis. Range-free.
 }
+\examples{
+# at a GRIM-consistent mean it agrees with the strict-integer floor
+sd_min_quasi_integer(mean = 3.5, n = 30)
+sd_min_integer(mean = 3.5, n = 30)
+
+# between GRIM means it dips below, so it is defined at every mean
+sd_min_quasi_integer(mean = 3.51, n = 30)
+}

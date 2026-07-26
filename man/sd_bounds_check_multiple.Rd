@@ -32,3 +32,14 @@ Recognised names (column or constant): \code{l}, \code{u}, \code{a}, \code{b}, \
 \code{mean_digits}, \code{sd}, \code{sd_digits}, \code{rounding}, \code{Z}, \code{scoring}, \code{n_items},
 \code{alpha}.
 }
+\examples{
+reports <- data.frame(mean = c(2.97, 3.51, 4.20),
+                      sd   = c(2.83, 3.50, 0.90),
+                      n    = c(30, 30, 30))
+
+# the scale limits and reported precision are constant across rows;
+# row 2 reports an SD above the ceiling for a 1-7 scale at n = 30
+out <- sd_bounds_check_multiple(reports, l = 1, u = 7,
+                                mean_digits = 2, sd_digits = 2)
+out[, c("mean", "sd", "n", "consistent", "failed_tests")]
+}

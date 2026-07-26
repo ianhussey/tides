@@ -57,3 +57,13 @@ numeric.
 [infer_digits()]: R:infer_digits()
 }
 }
+\examples{
+# the exact values that could have been reported as 2.97
+unround_interval(2.97, digits = 2)
+
+# truncation rather than rounding shifts the interval
+unround_interval(2.97, digits = 2, rounding = "trunc")
+
+# digits are inferred from a string, so trailing zeros are honoured
+unround_interval("2.90")
+}
