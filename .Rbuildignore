@@ -1,4 +1,4 @@
-^TIDES\.Rproj$
+^STRAIT\.Rproj$
 ^\.Rproj\.user$
 ^doc$
 ^Meta$
@@ -9,3 +9,5 @@
 ^LICENSE\.md$
 ^.*\.DS_Store$
 ^\.Rhistory$
+^validation$
+^paper$

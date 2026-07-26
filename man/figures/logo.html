@@ -10,17 +10,14 @@
 </style>
 </head>
 <body>
-<svg id="tides" width="1200" height="1385" viewBox="0 0 520 600" xmlns="http://www.w3.org/2000/svg">
+<svg id="strait" width="1200" height="1385" viewBox="0 0 520 600" xmlns="http://www.w3.org/2000/svg">
   <polygon points="260,12 508,156 508,444 260,588 12,444 12,156" fill="#f4ede0" stroke="#1d5a8e" stroke-width="18" stroke-linejoin="miter"/>
-  <text x="260" y="205" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-size="98" font-weight="700" letter-spacing="4" fill="#1d5a8e">tides</text>
-  <clipPath id="tidesHex"><polygon points="260,12 508,156 508,444 260,588 12,444 12,156"/></clipPath>
-  <g clip-path="url(#tidesHex)" fill="none" stroke="#1d5a8e" stroke-width="18" stroke-linecap="round">
-    <path d="M -56.25 278 Q -27.5 304 1.25 278 T 58.75 278 T 116.25 278 T 173.75 278 T 231.25 278 T 288.75 278 T 346.25 278 T 403.75 278 T 461.25 278 T 518.75 278 T 576.25 278"/>
-    <path d="M -56.25 330 Q -27.5 356 1.25 330 T 58.75 330 T 116.25 330 T 173.75 330 T 231.25 330 T 288.75 330 T 346.25 330 T 403.75 330 T 461.25 330 T 518.75 330 T 576.25 330"/>
-    <path d="M -56.25 382 Q -27.5 408 1.25 382 T 58.75 382 T 116.25 382 T 173.75 382 T 231.25 382 T 288.75 382 T 346.25 382 T 403.75 382 T 461.25 382 T 518.75 382 T 576.25 382"/>
-    <path d="M -56.25 434 Q -27.5 460 1.25 434 T 58.75 434 T 116.25 434 T 173.75 434 T 231.25 434 T 288.75 434 T 346.25 434 T 403.75 434 T 461.25 434 T 518.75 434 T 576.25 434"/>
-    <path d="M -56.25 486 Q -27.5 512 1.25 486 T 58.75 486 T 116.25 486 T 173.75 486 T 231.25 486 T 288.75 486 T 346.25 486 T 403.75 486 T 461.25 486 T 518.75 486 T 576.25 486"/>
+  <clipPath id="straitHex"><polygon points="260,12 508,156 508,444 260,588 12,444 12,156"/></clipPath>
+  <g clip-path="url(#straitHex)">
+    <path d="M 260 12 A 514 514 0 0 1 12 444 L -4000 444 L -4000 -4000 L 260 -4000 Z" fill="#1d5a8e"/>
+    <path d="M 508 156 A 514 514 0 0 0 260 588 L 4000 588 L 4000 -4000 L 508 -4000 Z" fill="#1d5a8e"/>
   </g>
+  <text x="260" y="300" transform="rotate(-60 260 300)" text-anchor="middle" dominant-baseline="central" font-family="Space Grotesk, sans-serif" font-size="82" font-weight="600" letter-spacing="2" fill="#1d5a8e">strait</text>
 </svg>
 </body>
 </html>

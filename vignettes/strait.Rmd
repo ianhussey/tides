@@ -1,0 +1,143 @@
+---
+title: "strait"
+subtitle: "Bounds of the standard deviation for truncated data"
+author: "Ian Hussey"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{strait}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r include=FALSE}
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 7,
+  fig.height = 4.5
+)
+options(scipen = 999)
+```
+
+```{r}
+library(strait)
+```
+
+## The idea
+
+When a measure has a known minimum and maximum, a reported mean constrains the
+sample standard deviation that is arithmetically possible: the two summary
+statistics are *not* independent. `strait` computes, in closed form, the smallest
+and largest sample SD consistent with a chosen set of constraints, and flags
+reported values that fall outside them.
+
+The constraints are nested — supplying more of them can only narrow the bounds.
+
+```{r}
+sd_bounds(l = 1, u = 5)                          # scale limits only
+sd_bounds(l = 1, u = 5, n = 9)                   # + sample size (parity ceiling)
+sd_bounds(l = 1, u = 5, n = 9, mean = 2)         # + mean (sharp ceiling)
+```
+
+The `min_rule` / `max_rule` columns name which bound binds.
+
+## Granularity
+
+If the data are integers (e.g. single Likert items), the SD also has a nonzero
+*floor* — data cannot be perfectly smooth. `Z = "integer"` requires every
+observation to be a whole number (and the mean to be GRIM-consistent);
+`Z = "quasiinteger"` relaxes this to "all but one", which is defined at every
+mean and so never has GRIM holes.
+
+```{r}
+sd_bounds(l = 1, u = 5, n = 9, mean = 2.44, Z = "quasiinteger")
+```
+
+## Checking a reported statistic
+
+`sd_bounds_check()` turns the bounds into a consistency verdict. Give it the
+reported values as they appear in a paper — numbers plus their decimal places —
+and it unrounds them, applies the bounds test, and (for integer data) defers the
+GRIM and GRIMMER verdicts to the `scrutiny` package.
+
+```{r}
+# an ordinary report on a 1-7 scale
+sd_bounds_check(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
+                sd = 2.83, sd_digits = 2, Z = "integer")
+
+# an SD too small to be possible: caught by the bounds test
+sd_bounds_check(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
+                sd = 0.10, sd_digits = 2, Z = "quasiinteger")
+```
+
+The check also returns percent-of-maximum-possible (POMP) transforms:
+`pomp_mean`, a linear `pomp_sd_parity` (SD as a fraction of the mean-agnostic
+maximum), and `pomp_sd_sharp` (the SD's position within the sharp
+mean-conditional band: 0 at the floor, 1 at the ceiling, outside `[0, 1]` when
+impossible).
+
+## Across a data frame
+
+`sd_bounds_check_multiple()` applies the check to each row of a data frame.
+Columns named like the arguments are read per row; anything passed as a constant
+is broadcast. Repeated constraint tuples are computed once and reused.
+
+```{r}
+reports <- data.frame(
+  mean = c(2.97, 4.50, 3.10),
+  sd   = c(2.83, 0.10, 1.90)
+)
+sd_bounds_check_multiple(reports, l = 1, u = 7, n = 30,
+                         mean_digits = 2, sd_digits = 2, Z = "integer")[
+  , c("mean", "sd", "consistent", "failed_tests")]
+```
+
+## Visualising the feasible envelope
+
+`sd_bounds_curve()` traces the floor and ceiling across the mean;
+`plot_sd_bounds()` draws the band and, optionally, reported points coloured by
+consistency.
+
+```{r}
+curve  <- sd_bounds_curve(l = 1, u = 7, n = 30, Z = "quasiinteger")
+points <- sd_bounds_check_multiple(
+  data.frame(mean = c(3.0, 4.0, 2.5), sd = c(2.5, 0.2, 3.6)),
+  l = 1, u = 7, n = 30, mean_digits = 1, sd_digits = 1, Z = "quasiinteger")
+
+plot_sd_bounds(curve, points = points)
+```
+
+On the POMP scale, `reference = "parity"` keeps the geometry undistorted (a
+linear rescaling), while `reference = "sharp"` maps the feasible region to the
+unit square so a point's height is its position within the band.
+
+```{r}
+plot_sd_bounds_pomp(curve, points = points, reference = "sharp")
+```
+
+## The umbrella
+
+`umbrella_data()` builds the full grid of reported (mean, SD) pairs at a given
+reporting precision, tagging each as consistent, GRIMMER-inconsistent, or out of
+bounds; `plot_umbrella()` renders it.
+
+```{r}
+um <- umbrella_data(n = 14, l = 1, u = 7, digits = 2)
+plot_umbrella(um, curve = sd_bounds_curve(l = 1, u = 7, n = 14, Z = "quasiinteger"))
+```
+
+## Multi-item scales and composites
+
+`scoring` and `n_items` describe how response items form the score. Sum scores
+are integer-gridded (`scoring = "sumscored"`); item means live on a finer
+`1/n_items` grid (`scoring = "meanscored"`). A reported Cronbach's alpha
+tightens the bounds of a composite further.
+
+```{r}
+# a 3-item composite reported as an item mean, with alpha
+sd_bounds(l = 1, u = 5, n = 20, mean = 3, Z = "integer",
+          scoring = "meanscored", n_items = 3)$max_sd
+
+sd_bounds(l = 1, u = 5, n = 20, mean = 3, Z = "integer",
+          scoring = "meanscored", n_items = 3, alpha = 0.7)$max_sd
+```
