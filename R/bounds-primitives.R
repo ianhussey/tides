@@ -3,7 +3,7 @@
 # The bounds of the sample standard deviation under nested constraints, as a
 # family of small single-purpose functions governed by the sd_bounds()
 # dispatcher (see sd_bounds.R). The mathematics is the closed-form (not
-# constructive) derivation developed in the TIDES article; each primitive here
+# constructive) derivation developed in the STRAIT article; each primitive here
 # implements one formula.
 #
 # ARCHITECTURE
@@ -308,7 +308,7 @@ feasible_mean_band <- function(lower = NULL, upper = NULL,
 #' Allocation maximum of the item-variance sum (Theorem H3)
 #'
 #' The quasi-integer maximum of the summed item variances of a k-item integer
-#' battery at a given sum-score mean (the TIDES article, Appendix H).
+#' battery at a given sum-score mean (the STRAIT article, Appendix H).
 #'
 #' @param mean_sum Numeric vector, sum-score mean(s).
 #' @param k Integer scalar, number of items.
@@ -340,7 +340,7 @@ v_max_alpha <- function(mean_sum, k, n, item_l, item_u) {
 #' Sharp alpha-conditional composite floor via the Gini mean difference
 #'
 #' The exact alpha-conditional minimum SD for a *strictly integer* composite
-#' (TIDES article, Theorem H5 and Corollaries H5a-H5b): the least sample SD
+#' (STRAIT article, Theorem H5 and Corollaries H5a-H5b): the least sample SD
 #' among integer sum-score profiles \eqn{S} with the given mean, integer values
 #' in \eqn{[l, u]}, whose design-factor cap
 #' \eqn{m_{\max}(S) = 2 n\, SS_S / \sum_{s,t}|S_s - S_t|} is at least the reported
@@ -414,7 +414,7 @@ sd_min_alpha_gini <- function(l, u, n, mean, m, max_profiles = 5e5) {
 #' SD bounds for a k-item composite with reported Cronbach's alpha
 #'
 #' Bounds of the sum score's sample SD given the composite limits, n, sum-score
-#' mean, granularity, and a reported alpha (the TIDES article, Appendix H).
+#' mean, granularity, and a reported alpha (the STRAIT article, Appendix H).
 #' Ceiling: the mean-conditional ceiling divided by
 #' `sqrt(k - (k - 1) alpha)`; under granularity, additionally the sharper
 #' quasi-integer `V_max` form, intersected with the alpha-free ceiling (alpha

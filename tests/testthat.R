@@ -7,6 +7,6 @@
 # * https://testthat.r-lib.org/articles/special-files.html
 
 library(testthat)
-library(tides)
+library(strait)
 
-test_check("tides")
+test_check("strait")

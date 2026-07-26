@@ -1,7 +1,15 @@
-# tides 0.4.0
+# strait (development)
+
+* The package has been renamed from `tides` to `strait`. The exported API is
+  unchanged; only the package name, its vignette (`vignette("strait")`) and the
+  repository URL differ. Entries below describe the package under its former
+  name, and historical function names (`tides()`, `tides_df()`, `plot_tides()`,
+  `plot_tides_relative()`) are left as they were written.
+
+# strait 0.4.0
 
 A ground-up rewrite of the engine around the closed-form standard-deviation
-bounds derived in the TIDES article. This is a breaking change: the API is new
+bounds derived in the STRAIT article. This is a breaking change: the API is new
 throughout.
 
 ## Breaking changes
@@ -36,7 +44,7 @@ throughout.
   `plot_sd_bounds()`, `plot_sd_bounds_pomp()` (native and POMP scales) and
   `plot_umbrella()` visualise it.
 * The alpha-conditional floor is sharpened for strictly integer composites via
-  the composite's Gini mean difference (`sd_min_alpha_gini()`, TIDES article
+  the composite's Gini mean difference (`sd_min_alpha_gini()`, STRAIT article
   Theorem H5): a reported positive alpha now yields a strictly positive minimum
   SD even at whole-number sum-score means, where the earlier amplified floor
   vanished. The exact envelope is used when the composite range is small enough
@@ -66,7 +74,7 @@ throughout.
 * `Imports` trimmed to `ggplot2` and `scrutiny` (dropping `dplyr`, `tidyr`,
   `purrr`, `tibble`, `janitor`, `forcats`, `scales`, `rlang`).
 
-# tides 0.3.2
+# strait 0.3.2
 
 This release prepares the package for CRAN and fixes several bugs that affected
 the installed package.

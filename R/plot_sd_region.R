@@ -254,7 +254,7 @@ sd_region_data <- function(l, u, n,
 #' Draws the region of sample SDs a constraint set asserts to be possible, as a
 #' function of the mean, with the sharp quasi-integer band optionally repeated as
 #' a dashed reference. This reproduces the panels of the nested-constraints
-#' figure in the TIDES article from a single entry point.
+#' figure in the STRAIT article from a single entry point.
 #'
 #' Rules, in the order they enter the framework (`n_items > 1` puts every rule in
 #' mean-score units for a composite of that many integer items):

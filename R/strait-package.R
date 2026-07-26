@@ -1,4 +1,4 @@
-#' tides: Truncation-Induced Dependency among Summary Statistics
+#' strait: Truncation-Induced Dependency among Summary Statistics
 #'
 #' A forensic meta-science / trustworthiness-assessment toolkit for checking
 #' whether reported means, standard deviations and sample sizes measured on a
@@ -16,7 +16,7 @@
 #' and visualise both on the native and POMP scales (\code{plot_sd_bounds()},
 #' \code{plot_sd_bounds_pomp()}, \code{plot_umbrella()}).
 #'
-#' @seealso The package README and vignette (\code{vignette("tides")}) for a
+#' @seealso The package README and vignette (\code{vignette("strait")}) for a
 #'   worked example and the method background.
 #' @keywords internal
 #' @importFrom ggplot2 .data

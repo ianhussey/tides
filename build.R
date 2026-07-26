@@ -1,7 +1,7 @@
 library(roxygen2)
 #setwd("~/git/")
-#devtools::create("tides")
-setwd("~/git/tides")
+#devtools::create("strait")
+setwd("~/git/strait")
 
 devtools::document()
 
@@ -14,15 +14,15 @@ devtools::build_vignettes()
 devtools::install(build_vignettes = TRUE)
 
 # # or from github, after push
-# devtools::install_github("ianhussey/tides")
+# devtools::install_github("ianhussey/strait")
 
-library(tides)
+library(strait)
 
-?tides
-vignette("tides")
+?strait
+vignette("strait")
 
 
-detach("package:tides", unload = TRUE)
+detach("package:strait", unload = TRUE)
 
 
 # cran checks

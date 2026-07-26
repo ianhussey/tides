@@ -1,10 +1,10 @@
 ---
-title: "tides"
+title: "strait"
 subtitle: "Bounds of the standard deviation for truncated data"
 author: "Ian Hussey"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{tides}
+  %\VignetteIndexEntry{strait}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -20,14 +20,14 @@ options(scipen = 999)
 ```
 
 ```{r}
-library(tides)
+library(strait)
 ```
 
 ## The idea
 
 When a measure has a known minimum and maximum, a reported mean constrains the
 sample standard deviation that is arithmetically possible: the two summary
-statistics are *not* independent. `tides` computes, in closed form, the smallest
+statistics are *not* independent. `strait` computes, in closed form, the smallest
 and largest sample SD consistent with a chosen set of constraints, and flags
 reported values that fall outside them.
 

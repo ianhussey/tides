@@ -1,9 +1,9 @@
-<img src="man/figures/logo.png" width="30%" alt="tides logo" />
+<img src="man/figures/logo.png" width="30%" alt="strait logo" />
 
-# tides: Truncation-Induced Dependency among Summary Statistics
+# strait: Bounds checks for reported summary statistics 
 
 <!-- badges: start -->
-[![R-CMD-check](https://github.com/ianhussey/TIDES/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/ianhussey/TIDES/actions/workflows/R-CMD-check.yaml)
+[![R-CMD-check](https://github.com/ianhussey/strait/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/ianhussey/strait/actions/workflows/R-CMD-check.yaml)
 
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 
@@ -12,7 +12,7 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21439905.svg)](https://doi.org/10.5281/zenodo.21439905)
 <!-- badges: end -->
 
-`tides` is a forensic meta-science R package for conducting trustworthiness assessments on reported rounded summary statistics using bounds checks. 
+`strait` is a forensic meta-science R package for conducting trustworthiness assessments on reported rounded summary statistics using bounds checks - to assess whether reported summary stats are on the *strait and narrow*. 
 
 When a measure has a known minimum and maximum score, the reported mean constrains the standard deviation that is arithmetically possible: the two summary statistics are not independent. Given a reported mean, standard deviation and sample size, `sd_bounds_check()` computes the smallest and largest standard deviations that could have produced that mean under the scale's bounds, and flags a report as inconsistent when the reported SD falls outside that feasible range (following the terminology used by related forensic-metascience methods such as GRIM and GRIMMER).
 
@@ -49,15 +49,15 @@ For a reported mean `M`, sample size `n` and scale limits `l`, `u`, `sd_bounds()
 
 ```r
 # install.packages("remotes")
-remotes::install_github("ianhussey/TIDES")
+remotes::install_github("ianhussey/strait")
 ```
 
 ## Usage
 
-See also the vignette in the R package (`vignette("tides")`).
+See also the vignette in the R package (`vignette("strait")`).
 
 ```r
-library(tides)
+library(strait)
 
 # The feasible SD range for a reported mean on a 1-5 integer scale
 sd_bounds(l = 1, u = 5, n = 30, mean = 3.2, Z = "integer")
@@ -121,7 +121,7 @@ The single-purpose bound primitives (e.g. `sd_max_structure_s()`, `sd_min_quasi_
 
 ## Suggested citation
 
-Hussey, I. (2024). tides: Trustworthiness assessments for summary statistics using bounds checks. https://github.com/ianhussey/tides doi: [10.5281/zenodo.21439905](https://doi.org/10.5281/zenodo.21439905)
+Hussey, I. (2024). strait: Bounds checks for reported summary statistics. https://github.com/ianhussey/strait doi: [10.5281/zenodo.21439905](https://doi.org/10.5281/zenodo.21439905)
 
 ## References
 

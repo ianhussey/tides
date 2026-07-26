@@ -12,7 +12,7 @@ test_that("a reported positive alpha forces SD > 0 at a whole-number composite m
 
 test_that("the Gini envelope reproduces the article's disproof counterexample", {
   # composite {0, 3,3,3, 4x10}, n=14: SS_S = 15.5, m_max = 2.7468
-  env <- tides:::sd_min_alpha_gini(l = 0, u = 4, n = 14, mean = 3.5, m = 2.7468)
+  env <- strait:::sd_min_alpha_gini(l = 0, u = 4, n = 14, mean = 3.5, m = 2.7468)
   expect_equal(env, sqrt(15.5 / 13), tolerance = 1e-6)
 })
 
@@ -34,7 +34,7 @@ test_that("the Gini envelope is a valid lower bound and sharp (brute force)", {
   # validity: envelope at each dataset's own (mean, design factor) never exceeds its SD
   viol <- 0L
   for (i in which(V > 1e-9 & SS_S > 1e-9)) {
-    e <- tides:::sd_min_alpha_gini(l = k * il, u = k * iu, n = n,
+    e <- strait:::sd_min_alpha_gini(l = k * il, u = k * iu, n = n,
                                    mean = compmean[i], m = m_d[i])
     if (!is.null(e) && e > sd_d[i] + 1e-9) viol <- viol + 1L
   }
@@ -44,7 +44,7 @@ test_that("the Gini envelope is a valid lower bound and sharp (brute force)", {
   for (mt in c(1.2, 1.5, 2.0)) {
     cand <- which(abs(compmean - mu0) < 1e-9 & m_d >= mt - 1e-9 & SS_S > 1e-9)
     brute <- min(sd_d[cand])
-    e <- tides:::sd_min_alpha_gini(l = k * il, u = k * iu, n = n, mean = mu0, m = mt)
+    e <- strait:::sd_min_alpha_gini(l = k * il, u = k * iu, n = n, mean = mu0, m = mt)
     expect_equal(e, brute, tolerance = 1e-9)
   }
 })

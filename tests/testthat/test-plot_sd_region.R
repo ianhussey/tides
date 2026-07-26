@@ -155,8 +155,8 @@ test_that("the batched Gini envelope agrees with per-mean evaluation", {
   m <- 1 / (1 - 0.5 * 0.5)
   # a cold cache and a warm one must agree, and both must be finite and
   # increasing in the profile constraint
-  rm(list = ls(envir = tides:::.gini_envelope_cache),
-     envir = tides:::.gini_envelope_cache)
+  rm(list = ls(envir = strait:::.gini_envelope_cache),
+     envir = strait:::.gini_envelope_cache)
   cold <- vapply(c(1, 1.5, 2, 2.5, 3), function(mu) {
     r <- sd_min_alpha_gini(0, 6, 23, mu, m); if (is.null(r)) NA_real_ else r
   }, 0)
@@ -172,7 +172,7 @@ test_that("the lattice DP's state-space reductions are sound", {
   # and raw storage must not alter a single tuple
   for (cfg in list(c(4, 1, 5), c(5, 0, 3), c(7, 0, 6), c(6, 0, 2))) {
     n <- cfg[1]; l <- cfg[2]; u <- cfg[3]
-    d <- tides:::.attainable_lattice(l, u, n, 1)
+    d <- strait:::.attainable_lattice(l, u, n, 1)
     g <- as.matrix(expand.grid(rep(list(l:u), n)))
     b <- unique(round(cbind(rowMeans(g), apply(g, 1, stats::sd)), 10))
     b <- b[order(b[, 1], b[, 2]), , drop = FALSE]
@@ -181,15 +181,15 @@ test_that("the lattice DP's state-space reductions are sound", {
     expect_equal(unname(a), unname(b), tolerance = 1e-9)
   }
   # odd W packs the R axis by g = 2, even W does not; both must be exact
-  expect_equal(nrow(tides:::.attainable_lattice(0, 3, 7, 1)), 100L)
-  expect_equal(nrow(tides:::.attainable_lattice(0, 6, 23, 1)), 8634L)
+  expect_equal(nrow(strait:::.attainable_lattice(0, 3, 7, 1)), 100L)
+  expect_equal(nrow(strait:::.attainable_lattice(0, 6, 23, 1)), 8634L)
   # a mean-scored grid (mg > 1) still lands on the 1/mg lattice
-  d <- tides:::.attainable_lattice(0, 3, 6, 2)
+  d <- strait:::.attainable_lattice(0, 3, 6, 2)
   expect_true(all(abs(d$mean * 6 * 2 - round(d$mean * 6 * 2)) < 1e-9))
   # the guard fires only when the REDUCED grid is oversized; the reductions
   # bring cases within reach that the naive (S, Q) grid could not hold
-  expect_error(tides:::.attainable_lattice(1, 7, 61, 5), "too large")
-  expect_silent(tides:::.attainable_lattice(0, 6, 300, 1))
+  expect_error(strait:::.attainable_lattice(1, 7, 61, 5), "too large")
+  expect_silent(strait:::.attainable_lattice(0, 6, 300, 1))
 })
 
 test_that("round_digits/rounding round the emitted lattice", {

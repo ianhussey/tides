@@ -240,7 +240,7 @@ sd_bounds_curve <- function(l, u, n, Z = "quasiinteger",
 #' SD-bounds envelope once, then evaluates every reported SD on the same grid
 #' from 0 up to that mean's ceiling, tagging each `(mean, sd)` cell with the
 #' bounds-overlap and (under `Z = "integer"`) GRIMMER verdicts. Unlike
-#' `tides::umbrella()` this returns the FULL grid — feasible means x candidate
+#' `strait::umbrella()` this returns the FULL grid — feasible means x candidate
 #' SDs — with verdict columns, so the plotting layer can render failures as
 #' well as the passing "umbrella".
 #'

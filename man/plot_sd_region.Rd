@@ -76,7 +76,7 @@ A ggplot object.
 Draws the region of sample SDs a constraint set asserts to be possible, as a
 function of the mean, with the sharp quasi-integer band optionally repeated as
 a dashed reference. This reproduces the panels of the nested-constraints
-figure in the TIDES article from a single entry point.
+figure in the STRAIT article from a single entry point.
 }
 \details{
 Rules, in the order they enter the framework (\code{n_items > 1} puts every rule in

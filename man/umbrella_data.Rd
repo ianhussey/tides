@@ -45,7 +45,7 @@ For each reported mean on the \code{10^-digits} grid over \verb{[l, u]}, compute
 SD-bounds envelope once, then evaluates every reported SD on the same grid
 from 0 up to that mean's ceiling, tagging each \verb{(mean, sd)} cell with the
 bounds-overlap and (under \code{Z = "integer"}) GRIMMER verdicts. Unlike
-\code{tides::umbrella()} this returns the FULL grid — feasible means x candidate
+\code{strait::umbrella()} this returns the FULL grid — feasible means x candidate
 SDs — with verdict columns, so the plotting layer can render failures as
 well as the passing "umbrella".
 }

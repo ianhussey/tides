@@ -20,6 +20,6 @@ Numeric vector, the maximum of the population item-variance sum.
 }
 \description{
 The quasi-integer maximum of the summed item variances of a k-item integer
-battery at a given sum-score mean (the TIDES article, Appendix H).
+battery at a given sum-score mean (the STRAIT article, Appendix H).
 }
 \keyword{internal}
