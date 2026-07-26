@@ -63,11 +63,11 @@ GRIM and GRIMMER verdicts to the `scrutiny` package.
 ```{r}
 # an ordinary report on a 1-7 scale
 brimmer(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
-                sd = 2.83, sd_digits = 2, Z = "integer")
+        sd = 2.83, sd_digits = 2, Z = "integer")
 
 # an SD too small to be possible: caught by the bounds test
 brimmer(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
-                sd = 0.10, sd_digits = 2, Z = "quasiinteger")
+        sd = 0.10, sd_digits = 2, Z = "quasiinteger")
 ```
 
 The check also returns percent-of-maximum-possible (POMP) transforms:
@@ -88,7 +88,7 @@ reports <- data.frame(
   sd   = c(2.83, 0.10, 1.90)
 )
 brimmer_multiple(reports, l = 1, u = 7, n = 30,
-                         mean_digits = 2, sd_digits = 2, Z = "integer")[
+                 mean_digits = 2, sd_digits = 2, Z = "integer")[
   , c("mean", "sd", "consistent", "failed_tests")]
 ```
 
