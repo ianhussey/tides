@@ -2,32 +2,36 @@
 
 This is a new submission.
 
+The package was developed under the name `tides` and renamed to `strait`
+before submission, to avoid a case-insensitive collision with the existing
+CRAN package `Tides`. It has not previously been submitted to CRAN under
+either name.
+
 ## Test environments
 
-- local macOS (aarch64), R 4.5.2 (release)
-- GitHub Actions: macOS, Windows, Ubuntu (R-devel, release, oldrel-1)
-- win-builder (R-devel), via `devtools::check_win_devel()`
+* local macOS 26.5 (aarch64), R 4.5.2
 
 ## R CMD check results
 
-0 errors | 0 warnings | 1 note.
+0 errors | 0 warnings | 2 notes.
 
-The one NOTE is the standard "New submission" flag.
+* "New submission" — expected for a first submission.
+* "Skipping checking HTML validation: 'tidy' doesn't look like recent enough
+  HTML Tidy" — a property of the HTML Tidy binary on the local machine, not of
+  the package.
 
 ## Notes for the reviewer
 
-* The package uses domain terms and author names that a spell-checker does not
-  recognise but that are spelled correctly and intentional: GRIM, GRIMMER,
-  POMP, truncation-consistent, metascience, and the cited authors Brown and
-  Heathers. These are recorded in `inst/WORDLIST`, so
-  `spelling::spell_check_package()` passes with no spelling NOTE. The reference
-  in the Description is given as `Authors (year) <doi:...>`.
-* The package has no compiled code and writes no files outside `tempdir()`.
-* Examples that build ggplot objects or enumerate feasibility grids are wrapped
-  in `\donttest{}` to keep the per-example runtime within CRAN limits; they run
-  in full locally and in CI.
-* `umbrella()` and the vignette call the `scrutiny` package's GRIM/GRIMMER
-  functions, whose argument interface has changed across scrutiny releases. The
-  package detects the installed interface at run time (see
-  `R/scrutiny-compat.R`), so it works with both current CRAN scrutiny and newer
-  versions.
+* The package contains no compiled code. It writes no files, and does not
+  modify the user's options, graphics parameters or working directory.
+* The granularity tests GRIM and GRIMMER are deferred to the `scrutiny`
+  package rather than reimplemented. `scrutiny` and `ggplot2` are the only
+  dependencies.
+* All exported functions have running examples. Two examples in
+  `plot_sd_region()` that enumerate the attainable (mean, SD) lattice are
+  wrapped in `\donttest{}`; they complete in a few seconds and pass under
+  `--run-donttest`.
+* `Language` is `en-GB`. Domain terms, cited author surnames and possessive
+  forms that the spell checker does not recognise are recorded in
+  `inst/WORDLIST`, so `spelling::spell_check_package()` reports nothing.
+* The reference in the Description field is given as `Authors (year) <doi:...>`.
