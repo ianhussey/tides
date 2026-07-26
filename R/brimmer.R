@@ -3,7 +3,13 @@
 
 # ---- Layer 5: report-level consistency check ---------------------------------
 
-#' Check a reported (mean, SD, n) against the SD bounds: consistent or not
+#' BRIMMER: check a reported (mean, SD, n) against the SD bounds
+#'
+#' Bounds-Related Inconsistency of Means and Errors Reported. The SD-side
+#' bounds test, and the package's main entry point: it asks whether a reported
+#' standard deviation is arithmetically attainable given the scale limits, the
+#' sample size and the reported mean. [brim()] is the mean-side test, which
+#' needs no SD.
 #'
 #' The report-checking wrapper above [sd_bounds()]: give it the reported
 #' summary statistics as they appear in a paper (numeric values plus their
@@ -11,13 +17,23 @@
 #' envelope, runs the applicable consistency tests, and returns a single
 #' consistent/inconsistent verdict with the reasons.
 #'
+#' BRIMMER is nested on top of BRIM, exactly as GRIMMER is nested on top of
+#' GRIM: it applies the mean-side test and then adds the SD-side one. A report
+#' is consistent only if every applicable test passes, and each names a
+#' distinct defect.
+#'
 #' Tests applied (each only when its inputs are present):
-#' * `feasibility` — does the constraint set admit any sample at all? Under
-#'   `Z = "integer"` this includes the GRIM condition that some attainable
-#'   mean lies in the reported mean's rounding interval; with attained
-#'   extremes it includes the feasible mean band.
+#' * `in_scale_range` — the BRIM predicate: can the reported mean's rounding
+#'   interval meet the feasible mean band at all? Bounds only, independent of
+#'   granularity; with attained extremes the band narrows (see
+#'   [feasible_mean_band()]). Run by [brim()] on its own.
 #' * `bounds` — does the reported SD's own rounding interval overlap
 #'   `[min_sd, max_sd]`? (The package's validated mathematics.)
+#' * `feasibility` — a residual: the constraint set admits no sample for a
+#'   reason none of the other tests already accounts for, such as an alpha
+#'   floor exceeding the alpha ceiling. An out-of-range mean reports as
+#'   `in_scale_range` and a granular-impossible one as `grim`, so neither
+#'   double-counts here.
 #' * `grim`, `grimmer` — scrutiny's verdicts, deferred verbatim (only under
 #'   `Z = "integer"` with `rounding`). NOTE scrutiny's GRIMMER (and, under
 #'   `rounding = "up"`, GRIM) have documented floating-point boundary bugs,
@@ -39,8 +55,9 @@
 #' @param mean Numeric scalar or NULL, the reported mean.
 #' @param mean_digits Integer scalar or NULL, its reported decimal places
 #'   (required when `mean` and `rounding` are both given).
-#' @param sd Numeric scalar, the reported SD (required — it is the thing
-#'   being checked).
+#' @param sd Numeric scalar or NULL, the reported SD — the thing being
+#'   checked. NULL runs the mean-side tests only, which is what [brim()]
+#'   does; the SD columns are then `NA`.
 #' @param sd_digits Integer scalar or NULL, its reported decimal places
 #'   (required when `rounding` is given).
 #' @param rounding Rounding rule for unrounding the reported values
@@ -53,34 +70,38 @@
 #'
 #' @return A one-row data.frame: `consistent` (logical), `failed_tests`
 #'   (comma-separated names, "" if none), then the [sd_bounds()] columns
-#'   `min_sd`, `max_sd`, `feasible`, `grim`, `grimmer`, `sd_in_bounds`, the
+#'   `min_sd`, `max_sd`, `feasible`, the BRIM predicate `in_scale_range`, then
+#'   `grim`, `grimmer`, `sd_in_bounds`, the
 #'   percent-of-maximum-possible transforms `pomp_mean`, `pomp_sd_parity`
 #'   (linear, against the mean-agnostic parity ceiling) and `pomp_sd_sharp`
 #'   (position within the sharp mean-conditional band), and `note`.
 #'
+#' @seealso [brim()] for the mean-side test, [brimmer_multiple()] to apply
+#'   this across a data frame.
 #' @examples
 #' # a perfectly ordinary report on a 1-7 scale
 #' # (witnessed by c(rep(1, 20), rep(7, 9), 6): mean 2.9667, sd 2.8343)
-#' sd_bounds_check(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
-#'                 sd = 2.83, sd_digits = 2, Z = "integer")
+#' brimmer(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
+#'         sd = 2.83, sd_digits = 2, Z = "integer")
 #'
 #' # SD below the quasi-integer floor: inconsistent via the bounds test
-#' sd_bounds_check(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
-#'                 sd = 0.10, sd_digits = 2, Z = "quasiinteger")
+#' brimmer(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
+#'         sd = 0.10, sd_digits = 2, Z = "quasiinteger")
 #'
 #' # GRIM-impossible mean: inconsistent via feasibility (and grim)
-#' sd_bounds_check(l = 1, u = 7, n = 30, mean = 3.51, mean_digits = 2,
-#'                 sd = 1.00, sd_digits = 2, Z = "integer")
+#' brimmer(l = 1, u = 7, n = 30, mean = 3.51, mean_digits = 2,
+#'         sd = 1.00, sd_digits = 2, Z = "integer")
 #' @export
-sd_bounds_check <- function(l = NULL, u = NULL, a = NULL, b = NULL,
-                            n = NULL, mean = NULL, mean_digits = NULL,
-                            sd = NULL, sd_digits = NULL,
-                            rounding = "up_or_down",
-                            Z = c("continuous", "integer", "quasiinteger"),
-                            scoring = c("singleitem", "sumscored", "meanscored"),
-                            n_items = 1, alpha = NULL) {
-  if (is.null(sd)) stop("sd_bounds_check() checks a reported SD: sd is required")
-  if (is.null(n)) stop("sd_bounds_check() requires n")
+brimmer <- function(l = NULL, u = NULL, a = NULL, b = NULL,
+                    n = NULL, mean = NULL, mean_digits = NULL,
+                    sd = NULL, sd_digits = NULL,
+                    rounding = "up_or_down",
+                    Z = c("continuous", "integer", "quasiinteger"),
+                    scoring = c("singleitem", "sumscored", "meanscored"),
+                    n_items = 1, alpha = NULL) {
+  if (is.null(sd) && is.null(mean))
+    stop("brimmer() needs a reported sd, a reported mean, or both")
+  if (is.null(n)) stop("brimmer() requires n")
 
   # a mean-free check is legitimate (e.g. sd vs the parity ceiling), but
   # rounding then applies to the sd only
@@ -99,11 +120,38 @@ sd_bounds_check <- function(l = NULL, u = NULL, a = NULL, b = NULL,
       (iv$hi >= r$min_sd - 1e-9 && iv$lo <= r$max_sd + 1e-9)
   }
 
+  # POMP transforms on the reported scale (effective limits: a supersedes l,
+  # b supersedes u). Descriptive, so they use the reported point mean/sd, not
+  # the unrounding interval.
+  eff_lower <- if (!is.null(a)) a else l
+  eff_upper <- if (!is.null(b)) b else u
+
+  # The BRIM predicate, computed independently of sd_bounds(). sd_bounds()
+  # legitimately folds GRIM into `feasible` under Z = "integer" (with no
+  # GRIM-consistent mean there is no sample, so no bounds exist), but an
+  # out-of-range mean and a granular-impossible mean are different defects and
+  # must not be reported as one. This asks only: can the reported mean's
+  # rounding interval meet the feasible mean band at all?
+  in_scale_range <- NA
+  if (!is.null(mean) &&
+      (!is.null(l) || !is.null(u) || !is.null(a) || !is.null(b))) {
+    band <- feasible_mean_band(lower = eff_lower, upper = eff_upper,
+                               lower_attained = !is.null(a),
+                               upper_attained = !is.null(b), n = n)
+    iv <- if (is.null(rounding)) list(lo = mean, hi = mean)
+          else unround_interval(mean, mean_digits, rounding)
+    in_scale_range <- (iv$hi >= band[1] - 1e-9 && iv$lo <= band[2] + 1e-9)
+  }
+
   failed <- character(0)
-  if (!isTRUE(r$feasible)) failed <- c(failed, "feasibility")
+  if (isFALSE(in_scale_range)) failed <- c(failed, "in_scale_range")
   if (isFALSE(r$sd_in_bounds)) failed <- c(failed, "bounds")
   if (isFALSE(r$grim)) failed <- c(failed, "grim")
   if (isFALSE(r$grimmer)) failed <- c(failed, "grimmer")
+  # `feasibility` is now the residual: the constraint set admits no sample for
+  # a reason none of the named tests above already accounts for (e.g. an alpha
+  # floor exceeding the alpha ceiling, or a GRIM divergence from scrutiny).
+  if (!isTRUE(r$feasible) && !length(failed)) failed <- c(failed, "feasibility")
 
   note <- r$note
   if (identical(failed, "grimmer")) {
@@ -111,18 +159,15 @@ sd_bounds_check <- function(l = NULL, u = NULL, a = NULL, b = NULL,
     note <- if (is.na(note)) caveat else paste(note, caveat, sep = "; ")
   }
 
-  # POMP transforms on the reported scale (effective limits: a supersedes l,
-  # b supersedes u). Descriptive, so they use the reported point mean/sd, not
-  # the unrounding interval.
-  eff_lower <- if (!is.null(a)) a else l
-  eff_upper <- if (!is.null(b)) b else u
   pomp <- .pomp_cols(mean, sd, r$min_sd, r$max_sd, eff_lower, eff_upper, n,
                      has_mean = !is.null(mean))
 
   cbind(data.frame(consistent = length(failed) == 0,
                    failed_tests = paste(failed, collapse = ","),
                    stringsAsFactors = FALSE),
-        r[, c("min_sd", "max_sd", "feasible", "grim", "grimmer", "sd_in_bounds")],
+        r[, c("min_sd", "max_sd", "feasible")],
+        data.frame(in_scale_range = in_scale_range, stringsAsFactors = FALSE),
+        r[, c("grim", "grimmer", "sd_in_bounds")],
         data.frame(pomp_mean = pomp$pomp_mean,
                    pomp_sd_parity = pomp$pomp_sd_parity,
                    pomp_sd_sharp = pomp$pomp_sd_sharp,
@@ -130,14 +175,77 @@ sd_bounds_check <- function(l = NULL, u = NULL, a = NULL, b = NULL,
         data.frame(note = note, stringsAsFactors = FALSE))
 }
 
+#' BRIM: check a reported mean against the scale bounds
+#'
+#' Bounds-Related Inconsistency of Means. The mean-side test: is the reported
+#' mean attainable at all, given the scale limits, the sample size and, when
+#' supplied, the attained extremes? Where GRIM asks whether a mean is
+#' attainable by strictly integer data at a given `n`, BRIM asks whether it is
+#' attainable within the reporting range at all — a weaker condition that
+#' applies to continuous data too, and one that tightens sharply once an
+#' observed minimum or maximum is reported.
+#'
+#' A thin wrapper on [brimmer()] with no reported SD, so only the mean-side
+#' tests apply: `in_scale_range` (the reported mean's rounding interval must
+#' meet the feasible mean band, see [feasible_mean_band()]) and, under
+#' `Z = "integer"` with `rounding`, scrutiny's `grim` verdict. GRIMMER is never
+#' invoked, and the SD-side columns are omitted rather than returned as `NA`.
+#'
+#' The two tests are independent and name different defects: a mean can be out
+#' of range but granular-attainable (7.50 on a 1-7 scale at `n = 30`), inside
+#' the range but GRIM-impossible (3.51 at `n = 30`), or both (7.51).
+#'
+#' @inheritParams brimmer
+#' @return A one-row data.frame: `consistent` (logical), `failed_tests`
+#'   (comma-separated, "" if none), `in_scale_range`, `grim`, the feasible mean
+#'   band `band_lo` and `band_hi`, `pomp_mean`, and `note`.
+#' @seealso [brimmer()] for the SD-side test.
+#' @examples
+#' # an ordinary mean on a 1-7 scale
+#' brim(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2)
+#'
+#' # a mean above the scale maximum cannot be attained
+#' brim(l = 1, u = 7, n = 30, mean = 7.5, mean_digits = 1)
+#'
+#' # attained extremes narrow the band, and can exclude a mean the bare
+#' # scale limits would allow
+#' brim(a = 1, b = 7, n = 30, mean = 1.10, mean_digits = 2)
+#' @export
+brim <- function(l = NULL, u = NULL, a = NULL, b = NULL,
+                 n = NULL, mean = NULL, mean_digits = NULL,
+                 rounding = "up_or_down",
+                 Z = c("continuous", "integer", "quasiinteger"),
+                 scoring = c("singleitem", "sumscored", "meanscored"),
+                 n_items = 1) {
+  if (is.null(mean)) stop("brim() checks a reported mean: mean is required")
+  # sd = NULL, not NA: NULL is this package's "not supplied", whereas an NA
+  # would propagate through the bounds arithmetic instead of switching the
+  # SD-side tests off
+  r <- brimmer(l = l, u = u, a = a, b = b, n = n,
+               mean = mean, mean_digits = mean_digits,
+               sd = NULL, sd_digits = NULL, rounding = rounding,
+               Z = Z, scoring = scoring, n_items = n_items)
+  # same resolution of sides and attainment that sd_bounds() applies, so the
+  # reported band is the one feasibility was actually tested against
+  band <- feasible_mean_band(lower = if (!is.null(a)) a else l,
+                             upper = if (!is.null(b)) b else u,
+                             lower_attained = !is.null(a),
+                             upper_attained = !is.null(b),
+                             n = n)
+  cbind(r[, c("consistent", "failed_tests", "in_scale_range", "grim")],
+        data.frame(band_lo = band[1], band_hi = band[2],
+                   stringsAsFactors = FALSE),
+        r[, c("pomp_mean", "note")])
+}
+
 # ---- Layer 6: batch report checking ------------------------------------------
 
 #' Check many reported (mean, SD, n) rows against the SD bounds
 #'
-#' Applies [sd_bounds_check()] to each row of a data frame, de-duplicating
+#' Applies [brimmer()] to each row of a data frame, de-duplicating
 #' identical constraint tuples so the (possibly expensive) rounding-envelope is
 #' computed once per distinct input and reused. Columns of `data` whose names
-#' match [sd_bounds_check()] arguments are taken per row; any argument given in
+#' match [brimmer()] arguments are taken per row; any argument given in
 #' `...` is a constant broadcast to every row. Supplying one name both ways is
 #' an error.
 #'
@@ -150,7 +258,7 @@ sd_bounds_check <- function(l = NULL, u = NULL, a = NULL, b = NULL,
 #' @param include_inputs If TRUE (default), returns `data` column-bound to the
 #'   results; if FALSE, only the result columns (same row order), for drop-in
 #'   use inside a `dplyr::mutate()`/`purrr` pipeline.
-#' @return A data frame of the [sd_bounds_check()] columns, one row per input
+#' @return A data frame of the [brimmer()] columns, one row per input
 #'   row (optionally with the inputs prepended).
 #' @examples
 #' reports <- data.frame(mean = c(2.97, 3.51, 4.20),
@@ -159,11 +267,11 @@ sd_bounds_check <- function(l = NULL, u = NULL, a = NULL, b = NULL,
 #'
 #' # the scale limits and reported precision are constant across rows;
 #' # row 2 reports an SD above the ceiling for a 1-7 scale at n = 30
-#' out <- sd_bounds_check_multiple(reports, l = 1, u = 7,
+#' out <- brimmer_multiple(reports, l = 1, u = 7,
 #'                                 mean_digits = 2, sd_digits = 2)
 #' out[, c("mean", "sd", "n", "consistent", "failed_tests")]
 #' @export
-sd_bounds_check_multiple <- function(data, ..., include_inputs = TRUE) {
+brimmer_multiple <- function(data, ..., include_inputs = TRUE) {
   if (!is.data.frame(data)) stop("data must be a data frame")
   arg_names <- c("l", "u", "a", "b", "n", "mean", "mean_digits", "sd",
                  "sd_digits", "rounding", "Z", "scoring", "n_items", "alpha")
@@ -193,7 +301,7 @@ sd_bounds_check_multiple <- function(data, ..., include_inputs = TRUE) {
   back <- match(key, key[uk_idx])
   res_uni <- do.call(rbind, lapply(uk_idx, function(i) {
     args <- lapply(present, function(nm) cols[[nm]][i]); names(args) <- present
-    do.call(sd_bounds_check, args)
+    do.call(brimmer, args)
   }))
   res <- res_uni[back, , drop = FALSE]
   rownames(res) <- NULL
@@ -276,7 +384,8 @@ sd_bounds_curve <- function(l, u, n, Z = "quasiinteger",
 #'   which is why they are absent from the grid.
 #' @examples
 #' # the full grid of reportable (mean, sd) pairs for a small design
-#' grid <- umbrella_data(n = 20, l = 1, u = 5, digits = 1)
+#' # (a 3-point scale at 1 decimal place, to keep the example quick)
+#' grid <- umbrella_data(n = 12, l = 1, u = 3, digits = 1)
 #' head(grid)
 #'
 #' # how many pairs survive every test
@@ -309,7 +418,7 @@ umbrella_data <- function(n, l, u, digits = 2, Z = "integer",
     # verdict is left NA.
     grimmer <- rep(NA, length(sds))
     if (use_grimmer && any(in_bounds))
-      grimmer[in_bounds] <- as.logical(scrutiny::grimmer(
+      grimmer[in_bounds] <- as.logical(.grimmer_compat(
         x = mu, sd = sds[in_bounds], n = n, digits_x = digits,
         digits_sd = digits, items = n_items, rounding = rounding))
     consistent <- in_bounds &

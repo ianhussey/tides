@@ -116,7 +116,11 @@ alpha-conditional bounds.}
 plot_sd_region(l = 1, u = 5, n = 7, rule = "mean")            # Bhatia-Davis
 plot_sd_region(l = 1, u = 5, n = 7, rule = "quasi")           # sharp, GRIM-free
 \donttest{
-plot_sd_region(l = 1, u = 5, n = 7, rule = "integer")         # attainable tuples
+# digits = 1 keeps the reporting grid small: the lattice rules screen every
+# cell with GRIMMER, which is ~25x slower on CRAN scrutiny (0.6.1) than on
+# later versions
+plot_sd_region(l = 1, u = 5, n = 7, rule = "integer",         # attainable tuples
+               digits = 1)
 plot_sd_region(l = 1, u = 5, n = 7, rule = "alpha",
                n_items = 2, alpha = 0.7)
 }

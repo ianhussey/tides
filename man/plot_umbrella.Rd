@@ -22,6 +22,6 @@ verdict: consistent, GRIMMER-inconsistent (passes bounds, fails GRIMMER), or
 out of bounds. Optionally overlays the bound curves from \code{\link[=sd_bounds_curve]{sd_bounds_curve()}}.
 }
 \examples{
-grid <- umbrella_data(n = 20, l = 1, u = 5, digits = 1)
-plot_umbrella(grid, title = "n = 20, 1-5 scale")
+grid <- umbrella_data(n = 12, l = 1, u = 3, digits = 1)
+plot_umbrella(grid, title = "n = 12, 1-3 scale")
 }

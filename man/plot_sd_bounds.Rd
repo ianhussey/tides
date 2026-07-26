@@ -16,7 +16,7 @@ plot_sd_bounds(
 \item{curve}{Output of \code{\link[=sd_bounds_curve]{sd_bounds_curve()}}.}
 
 \item{points}{Optional data.frame with \code{mean}, \code{sd}, and (optionally)
-\code{consistent}; e.g. the output of \code{\link[=sd_bounds_check_multiple]{sd_bounds_check_multiple()}}.}
+\code{consistent}; e.g. the output of \code{\link[=brimmer_multiple]{brimmer_multiple()}}.}
 
 \item{title}{Optional plot title.}
 
@@ -36,7 +36,7 @@ plot_sd_bounds(curve, title = "Feasible SDs, 1-7 scale, n = 30")
 # overlay reported values, coloured by consistency (the second is
 # above the ceiling, so it plots as inconsistent)
 reports <- data.frame(mean = c(2.97, 3.51), sd = c(2.83, 3.50))
-checked <- sd_bounds_check_multiple(reports, l = 1, u = 7, n = 30,
-                                    mean_digits = 2, sd_digits = 2)
+checked <- brimmer_multiple(reports, l = 1, u = 7, n = 30,
+                            mean_digits = 2, sd_digits = 2)
 plot_sd_bounds(curve, points = checked)
 }

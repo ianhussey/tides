@@ -1,10 +1,45 @@
-# strait (development)
+# strait 0.4.4
 
-* The package has been renamed from `tides` to `strait`. The exported API is
-  unchanged; only the package name, its vignette (`vignette("strait")`) and the
-  repository URL differ. Entries below describe the package under its former
-  name, and historical function names (`tides()`, `tides_df()`, `plot_tides()`,
+First CRAN release.
+
+## Package rename
+
+* The package has been renamed from `tides` to `strait`, to avoid a collision
+  with the existing CRAN package `Tides`. The exported API is unchanged; only
+  the package name, its vignette (`vignette("strait")`) and the repository URL
+  differ. Entries below describe the package under its former name, and
+  historical function names (`tides()`, `tides_df()`, `plot_tides()`,
   `plot_tides_relative()`) are left as they were written.
+
+## Breaking changes
+
+* `sd_bounds_check()` is renamed `brimmer()` and `sd_bounds_check_multiple()`
+  to `brimmer_multiple()`, naming the SD-side bounds test by analogy with
+  GRIM / GRIMMER. No deprecated aliases are kept: the package has not been
+  released under the old names.
+* `brimmer()` no longer requires a reported `sd`. Supplying only a mean runs
+  the mean-side tests and returns `NA` in the SD columns.
+* `brimmer()` gains an `in_scale_range` column and no longer reports a
+  granularity failure as a bounds failure. Previously a GRIM-impossible mean
+  under `Z = "integer"` set `failed_tests` to `"feasibility,grim"`, because
+  `sd_bounds()` folds GRIM into `feasible` — correctly, since with no
+  GRIM-consistent mean no bounds exist, but that made an out-of-range mean and
+  a granular-impossible one indistinguishable. `in_scale_range` is now
+  computed independently from [feasible_mean_band()] and the mean's rounding
+  interval, so the two defects are named separately, and `feasibility` is
+  reserved as a residual for infeasibility no other test accounts for.
+
+## New features
+
+* `brim()` is the mean-side bounds test: is the reported mean attainable at
+  all, given the scale limits, `n` and any attained extremes? It reports the
+  feasible mean band (`band_lo`, `band_hi`) alongside the verdict. Under
+  `Z = "integer"` it also runs GRIM (deferred to `scrutiny`) but never
+  GRIMMER, so `brimmer()` is nested on `brim()` exactly as GRIMMER is on GRIM.
+
+## Documentation
+
+* Every exported function now carries a running example.
 
 # strait 0.4.0
 

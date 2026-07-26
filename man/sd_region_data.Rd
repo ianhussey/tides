@@ -74,7 +74,7 @@ head(band)
 attr(band, "type")
 
 # a lattice rule returns the attainable (mean, sd) tuples themselves
-pts <- sd_region_data(l = 1, u = 5, n = 7, rule = "integer")
+pts <- sd_region_data(l = 1, u = 5, n = 7, rule = "attainable")
 head(pts)
 attr(pts, "type")
 }

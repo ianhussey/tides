@@ -1,6 +1,6 @@
 ---
 title: "strait"
-subtitle: "Bounds of the standard deviation for truncated data"
+subtitle: "Bounds tests for reported summary statistics"
 author: "Ian Hussey"
 output: rmarkdown::html_vignette
 vignette: >
@@ -55,18 +55,18 @@ sd_bounds(l = 1, u = 5, n = 9, mean = 2.44, Z = "quasiinteger")
 
 ## Checking a reported statistic
 
-`sd_bounds_check()` turns the bounds into a consistency verdict. Give it the
+`brimmer()` turns the bounds into a consistency verdict. Give it the
 reported values as they appear in a paper — numbers plus their decimal places —
 and it unrounds them, applies the bounds test, and (for integer data) defers the
 GRIM and GRIMMER verdicts to the `scrutiny` package.
 
 ```{r}
 # an ordinary report on a 1-7 scale
-sd_bounds_check(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
+brimmer(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
                 sd = 2.83, sd_digits = 2, Z = "integer")
 
 # an SD too small to be possible: caught by the bounds test
-sd_bounds_check(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
+brimmer(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2,
                 sd = 0.10, sd_digits = 2, Z = "quasiinteger")
 ```
 
@@ -78,7 +78,7 @@ impossible).
 
 ## Across a data frame
 
-`sd_bounds_check_multiple()` applies the check to each row of a data frame.
+`brimmer_multiple()` applies the check to each row of a data frame.
 Columns named like the arguments are read per row; anything passed as a constant
 is broadcast. Repeated constraint tuples are computed once and reused.
 
@@ -87,7 +87,7 @@ reports <- data.frame(
   mean = c(2.97, 4.50, 3.10),
   sd   = c(2.83, 0.10, 1.90)
 )
-sd_bounds_check_multiple(reports, l = 1, u = 7, n = 30,
+brimmer_multiple(reports, l = 1, u = 7, n = 30,
                          mean_digits = 2, sd_digits = 2, Z = "integer")[
   , c("mean", "sd", "consistent", "failed_tests")]
 ```
@@ -100,7 +100,7 @@ consistency.
 
 ```{r}
 curve  <- sd_bounds_curve(l = 1, u = 7, n = 30, Z = "quasiinteger")
-points <- sd_bounds_check_multiple(
+points <- brimmer_multiple(
   data.frame(mean = c(3.0, 4.0, 2.5), sd = c(2.5, 0.2, 3.6)),
   l = 1, u = 7, n = 30, mean_digits = 1, sd_digits = 1, Z = "quasiinteger")
 

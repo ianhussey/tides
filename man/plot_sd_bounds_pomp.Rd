@@ -15,7 +15,7 @@ plot_sd_bounds_pomp(
 \item{curve}{Output of \code{\link[=sd_bounds_curve]{sd_bounds_curve()}} (used for the parity band).}
 
 \item{points}{Optional data.frame with \code{pomp_mean} and \code{pomp_sd_parity} /
-\code{pomp_sd_sharp} and \code{consistent} (e.g. from \code{\link[=sd_bounds_check_multiple]{sd_bounds_check_multiple()}}).}
+\code{pomp_sd_sharp} and \code{consistent} (e.g. from \code{\link[=brimmer_multiple]{brimmer_multiple()}}).}
 
 \item{reference}{\code{"sharp"} (default) or \code{"parity"}.}
 

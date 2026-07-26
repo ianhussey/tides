@@ -310,12 +310,12 @@ sd_bounds <- function(l = NULL, u = NULL, a = NULL, b = NULL,
     if (!requireNamespace("scrutiny", quietly = TRUE))
       stop("the scrutiny package is required for GRIM/GRIMMER verdicts under Z = 'integer' with rounding")
     grim_v <- isTRUE(as.logical(unname(
-      scrutiny::grim(x = mean, n = n, digits_x = mean_digits,
-                     items = n_items, rounding = rounding)))[1])
+      .grim_compat(x = mean, n = n, digits = mean_digits,
+                   items = n_items, rounding = rounding)))[1])
     if (!is.null(sd))
       grimmer_v <- isTRUE(as.logical(unname(
-        scrutiny::grimmer(x = mean, sd = sd, n = n, digits_x = mean_digits,
-                          digits_sd = sd_digits, items = n_items, rounding = rounding)))[1])
+        .grimmer_compat(x = mean, sd = sd, n = n, digits_x = mean_digits,
+                        digits_sd = sd_digits, items = n_items, rounding = rounding)))[1])
   }
 
   # helper: does the reported sd (as an interval if rounded) overlap the bounds

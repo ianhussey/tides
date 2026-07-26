@@ -20,7 +20,7 @@
 #'
 #' @param curve Output of [sd_bounds_curve()].
 #' @param points Optional data.frame with `mean`, `sd`, and (optionally)
-#'   `consistent`; e.g. the output of [sd_bounds_check_multiple()].
+#'   `consistent`; e.g. the output of [brimmer_multiple()].
 #' @param title Optional plot title.
 #' @param fill,line_colour Band fill and outline colours.
 #' @return A ggplot object.
@@ -31,8 +31,8 @@
 #' # overlay reported values, coloured by consistency (the second is
 #' # above the ceiling, so it plots as inconsistent)
 #' reports <- data.frame(mean = c(2.97, 3.51), sd = c(2.83, 3.50))
-#' checked <- sd_bounds_check_multiple(reports, l = 1, u = 7, n = 30,
-#'                                     mean_digits = 2, sd_digits = 2)
+#' checked <- brimmer_multiple(reports, l = 1, u = 7, n = 30,
+#'                             mean_digits = 2, sd_digits = 2)
 #' plot_sd_bounds(curve, points = checked)
 #' @export
 plot_sd_bounds <- function(curve, points = NULL, title = NULL,
@@ -62,7 +62,7 @@ plot_sd_bounds <- function(curve, points = NULL, title = NULL,
 #'
 #' @param curve Output of [sd_bounds_curve()] (used for the parity band).
 #' @param points Optional data.frame with `pomp_mean` and `pomp_sd_parity` /
-#'   `pomp_sd_sharp` and `consistent` (e.g. from [sd_bounds_check_multiple()]).
+#'   `pomp_sd_sharp` and `consistent` (e.g. from [brimmer_multiple()]).
 #' @param reference `"sharp"` (default) or `"parity"`.
 #' @param title Optional plot title.
 #' @return A ggplot object.
@@ -121,8 +121,8 @@ plot_sd_bounds_pomp <- function(curve, points = NULL,
 #' @param title Optional plot title.
 #' @return A ggplot object.
 #' @examples
-#' grid <- umbrella_data(n = 20, l = 1, u = 5, digits = 1)
-#' plot_umbrella(grid, title = "n = 20, 1-5 scale")
+#' grid <- umbrella_data(n = 12, l = 1, u = 3, digits = 1)
+#' plot_umbrella(grid, title = "n = 12, 1-3 scale")
 #' @export
 plot_umbrella <- function(umbrella, curve = NULL, title = NULL) {
   stopifnot(requireNamespace("ggplot2", quietly = TRUE))
