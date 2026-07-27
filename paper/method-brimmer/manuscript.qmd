@@ -1,0 +1,605 @@
+---
+title: "The BRIMMEST test: exact certification of reported means and standard deviations on bounded scales"
+author:
+  - name: Ian Hussey
+    email: ian.hussey@unibe.ch
+    affiliations:
+      - name: University of Bern
+abstract: 'Error-detection tests for reported summary statistics, including GRIM, GRIMMER, and the standard-deviation bounds tests, are necessary conditions: failing one proves a reported (mean, SD, n) is impossible, but passing all of them proves nothing. A residual set of reports clears every such screen and still corresponds to no possible dataset. We introduce BRIMMEST, an exact certification test for reported means and standard deviations on bounded integer scales. It enumerates the complete attainable (mean, SD) lattice for a design by dynamic programming over reachable (sum, sum of squares) states, rounds that lattice to the reporting precision, and tests membership. A hit proves that some real sample produces exactly the reported values; a miss proves that none does, relative to the admitted rounding conventions. The verdict is therefore exact in both directions, which no test in the GRIM family achieves. BRIMMEST agrees with brute-force enumeration and with the CLOSURE reconstruction algorithm on every case tested (zero disagreements across roughly 5,700 grid cells), while running two to three orders of magnitude faster than reconstruction, because its cost depends only on the scale limits and sample size rather than on how many datasets exist. Sweeping 556,975 reportable tuples across 13 designs, we quantify the blind spot of the closed-form screens and show it is not monotone in sample size. We also report implementation errors that the exact oracle exposed in widely used software, in both error directions. We situate BRIMMEST relative to CLOSURE and SPRITE, and recommend a three-stage workflow: closed-form screens first, BRIMMEST to settle survivors, and reconstruction only when the candidate datasets themselves are needed. The test is implemented as brimmest() in the strait R package.'
+format:
+  html:
+    embed-resources: true
+    toc: true
+    code-fold: true
+    theme: flatly
+execute:
+  warning: false
+  message: false
+---
+
+<!-- TODO before submission:
+  - confirm the acronym expansion (docstring says "Bounds-Related Inconsistency
+    of Means and Errors, Settled Test"; BRIMMER expands with "SDs" not "Errors")
+  - file the multi-item scrutiny issue so section 8 can cite it
+  - complete placeholder references marked [REF]
+  - decide venue; this draft is written long, cut to fit -->
+
+```{r include=FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+has_unsum <- requireNamespace("unsum", quietly = TRUE)
+library(strait)
+library(ggplot2)
+```
+
+# Introduction: necessary is not sufficient
+
+A reported mean, standard deviation, and sample size are not free to take any
+values. When the underlying data are integers on a bounded scale, as with
+Likert-type items, counts, and most questionnaire measures, the reported
+statistics must be producible by some sample of $n$ integers between the scale
+limits, after rounding to the reported precision. Tests that exploit this fact
+have become standard tools of error detection. GRIM checks that the reported
+mean is a multiple of $1/n$ at the reported precision (Brown & Heathers, 2017).
+GRIMMER extends the logic to the standard deviation (Anaya, 2016). The
+SD-bounds tests check the reported SD against closed-form minimum and maximum
+bounds given the scale limits, $n$, and the mean (Hussey et al., in prep).
+
+Each of these is a necessary condition. Failing one proves the report
+impossible. Passing all of them proves nothing, because none of them asks
+whether the mean and SD are *jointly* attainable by a single sample. In
+practice, a report that clears every screen is routinely described as
+"consistent", a word that quietly overstates what was shown.
+
+The gap is not hypothetical. On a 1--5 scale with $n = 9$, reporting to one
+decimal place, the pair mean $= 1.3$, SD $= 0.9$ lies inside the SD bounds,
+passes GRIM, and passes GRIMMER. No sample of nine integers between 1 and 5
+produces it:
+
+```{r}
+brimmest(l = 1, u = 5, n = 9, mean = 1.3, sd = 0.9, digits = 1)
+```
+
+This paper introduces the test that settles such cases. BRIMMEST (Bounds-Related
+Inconsistency of Means and Errors, Settled Test) is an exact
+certification procedure for reported (mean, SD) pairs on bounded integer
+scales, implemented as `brimmest()` in the strait R package. It enumerates the
+complete attainable (mean, SD) lattice for the design by dynamic programming,
+rounds the lattice to the reporting precision, and tests whether the reported
+pair is a member. A hit proves possibility: some sample rounds to exactly this
+report. A miss proves impossibility, relative to the rounding conventions
+admitted. The verdict is exact in both directions, which is precisely what the
+GRIM family cannot offer.
+
+The name completes a series. GRIM and GRIMMER test granularity; brim and
+brimmer, their bounds-based counterparts in strait, test magnitude. All four
+are necessary conditions of increasing strength. BRIMMEST is superlative in
+the grammatical sense and, within its scope, in the technical one: no stronger
+test of the same question exists, because the question is decided. It is worth
+being clear at the outset that this makes it a different kind of test rather
+than a stronger member of the same family. The others are closed-form
+inequalities evaluated in constant time; BRIMMEST is a decision procedure with
+a computational cost, albeit a modest one.
+
+The question BRIMMEST answers is the one the CLOSURE algorithm answers by
+reconstruction (Jung, [REF]): does any integer dataset match this report?
+CLOSURE searches the sample space and returns the datasets it finds. BRIMMEST
+constructs the reachable set of summary statistics directly and returns only
+the verdict. One might call it an analytic CLOSURE certification: the same
+certificate, obtained by construction rather than search. The trade, examined
+in section 6, is that no witness datasets are produced, in exchange for a cost
+that depends only on the scale limits and $n$, not on how many datasets happen
+to exist, and for the ability to certify every report of a design against one
+lattice built once.
+
+The paper proceeds as follows. Section 2 measures the blind spot of the
+closed-form screens, since the case for an exact test rests on the residual it
+removes. Section 3 presents the algorithm. Section 4 reports its verification
+against brute-force enumeration and against CLOSURE. Section 5 develops the
+asymmetry between the two directions of the certificate, which governs how the
+test must be used in practice. Section 6 positions BRIMMEST against CLOSURE
+and SPRITE. Sections 7 to 9 cover practical usage, implementation errors the
+exact oracle exposed in existing software, and the limits of the method's
+scope. Section 10 concludes.
+
+# How big is the blind spot?
+
+If the closed-form screens missed nothing, an exact test would be redundant.
+We measured the residual two ways.
+
+## Grid-wise: every reportable tuple of a design
+
+For a given design (scale limits, $n$, reported decimal places), the
+reportable (mean, SD) pairs form a finite grid, the umbrella of feasible cells
+under the SD bounds. `umbrella_data()` applies the full closed-form screen to
+every cell: the mean must lie in $[l, u]$ and pass rounding-aware GRIM, and
+the SD's rounding interval must intersect the closed-form bounds and pass
+GRIMMER. Certifying the same cells with `brimmest()` then splits the
+screen-passers into the truly possible and the blind spot.
+
+```{r}
+#| label: fig-blindspot
+#| fig-cap: 'The blind spot of the closed-form screens. Every reportable (mean, SD) cell for a 1--5 scale, n = 9, one decimal place. Grey cells fail at least one closed-form test (bounds, GRIM, or GRIMMER). Blue cells pass the screens and are certified possible. Red cells pass every closed-form screen and are certified impossible: no sample of nine integers on 1--5 rounds to them. The annotated cell is the example from the introduction.'
+#| fig-width: 7
+#| fig-height: 4.5
+um <- umbrella_data(n = 9, l = 1, u = 5, digits = 1, Z = "integer")
+cert <- brimmest(l = 1, u = 5, n = 9, mean = um$mean, sd = um$sd, digits = 1)
+
+um$status <- ifelse(!um$consistent, "fails a screen",
+             ifelse(cert$possible, "possible", "blind spot"))
+
+ggplot(um, aes(mean, sd, fill = status)) +
+  geom_tile(width = 0.1, height = 0.1, colour = "white", linewidth = 0.15) +
+  scale_fill_manual(values = c("fails a screen" = "grey85",
+                               "possible" = "#1d4ed8",
+                               "blind spot" = "#dc2626")) +
+  annotate("segment", x = 1.85, y = 1.45, xend = 1.36, yend = 0.97,
+           arrow = arrow(length = unit(0.15, "cm"))) +
+  annotate("text", x = 1.9, y = 1.52, hjust = 0, size = 3.2,
+           label = "mean 1.3, sd 0.9: passes every screen,\nno such sample exists") +
+  labs(x = "reported mean", y = "reported SD", fill = NULL) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+c(cells            = nrow(um),
+  passes_screen    = sum(um$consistent),
+  certified        = sum(cert$possible),
+  blind_spot       = sum(um$consistent & !cert$possible),
+  wrongly_screened = sum(!um$consistent & cert$possible))
+```
+
+Two numbers matter. The blind spot count is the price of using closed forms:
+reports the screen lets through that are nonetheless impossible. The
+`wrongly_screened` count is zero, here and everywhere we have looked: the
+closed-form screens never reject a report that real data can produce. The
+screens are safe; they are merely incomplete.
+
+At scale, the same comparison was run across 13 designs spanning 1--5, 1--7,
+and 0--6 scales, $n$ from 8 to 30, at one and two reported decimal places:
+556,975 reportable tuples in all. The bounds produced no false flags in any of
+them, and 758 blind-spot cells. The full sweep, with per-design tables and the
+assertion framework that guards every number, is reported in the validation
+supplement (`validate_brimmer_against_brimmest.qmd` in the strait repository);
+this article does not re-run it.
+
+## The blind spot is not monotone in n
+
+It is tempting to assume the residual vanishes with sample size. It does not,
+and it does not even shrink monotonically. On a 1--5 scale at two decimal
+places, the share of screen-passing cells that certify impossible was measured
+at 9.0% ($n = 10$), 4.8% ($n = 20$), 6.7% ($n = 40$), and 1.8% ($n = 80$).
+
+```{r}
+#| label: fig-prevalence
+#| fig-cap: 'Blind-spot share of screen-passing cells, 1--5 scale, two decimal places, as measured in the validation supplement against the scrutiny build current at the time (see section 8). The non-monotonicity is real: the spike at n = 40 is the fingerprint of a floating-point boundary error in the screening software (scrutiny issue #86), which produces additional GRIMMER errors when n is a multiple of 40 at two decimal places. Larger samples do not obviate exact certification.'
+#| fig-width: 5.5
+#| fig-height: 3
+prev <- data.frame(n = factor(c(10, 20, 40, 80)),
+                   pct = c(9.0, 4.8, 6.7, 1.8))
+ggplot(prev, aes(n, pct)) +
+  geom_col(fill = c("grey35", "grey35", "#dc2626", "grey35"), width = 0.6) +
+  labs(x = "sample size", y = "blind spot, % of screen-passing cells") +
+  theme_minimal()
+```
+
+Two forces are at work. The genuine, method-level blind spot shrinks as the
+lattice of attainable pairs densifies with $n$. Implementation errors in the
+screening software do not shrink with it, and at particular sample sizes they
+dominate (section 8). Both are reasons to certify rather than assume.
+
+## Within GRIMMER's band: the missing achievability check
+
+A second measurement isolates the method-level gap in GRIMMER itself, as
+distinct from the software that implements it. Within the band of SDs that
+GRIMMER can discriminate at all, the share of GRIMMER-consistent verdicts that
+are provably impossible grows from roughly 4% at $n = 10$ to roughly 97% at
+$n = 1000$, and does so identically in two independent implementations
+(scrutiny and rsprite2), so the gap belongs to the published method rather
+than to either codebase.
+
+The gap has a closed form. Writing the integer sample sum as $s = nm + r$ with
+$0 \le r < n$, an integer sample with sum $s$ has sum of squares at least
+
+$$
+q_{\min}(s, n) = n m^2 + 2 m r + r,
+$$
+
+attained by the two-point sample with $n - r$ observations at $m$ and $r$ at
+$m + 1$. Equivalently, the sample SD has the granularity floor
+$s_{\min} = \sqrt{r(n-r)/(n(n-1))}$. GRIMMER as published tests the parity and
+granularity of the reconstructed sum of squares but never checks $q \ge
+q_{\min}(s, n)$, so it accepts sums of squares below the attainable floor.
+Adding the check makes GRIMMER exact for $n \ge 5$; samples of 2 to 4 retain
+gaps of the sums-of-few-squares kind that no closed form repairs. We note this
+repair because it is cheap and scale-free, and a repaired GRIMMER is a better
+first-line screen. It does not remove the need for certification: the repaired
+test is still necessary-only for $n < 5$, and it still checks the SD against
+the mean's sum only through the reconstructed $q$, not against joint
+attainability on a bounded scale.
+
+# The method
+
+## The attainable lattice
+
+Fix integer scale limits $l \le u$, sample size $n$, and (for multi-item
+composites) the number of items $k$. Shift and scale the data to
+$y_i = m_g (x_i - l) \in \{0, 1, \dots, W\}$, where $W = m_g (u - l)$ and
+$m_g = k$ for mean-scored composites and $1$ otherwise. Every sample statistic
+we need is a function of the pair
+
+$$
+(S, Q) = \Big( \sum_i y_i, \; \sum_i y_i^2 \Big),
+$$
+
+with mean $= l + S / (n m_g)$ and
+SD $= \sqrt{(Q - S^2/n) / (n-1)} \, / \, m_g$. Two samples with the same
+$(S, Q)$ are indistinguishable to a (mean, SD) report, so the object to
+enumerate is not the sample space but the set of reachable $(S, Q)$ states.
+
+That set obeys a recurrence: the states reachable with $t$ observations are
+the states reachable with $t - 1$, each extended by one more value
+$y \in \{0, \dots, W\}$, which adds $y$ to $S$ and $y^2$ to $Q$. Dynamic
+programming over this recurrence, $n$ steps of a boolean table, enumerates the
+exact attainable lattice. No sample is ever constructed and no distributional
+information survives; the lattice records which pairs are reachable, not how.
+
+## Making it fast
+
+The naive table over $(S, Q)$ has $nW \times nW^2$ cells and is wasteful in
+ways that compound. The strait implementation applies five reductions, all in
+plain R, which together speed the enumeration by a factor of 23 to 29:
+
+1. **A better second axis.** Replace $Q$ by $R = WS - Q = \sum_i y_i (W - y_i)$.
+   Each observation contributes at most $\lfloor W^2/4 \rfloor$ to $R$, against
+   $W^2$ to $Q$, so the axis is four times shorter, and $R \ge 0$ always.
+2. **Common divisor.** The per-value contributions $y(W - y)$ share a greatest
+   common divisor $g$ ($g = 2$ whenever $W$ is odd); dividing the axis by $g$
+   halves it again in the common case.
+3. **Growing window.** After $t$ observations only $tW + 1$ values of $S$ are
+   reachable, so early steps operate on a small corner of the table rather
+   than all of it.
+4. **Reflection.** The substitution $y \to W - y$ maps $S \to tW - S$ and
+   leaves $R$ fixed, so the table is symmetric; compute the lower half of the
+   $S$ axis and mirror it.
+5. **Byte storage.** One-byte `raw` cells rather than four-byte logicals keep
+   the working set in cache.
+
+One implementation lesson is worth recording because it inverts the usual
+advice. Dense whole-table operations were six times slower than a sparse
+scatter of reachable states, because reachable cells are only about 7% of the
+naive grid; vectorised block operations only begin to win after reductions 1
+to 4 shrink the table around the occupied region. Measured end to end, a 1--7
+scale at $n = 61$ fell from 2.57 s to 0.098 s. The lattice reaches $n = 300$
+on a 0--6 scale (1.57 million attainable pairs) in about 11 s and $n = 400$ on
+1--7 (2.8 million pairs) in about 23 s, well past the point where
+reconstruction-based methods are uncomfortable. A guard (`max_cells`, default
+$2 \times 10^7$) makes the enumeration fail cleanly rather than exhaust memory
+on designs beyond its reach, such as wide mean-scored composites at large $n$.
+
+## From lattice to verdict
+
+The lattice holds exact statistics; reports are rounded. `brimmest()` rounds
+every lattice pair to the reported precision under each admitted rounding rule
+and tests whether the reported pair is a member of the rounded set. Matching
+is done in integer grid steps (a mean reported to 2 dp becomes a whole number
+of hundredths), which is exact and sidesteps floating-point comparison
+entirely. The verdict is returned per report, together with the rounding rules
+under which it is reachable:
+
+```{r}
+brimmest(l = 1, u = 5, n = 9, digits = 1,
+         mean = c(3.0, 1.3, 2.5, 2.0),
+         sd   = c(1.0, 0.9, 1.2, 1.1))
+```
+
+One lattice is built per design and reused across every report, so certifying
+a table of results costs barely more than certifying one.
+
+## Why the closed forms leak
+
+The lattice view also explains the blind spot geometrically. The closed-form
+bounds trace the smooth envelope of the attainable region; the attainable
+pairs are a discrete lattice strictly inside it. Near the mean-conditional
+ceiling the lattice thins, and reporting-grid cells fit between the envelope
+and the nearest lattice point: inside every closed-form bound, yet empty.
+
+```{r}
+#| label: fig-lattice
+#| fig-cap: 'Why closed-form screens must leak. One 0--3 item, n = 7. Points are the complete attainable (mean, SD) lattice; the shaded band is the closed-form quasi-integer envelope that the bounds tests check against. Near the ceiling the lattice thins, and a reporting grid laid over this picture has cells that lie inside the band but contain no attainable point. Those cells are the blind spot.'
+#| fig-width: 6
+#| fig-height: 3.8
+lat  <- sd_region_data(l = 0, u = 3, n = 7, rule = "attainable")
+band <- sd_region_data(l = 0, u = 3, n = 7, rule = "quasi")
+
+ggplot() +
+  geom_ribbon(data = band, aes(x = mean, ymin = lo, ymax = hi),
+              fill = "grey88") +
+  geom_point(data = lat, aes(mean, sd), size = 0.7, colour = "#1d4ed8") +
+  labs(x = "mean", y = "SD") +
+  theme_minimal()
+```
+
+# Correctness
+
+An exact test earns the adjective by verification, not assertion. The lattice
+and the verdicts it produces were checked three independent ways; the full
+protocol, with an assertion block that fails the render if any check fails,
+constitutes the validation supplement.
+
+**Against brute force.** On designs small enough to enumerate every integer
+sample directly, the set of (sum, sum of squares) pairs produced by exhaustive
+enumeration equals the DP lattice exactly. This checks the recurrence and all
+five reductions with no theory shared between the two sides.
+
+**Against CLOSURE.** For every cell of full reporting grids across six designs
+(1--5 and 1--7 scales, $n$ from 9 to 20, roughly 5,700 cells), `brimmest()`'s
+verdict was compared with whether `unsum::closure_generate()` finds at least
+one dataset. The two methods agree on every cell, in both directions. CLOSURE
+is an independent implementation of an independent algorithm in a separate
+package, so agreement here is informative rather than circular.
+
+```{r eval=has_unsum}
+closure_says <- vapply(seq_len(nrow(um)), function(i) {
+  r <- try(suppressWarnings(unsum::closure_generate(
+    mean = sprintf("%.1f", um$mean[i]), sd = sprintf("%.1f", um$sd[i]),
+    n = 9, scale_min = 1, scale_max = 5, rounding = "up_or_down")),
+    silent = TRUE)
+  if (inherits(r, "try-error")) FALSE else nrow(r$results) > 0
+}, logical(1))
+
+c(cells = nrow(um),
+  agree = sum(closure_says == cert$possible),
+  disagree = sum(closure_says != cert$possible))
+```
+
+**Internally.** The grid builder used in the sweeps (`umbrella_data()`) was
+verified equivalent to the scalar screen (`brimmer()`) on every one of 300
+randomly drawn cells, so the sweep's screen verdicts are the package's screen
+verdicts and the blind-spot counts of section 2 are attributable.
+
+# The direction of the proof
+
+The two directions of the certificate are not symmetric, and the asymmetry
+governs correct use.
+
+A **hit** proves possibility outright. The lattice pair that rounds onto the
+report is an exact (sum, sum of squares) state reached by the dynamic program,
+so some sample of $n$ integers on $[l, u]$ has exactly those statistics and
+rounds to exactly this report under the named rule. Nothing is conditional.
+
+A **miss** proves impossibility only relative to the rounding rules admitted.
+A report unreachable under one convention may be reachable under another, and
+sources rarely state how they rounded. The default therefore admits both
+`half_up` and `half_down`, spanning the usual ambiguity about halves. The risk
+of narrowing is concrete:
+
+```{r}
+# a real sample of 12 integers on 0-6
+x <- c(rep(0, 9), 1, 1, 1)
+c(mean = mean(x), sd = sd(x))
+
+brimmest(l = 0, u = 6, n = 12, mean = 0.2, sd = 0.5, digits = 1)
+```
+
+The exact mean is 0.25, which becomes "0.2" only when halves round down. A
+certification run with `rounding = "half_up"` alone would declare this real
+sample's report impossible. For forensic use the costly error is the false
+impossibility, so the rule set should be narrowed only when the source's
+convention is actually known. Note that `brimmest()` has no `"up_or_down"`
+option of the kind unrounding-based tests offer: the lattice is rounded
+forward, and forward rounding needs a definite direction; admitting several
+rules and taking the union plays the corresponding role.
+
+# Positioning: verdicts and witnesses
+
+Three families of tools now answer overlapping questions about a reported
+(mean, SD, $n$) on a bounded scale.
+
+| | closed-form screens (GRIM, GRIMMER, brim, brimmer) | BRIMMEST | CLOSURE (unsum) | SPRITE (rsprite2) |
+|---|---|---|---|---|
+| verdict | necessary only | exact | exact | heuristic |
+| witness datasets | none | none | all | some |
+| cost depends on | nothing (closed form) | $l, u, n$ only | number of matching datasets | samples requested |
+| whole reporting grid | instant | one lattice, every cell | per cell | per cell |
+
+CLOSURE reconstructs every dataset compatible with the report. That is a
+strictly richer output: it gives existence, count, and the distributional
+shape of the candidates, which matters when the question is what the data
+could have looked like. The cost is that the search grows with the number of
+solutions and with $n$ and scale width. SPRITE samples candidate datasets
+heuristically; it is fast and illustrative but proves nothing in either
+direction. BRIMMEST returns the verdict alone, by construction: the lattice
+records reachability, not composition.
+
+When only the verdict is needed, the difference in cost is large. Measured on
+the full umbrella grid of each design (macOS, R 4.5.2):
+
+| $n$ | scale | cells | `brimmest()` | CLOSURE | speed-up |
+|----:|:------|------:|-------------:|--------:|---------:|
+|   9 | 1--5  |   610 |      0.003 s |  1.80 s |    ~700x |
+|  12 | 1--5  |   684 |      0.004 s |  1.72 s |    ~430x |
+|  15 | 1--5  |   693 |      0.002 s |  1.62 s |    ~840x |
+|  20 | 1--5  |   706 |      0.002 s |  1.72 s |    ~700x |
+|  12 | 1--7  |  1497 |      0.004 s |  4.12 s |   ~1170x |
+|  15 | 1--7  |  1499 |      0.007 s |  4.96 s |    ~740x |
+
+The comparison is not adversarial, because the tools compose. The workflow we
+recommend is staged by cost and by what each stage can prove:
+
+1. **Screen** with the closed forms (GRIM, GRIMMER, brim, brimmer). Instant,
+   scale-free where BRIMMEST is not, and every failure is already a proof of
+   impossibility.
+2. **Certify** the survivors with `brimmest()`. This settles every case the
+   screens cannot, at a cost independent of how many datasets exist.
+3. **Reconstruct** with CLOSURE only where the candidate datasets themselves
+   are needed, for example to argue that every dataset compatible with a
+   suspicious report is substantively absurd.
+
+# Using the test
+
+Certifying a table of reported statistics from a paper takes one call per
+design. Reports sharing scale limits, $n$, and precision share a lattice, and
+the function vectorises over the reports:
+
+```{r}
+brimmest(l = 1, u = 5, n = 9, digits = 1,
+         mean = c(3.0, 1.3, 2.5), sd = c(1.0, 0.9, 1.2))
+```
+
+Precision can differ between the mean and SD (`mean_digits`, `sd_digits`),
+and `infer_digits()` recovers the reported precision from the printed strings
+when trailing zeros make it ambiguous.
+
+Multi-item composites are supported through `scoring` and `n_items`. Sum
+scores of $k$ items on $[a, b]$ are integers on $[ka, kb]$ and reduce to the
+single-item case; mean scores live on a $1/k$ grid, which the lattice handles
+by setting $m_g = k$. The distinction matters in practice: reports that are
+possible on the mean-score grid can be declared impossible by screens that
+mishandle the granularity of multi-item scales, an error class we return to
+in section 8.
+
+Rounding rules beyond the defaults (`native`, `ceiling`, `floor`, `trunc`,
+`anti_trunc`) are available when a source's convention is known or under
+audit. The `rules` column of the output names which admitted rules reach each
+report, which is itself diagnostic: a report reachable only under an unusual
+convention invites a closer look at the source's other numbers.
+
+# What the exact oracle found in existing software
+
+An exact test has a second use beyond certifying reports: it is ground truth
+for the screening software itself. Sweeping whole reporting grids and
+comparing screen verdicts against certification exposed three distinct errors
+in scrutiny, the standard R implementation of GRIM and GRIMMER. We report
+them not as criticism of a valuable package but as evidence that this
+software class needs oracle-based testing, and both error directions occurred.
+
+**Missed impossibles** (scrutiny issue #85). A conjunction bug in GRIMMER's
+second and third component tests accepts some impossible reports. Witness:
+mean 0.11, SD 0.87, $n = 64$ on 0--6 is impossible under `half_up`, yet
+returned consistent. The same tuple is attainable under `half_down`, which is
+exactly the distinction an exact, rounding-aware oracle keeps straight and a
+closed-form implementation blurred.
+
+**False flags at particular n** (scrutiny issue #86). Floating-point boundary
+errors in the GRIM and GRIMMER scalar tests produce false inconsistencies at
+$n$ a multiple of 40 at two decimal places (20 at one decimal place). Witness:
+the sample `c(rep(1, 7), rep(0, 193))`, $n = 200$, whose true report (0.04,
+0.18) under half-up is flagged. This is the error class that produced the
+$n = 40$ spike in @fig-prevalence, and it is the serious direction: a false
+flag is a false accusation.
+
+**False flags on multi-item scales** (to be filed). For multi-item means,
+scrutiny's `items` argument mishandles granularity. Witness: ten people each
+scored as the mean of two 1--5 items, `c(2, 2, 2, 2, 2, 2, 2, 2.5, 2.5, 2.5)`,
+reporting mean 2.2, SD 0.2. `brimmest()` with mean-scoring and $k = 2$
+certifies it possible (it is; the data are right there); scrutiny's
+`grimmer(items = 2)` flags it inconsistent under every rounding rule. The
+identical data analysed on the sum scale pass, which isolates the error to
+the multi-item pathway. The sweep found five such cells at $k = 2$ and two at
+$k = 3$.
+
+The general point outlives the specific bugs. Closed-form screens are
+arithmetic on the boundary between possible and impossible, and boundaries
+are where floating point fails. An exact combinatorial oracle has no
+boundary cases of that kind, which is why grid-wise certification against it
+is the right regression test for the whole software class.
+
+# Scope
+
+BRIMMEST is exact within a scope, and the scope has edges.
+
+- **Requires the scale limits.** GRIM and GRIMMER are scale-free; the lattice
+  is not. Where $l$ and $u$ are unknown or the measure is unbounded, the
+  closed-form granularity tests remain the only options.
+- **One variable at a time.** The certificate says a (mean, SD) pair is
+  attainable by some sample. It says nothing about joint consistency with
+  other reported statistics: a certified mean and SD may still be jointly
+  impossible with a reported correlation, a subgroup breakdown, or a test
+  statistic. Multivariate certification is an open problem.
+- **No internal-consistency information.** The lattice is over (sum, sum of
+  squares), which carries no item-level decomposition, so reported
+  reliability coefficients (for example Cronbach's alpha) cannot tighten the
+  verdict here. The alpha-conditional bounds of the companion article
+  operate as screens on top; certifying them exactly would require
+  enumeration over item allocations, a different and larger computation.
+- **Integer (or 1/k-quantised) responses.** Continuous bounded data, sliders
+  for example, have no lattice; there the closed-form bounds are the whole
+  story.
+- **Bounded designs.** The `max_cells` guard refuses designs whose state
+  space exceeds the budget, such as wide mean-scored composites at large
+  $n$, rather than degrading silently.
+- **Misses are relative to the admitted rounding rules** (section 5). The
+  default is deliberately permissive; a forensic claim of impossibility
+  should quote which conventions were admitted.
+
+Within that scope the superlative is earned: the test decides the question
+the others approximate. Outside it, the necessary-condition tests are not
+obsolete; they are the only tests that apply.
+
+# Discussion
+
+The arc from GRIM to BRIMMEST reframes what consistency-testing of reported
+statistics is. The closed-form tests are best understood as fast necessary
+conditions: proofs of impossibility when they fire, silence otherwise. What
+has been missing is the other half, an affordable proof of possibility, and
+with it the ability to say that a report's survival means something more than
+that our inequalities were too loose. For bounded integer scales, the
+question "could any real data produce these numbers?" is now decidable in
+milliseconds per design, at any point in the reporting grid, with the same
+certainty in both directions.
+
+Three practices follow. First, reports that survive screening should be
+described as certified possible or merely unscreened, not as consistent; the
+word should track what was proven. Second, screening software should be
+regression-tested grid-wise against an exact oracle, because the failure
+modes we found (boundary arithmetic, multi-item granularity) are invisible to
+spot checks and produce errors in the direction that matters most. Third,
+reconstruction tools should be reserved for the cases that need
+reconstruction; the common forensic question is settled more cheaply, and
+exactly, without them.
+
+The open problems are the scope edges. Joint certification of a (mean, SD)
+pair with a correlation or a second group's statistics would catch
+inconsistencies that no marginal test can; the state space is larger but the
+same DP logic applies. Certification under reported reliability requires
+enumeration over item allocations. And a repaired, scale-free GRIMMER
+(section 2.3) deserves adoption independently, as the strongest test
+available when scale limits are unknown. Each extension trades more
+computation for more of the reported record brought under exact scrutiny,
+which is the direction error detection should move: fewer heuristics, more
+certificates.
+
+# References {.unnumbered}
+
+::: {#refs}
+Anaya, J. (2016). The GRIMMER test: A method for testing the validity of
+reported measures of variability. *PeerJ Preprints, 4*, e2400v1.
+
+Brown, N. J. L., & Heathers, J. A. J. (2017). The GRIM test: A simple
+technique detects numerous anomalies in the reporting of results in
+psychology. *Social Psychological and Personality Science, 8*(4), 363--369.
+
+Heathers, J. A. J., Anaya, J., van der Zee, T., & Brown, N. J. L. (2018).
+Recovering data from summary statistics: Sample Parameter Reconstruction
+via Iterative TEchniques (SPRITE). *PeerJ Preprints, 6*, e26968v1.
+
+Hussey, I. (2024). strait: Bounds tests for reported summary statistics.
+R package. https://github.com/ianhussey/strait
+
+Hussey, I., Jung, L., Lakena, W., & Cummins, J. (in prep). The BRIMMER test:
+The bounds of the standard deviation under constraints.
+
+Jung, L. ([REF]). unsum: Reconstruct raw data from summary statistics with
+CLOSURE. R package.
+
+Jung, L., & Heathers, J. ([REF to complete]: CLOSURE algorithm reference.)
+
+Mestdagh, M., Pe, M., Pestman, W., Verdonck, S., Kuppens, P., & Tuerlinckx,
+F. (2018). Sidelining the mean: The relative variability index as a generic
+mean-corrected variability measure for bounded variables. *Psychological
+Methods, 23*(4), 690--707.
+
+Wallrich, L. ([REF]). rsprite2: Identify distributions that match reported
+sample parameters (SPRITE). R package.
+:::
