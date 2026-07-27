@@ -1,5 +1,5 @@
 Package: strait
-Title: Truncation-Induced Dependency Among Summary Statistics
+Title: Bounds checks for reported summary statistics
 Version: 0.4.7
 Authors@R:
     person("Ian", "Hussey", , "ian.hussey@unibe.ch", role = c("aut", "cre"),

@@ -196,4 +196,4 @@ Hussey, I. (2026). strait: Bounds checks for reported summary statistics. https:
 
 ## License
 
-Code is MIT licensed © Ian Hussey.
+Code is MIT licensed © Ian Hussey (2024-2026).
