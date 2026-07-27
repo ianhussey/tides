@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+title: "strait: Bounds checks for reported summary statistics"
+message: >-
+  If you use this software, please cite it as below.
+type: software
+authors:
+  - family-names: Hussey
+    given-names: Ian
+    email: ian.hussey@unibe.ch
+    orcid: "https://orcid.org/0000-0001-8906-7559"
+abstract: >-
+  Forensic meta-science tools for checking whether reported summary statistics
+  measured on a bounded (truncated) scale are trustworthy. When a measure has a
+  known minimum and maximum, the reported mean constrains the standard deviation
+  that is arithmetically possible, so the two are not independent. The package
+  computes, in closed form, the smallest and largest sample standard deviations
+  consistent with a reported mean, sample size and scale range, and flags
+  reports that fall outside those bounds as inconsistent.
+keywords:
+  - meta-science
+  - error detection
+  - truncated scales
+  - summary statistics
+  - R
+version: 0.4.6
+date-released: "2026-07-26"
+doi: 10.5281/zenodo.21439905
+license: MIT
+url: "https://github.com/ianhussey/strait"
+repository-code: "https://github.com/ianhussey/strait"
