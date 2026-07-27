@@ -1,5 +1,5 @@
 Package: strait
-Title: Bounds checks for reported summary statistics
+Title: Bounds Checks for Reported Summary Statistics
 Version: 0.4.7
 Authors@R:
     person("Ian", "Hussey", , "ian.hussey@unibe.ch", role = c("aut", "cre"),
