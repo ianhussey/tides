@@ -75,19 +75,23 @@ plot_sd_bounds <- function(curve, points = NULL, title = NULL,
       ggplot2::geom_ribbon(ggplot2::aes(ymin = .data$min_sd, ymax = .data$max_sd),
                            fill = fill)
   } else {
-    sides <- data.frame(xmin = c(-Inf, hi_m), xmax = c(lo_m, Inf))
+    # Shade the whole panel, then knock the feasible rings out of it. Doing it
+    # this way rather than assembling the grey from side rectangles and ribbons
+    # means a mean at which the band is undefined stays shaded by construction:
+    # there is nothing there to knock out. Assembling the grey instead leaves
+    # such a gap unshaded, which would assert that any SD at all is possible
+    # there. See band_polygon().
+    rings <- band_polygon(data.frame(mean = cur$mean, lo = cur$min_sd,
+                                     hi = cur$max_sd),
+                          by = if (nrow(cur) > 1)
+                                 stats::median(diff(cur$mean)) else 1)
     p <- p +
-      # beyond the scale limits, no mean is reportable at all
-      ggplot2::geom_rect(data = sides,
-        ggplot2::aes(xmin = .data$xmin, xmax = .data$xmax,
-                     ymin = -Inf, ymax = Inf),
-        inherit.aes = FALSE, fill = "grey10", alpha = 0.12) +
-      # above the ceiling and below the floor
-      ggplot2::geom_ribbon(ggplot2::aes(ymin = .data$max_sd,
-                                        ymax = y_hi + 2 * pad),
-                           fill = "grey10", alpha = 0.12) +
-      ggplot2::geom_ribbon(ggplot2::aes(ymin = -2 * pad, ymax = .data$min_sd),
-                           fill = "grey10", alpha = 0.12)
+      ggplot2::annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf,
+                        ymax = Inf, fill = "grey10", alpha = 0.12)
+    if (!is.null(rings))
+      p <- p + ggplot2::geom_polygon(data = rings,
+        ggplot2::aes(x = .data$mean, y = .data$y, group = .data$ring),
+        inherit.aes = FALSE, fill = "white")
   }
   p <- p +
     ggplot2::geom_line(ggplot2::aes(y = .data$max_sd), colour = line_colour) +
@@ -162,40 +166,118 @@ plot_sd_bounds_pomp <- function(curve, points = NULL,
 
 #' Plot the umbrella grid
 #'
-#' Renders the `(mean, sd)` grid from [umbrella_data()], each cell coloured by
-#' verdict: consistent, GRIMMER-inconsistent (passes bounds, fails GRIMMER), or
-#' out of bounds. Optionally overlays the bound curves from [sd_bounds_curve()].
+#' Renders the reportable `(mean, sd)` tuples of a design, in either of two
+#' styles. Optionally overlays the bound curves from [sd_bounds_curve()].
 #'
-#' @param umbrella Output of [umbrella_data()].
+#' `style = "points"` (default) greys the whole panel and draws only the
+#' consistent tuples. Nothing else is drawn, because nothing else exists: every
+#' other cell of the grid is a value that cannot be reported. This matches the
+#' convention of [plot_sd_bounds()] and [plot_sd_region()], where shading marks
+#' what is ruled out, and it makes the real structure legible — the vertical
+#' striping at means an integer sum can round to.
+#'
+#' `style = "tiles"` draws every cell of the reporting grid, coloured as
+#' consistent, GRIMMER-inconsistent, or out of bounds. That is useful for
+#' methods exposition, since it separates what the bounds rule out from what
+#' GRIMMER additionally rules out, but it inverts the emphasis: at
+#' `n = 14` on a 1-7 scale at two decimal places it spends two thirds of its ink, in the most
+#' saturated colour, on impossible tuples, and GRIMMER's verdict alternating
+#' between adjacent SDs produces interference banding that obscures the striping.
+#'
+#' Note what the points represent. The consistent set is the GRIM- and
+#' GRIMMER-consistent one, which is what [brimmer()] applies. It is strictly
+#' larger than the set of attainable tuples, so an umbrella plot shows what the
+#' test admits rather than what exists; use [brimmest()] to certify a tuple.
+#' The gap is not always small — 9% at `l = 1, u = 5, n = 10`, and nearly a
+#' factor of three at `l = 0, u = 6, n = 23` with two items.
+#'
+#' @param umbrella Output of [umbrella_data()], or an already-filtered lattice
+#'   from `sd_region_data(rule = "integer")` — anything with `mean` and `sd`,
+#'   filtered by `consistent` when that column is present.
 #' @param curve Optional [sd_bounds_curve()] output to overlay as bound lines.
 #' @param title Optional plot title.
+#' @param style `"points"` (default) or `"tiles"`; see Details.
+#' @param point_colour,point_size Point appearance. `point_size` defaults to a
+#'   value chosen from the number of points, since a size that reads well for a
+#'   few hundred is a solid mass at twenty thousand.
+#' @param reference_colour Colour of the overlaid bound curves.
+#' @param expand Padding as a proportion of the scale width, as in
+#'   [plot_sd_bounds()].
 #' @return A ggplot object.
 #' @examples
 #' grid <- umbrella_data(n = 12, l = 1, u = 3, digits = 1)
 #' plot_umbrella(grid, title = "n = 12, 1-3 scale")
+#'
+#' # the previous look, separating the two ways a tuple can be ruled out
+#' plot_umbrella(grid, style = "tiles")
 #' @export
-plot_umbrella <- function(umbrella, curve = NULL, title = NULL) {
+plot_umbrella <- function(umbrella, curve = NULL, title = NULL,
+                          style = c("points", "tiles"),
+                          point_colour = "black", point_size = NULL,
+                          reference_colour = "grey35", expand = 0.03) {
   stopifnot(requireNamespace("ggplot2", quietly = TRUE))
-  umbrella$category <- ifelse(umbrella$consistent, "consistent",
-    ifelse(umbrella$in_bounds & !is.na(umbrella$grimmer) & !umbrella$grimmer,
-           "GRIMMER-inconsistent", "out of bounds"))
-  p <- ggplot2::ggplot(umbrella,
-      ggplot2::aes(x = .data$mean, y = .data$sd, fill = .data$category)) +
-    ggplot2::geom_tile() +
-    ggplot2::scale_fill_manual(values = c(
-      "consistent" = "#43BF71", "GRIMMER-inconsistent" = "#FDAE61",
-      "out of bounds" = "grey80"), name = NULL) +
-    ggplot2::labs(x = "Mean", y = "SD", title = title) +
-    ggplot2::theme_minimal()
+  style <- match.arg(style)
+
+  if (style == "tiles") {
+    umbrella$category <- ifelse(umbrella$consistent, "consistent",
+      ifelse(umbrella$in_bounds & !is.na(umbrella$grimmer) & !umbrella$grimmer,
+             "GRIMMER-inconsistent", "out of bounds"))
+    p <- ggplot2::ggplot(umbrella,
+        ggplot2::aes(x = .data$mean, y = .data$sd, fill = .data$category)) +
+      ggplot2::geom_tile() +
+      ggplot2::scale_fill_manual(values = c(
+        "consistent" = "#43BF71", "GRIMMER-inconsistent" = "#FDAE61",
+        "out of bounds" = "grey80"), name = NULL) +
+      ggplot2::labs(x = "Mean", y = "SD", title = title) +
+      ggplot2::theme_minimal()
+    if (!is.null(curve)) {
+      cur <- curve[curve$feasible & is.finite(curve$max_sd), ]
+      p <- p +
+        ggplot2::geom_line(data = cur,
+          ggplot2::aes(x = .data$mean, y = .data$max_sd), inherit.aes = FALSE,
+          colour = "grey20") +
+        ggplot2::geom_line(data = cur,
+          ggplot2::aes(x = .data$mean, y = .data$min_sd), inherit.aes = FALSE,
+          colour = "grey20")
+    }
+    return(p)
+  }
+
+  pts <- if ("consistent" %in% names(umbrella)) {
+    umbrella[!is.na(umbrella$consistent) & umbrella$consistent,
+             c("mean", "sd"), drop = FALSE]
+  } else {
+    umbrella[, c("mean", "sd"), drop = FALSE]
+  }
+  if (is.null(point_size))
+    point_size <- if (nrow(pts) > 12000) 0.045 else
+                  if (nrow(pts) > 2000) 0.12 else 0.35
+
+  lo_m <- min(umbrella$mean)
+  hi_m <- max(umbrella$mean)
+  pad <- expand * (hi_m - lo_m)
+  y_hi <- max(c(pts$sd, curve$max_sd), na.rm = TRUE)
+
+  p <- ggplot2::ggplot(pts, ggplot2::aes(.data$mean, .data$sd)) +
+    # the panel is infeasible everywhere except at the points themselves
+    ggplot2::annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf,
+                      fill = "grey10", alpha = 0.12) +
+    ggplot2::geom_point(colour = point_colour, size = point_size, shape = 16,
+                        na.rm = TRUE)
   if (!is.null(curve)) {
     cur <- curve[curve$feasible & is.finite(curve$max_sd), ]
     p <- p +
-      ggplot2::geom_line(data = cur,
-        ggplot2::aes(x = .data$mean, y = .data$max_sd), inherit.aes = FALSE,
-        colour = "grey20") +
-      ggplot2::geom_line(data = cur,
-        ggplot2::aes(x = .data$mean, y = .data$min_sd), inherit.aes = FALSE,
-        colour = "grey20")
+      ggplot2::geom_line(data = cur, ggplot2::aes(.data$mean, .data$max_sd),
+                         inherit.aes = FALSE, colour = reference_colour,
+                         linetype = "dashed", linewidth = 0.35) +
+      ggplot2::geom_line(data = cur, ggplot2::aes(.data$mean, .data$min_sd),
+                         inherit.aes = FALSE, colour = reference_colour,
+                         linetype = "dashed", linewidth = 0.35)
   }
-  p
+  p +
+    ggplot2::coord_cartesian(xlim = c(lo_m - pad, hi_m + pad),
+                             ylim = c(-pad, y_hi + pad), expand = FALSE) +
+    ggplot2::labs(x = "Mean", y = "Sample standard deviation", title = title) +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(panel.grid.minor = ggplot2::element_blank())
 }

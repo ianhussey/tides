@@ -1,4 +1,4 @@
-# strait 0.4.7
+# strait 0.4.8
 
 ## Breaking changes
 
@@ -19,6 +19,38 @@
   reserved as a residual for infeasibility no other test accounts for.
 
 ## New features
+
+* `band_polygon()` turns a `(mean, lo, hi)` band into closed rings, and the
+  outside-shading branches of `plot_sd_bounds()` and `plot_sd_region()` now
+  knock those rings out of a shaded panel rather than assembling the shading
+  around them. This fixes a real defect: some constraint sets leave stretches
+  where no sample exists and `lo`/`hi` are `NA` — 174 of 3001 means for
+  `sd_region_data(0, 3, 7, rule = "alpha", n_items = 2, alpha = 0.70)` — and a
+  ribbon draws nothing across them. Assembled shading therefore left those
+  means unshaded, asserting that any SD at all was possible there. Rings leave
+  them shaded by construction, and close themselves, so a region ending
+  mid-scale gets a vertical edge instead of two curves trailing off.
+* `plot_sd_region()` gains `shade`, defaulting to `"outside"`, matching
+  `plot_sd_bounds()`. `shade = "inside"` fills the band as before.
+* `sd_delta()` exposes the count-parity correction relating Muilwijk's
+  mean-conditional ceiling to the sharp one. The package computed the
+  corrected maximum but never the correction, which is interpretable on its
+  own as the fraction of Muilwijk's ceiling that is reachable: 6/7 at the
+  midpoint of a 1-5 scale at `n = 7`, about 0.11 at a mean of 1.07. It also
+  pins two independent implementations against each other, since
+  `sd_max_structure_s()^2` must equal `sd_max_muilwijk()^2 * sd_delta()`.
+* `plot_umbrella()` gains `style`, defaulting to `"points"`: the panel is
+  shaded and only the consistent tuples are drawn. The previous `"tiles"` view
+  is retained and is still the right choice for methods exposition, but it was
+  the wrong default for reading an answer off the page — at `n = 14` on a 1-7
+  scale at two decimal places it drew 19,683 cells to show 3,270 consistent tuples, spent
+  two thirds of its ink and its most saturated colour on impossible ones, and
+  produced interference banding that hid the vertical striping. The points style also
+  accepts an already-filtered `sd_region_data(rule = "integer")` lattice.
+* `rule = "muilwijk"` is an alias for `rule = "mean"` in `plot_sd_region()` and
+  `sd_region_data()`, since that rule was named after neither its constraint
+  set nor its author.
+
 
 * `brimmest()` now certifies designs the full lattice refuses. A reported
   tuple pins the sum to a few candidate values and the sum of squares to a

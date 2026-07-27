@@ -8,8 +8,8 @@ plot_sd_region(
   l,
   u,
   n,
-  rule = c("quasi", "range", "range_n", "mean", "mean_naive_floor", "mestdagh",
-    "pesant_regin", "alpha", "integer", "integer_alpha", "attainable",
+  rule = c("quasi", "range", "range_n", "mean", "muilwijk", "mean_naive_floor",
+    "mestdagh", "pesant_regin", "alpha", "integer", "integer_alpha", "attainable",
     "attainable_alpha"),
   scoring = NULL,
   n_items = 1,
@@ -20,6 +20,7 @@ plot_sd_region(
   reference = TRUE,
   title = NULL,
   by = NULL,
+  shade = c("outside", "inside"),
   fill = "grey85",
   line_colour = "black",
   reference_colour = "grey45",
@@ -79,38 +80,7 @@ a dashed reference. This reproduces the panels of the nested-constraints
 figure in the STRAIT article from a single entry point.
 }
 \details{
-Rules, in the order they enter the framework (\code{n_items > 1} puts every rule in
-mean-score units for a composite of that many integer items):
 
-\describe{
-\item{\code{"range"}}{\code{(u - l)/sqrt(2)}, no floor; ignores \code{n} and the mean
-(Popoviciu 1935, range only).}
-\item{\code{"range_n"}}{the parity ceiling, no floor (Popoviciu, as restored by
-Petocz 2005).}
-\item{\code{"mean"}}{the smooth mean-conditional arch, no floor (Muilwijk 1966;
-Bhatia-Davis 2000).}
-\item{\code{"mean_naive_floor"}}{that arch plus the naive Bernoulli floor
-(Fuenderich et al. 2025).}
-\item{\code{"pesant_regin"}}{integer minimum with a loose (parity) ceiling
-(Pesant and Regin 2005).}
-\item{\code{"mestdagh"}}{the sharp integer maximum, no floor (Mestdagh et al.
-2018).}
-\item{\code{"quasi"}}{both bounds sharp and GRIM-free (this package's default).}
-\item{\code{"alpha"}}{additionally conditioning on a reported Cronbach's \code{alpha};
-needs \code{n_items >= 2}.}
-\item{\code{"integer"}}{strictly integer data: the lattice of reported
-\verb{(mean, sd)} tuples passing GRIM, GRIMMER and the bounds. Drawn as points,
-because no band is defined at means and SDs integer data cannot produce.}
-\item{\code{"integer_alpha"}}{that lattice, additionally inside the
-alpha-conditional bounds.}
-\item{\code{"attainable"}}{the EXACT attainable \verb{(mean, sd)} tuples of strictly
-integer data, with no reporting grid and so no \code{digits}. Unlike
-\code{"integer"} this shows the true interior holes, which rounding to a
-reporting grid smears shut; it is enumerated by dynamic programming and
-errors if the lattice is too large.}
-\item{\code{"attainable_alpha"}}{those exact tuples, additionally inside the
-alpha-conditional bounds.}
-}
 }
 \examples{
 plot_sd_region(l = 1, u = 5, n = 7, rule = "mean")            # Bhatia-Davis

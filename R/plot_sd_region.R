@@ -168,7 +168,7 @@
 #' attr(pts, "type")
 #' @export
 sd_region_data <- function(l, u, n,
-                           rule = c("quasi", "range", "range_n", "mean",
+                           rule = c("quasi", "range", "range_n", "mean", "muilwijk",
                                     "mean_naive_floor", "mestdagh",
                                     "pesant_regin", "alpha", "integer",
                                     "integer_alpha", "attainable",
@@ -180,6 +180,7 @@ sd_region_data <- function(l, u, n,
                                         "ceiling", "floor", "trunc",
                                         "anti_trunc")) {
   rule <- match.arg(rule)
+  if (rule == "muilwijk") rule <- "mean"          # alias: named for its author
   rounding <- match.arg(rounding)
   if (rule %in% c("alpha", "integer_alpha", "attainable_alpha") && is.null(alpha))
     stop(sprintf("rule = '%s' requires alpha", rule))
@@ -274,27 +275,49 @@ sd_region_data <- function(l, u, n,
 #'     (Popoviciu 1935, range only).}
 #'   \item{`"range_n"`}{the parity ceiling, no floor (Popoviciu, as restored by
 #'     Petocz 2005).}
-#'   \item{`"mean"`}{the smooth mean-conditional arch, no floor (Muilwijk 1966;
-#'     Bhatia-Davis 2000).}
+#'   \item{`"mean"`, `"muilwijk"`}{Muilwijk's mean-conditional ceiling as
+#'     originally stated, over a floor of zero (Muilwijk 1966; Bhatia-Davis
+#'     2000). A valid ceiling at every mean, but attained only where the counts
+#'     at each limit come out whole, so it is conservative elsewhere: see
+#'     `"mestdagh"` for the same constraint set with the count-parity
+#'     correction applied, and [sd_delta()] for the correction itself. At
+#'     `n = 7` on a 1-7 scale the two differ by up to 0.64 SD units. The two
+#'     names are aliases.}
 #'   \item{`"mean_naive_floor"`}{that arch plus the naive Bernoulli floor
 #'     (Fuenderich et al. 2025).}
 #'   \item{`"pesant_regin"`}{integer minimum with a loose (parity) ceiling
 #'     (Pesant and Regin 2005).}
 #'   \item{`"mestdagh"`}{the sharp integer maximum, no floor (Mestdagh et al.
-#'     2018).}
+#'     2018): `"mean"` with the count-parity correction, hence never above it.}
 #'   \item{`"quasi"`}{both bounds sharp and GRIM-free (this package's default).}
 #'   \item{`"alpha"`}{additionally conditioning on a reported Cronbach's `alpha`;
 #'     needs `n_items >= 2`.}
 #'   \item{`"integer"`}{strictly integer data: the lattice of reported
-#'     `(mean, sd)` tuples passing GRIM, GRIMMER and the bounds. Drawn as points,
-#'     because no band is defined at means and SDs integer data cannot produce.}
+#'     `(mean, sd)` tuples passing GRIM, GRIMMER and the bounds — that is,
+#'     exactly what [brimmer()] admits. Built via [umbrella_data()], so the
+#'     pairs are rounded to `digits`. Drawn as points, because no band is
+#'     defined at means and SDs integer data cannot produce.}
 #'   \item{`"integer_alpha"`}{that lattice, additionally inside the
 #'     alpha-conditional bounds.}
 #'   \item{`"attainable"`}{the EXACT attainable `(mean, sd)` tuples of strictly
 #'     integer data, with no reporting grid and so no `digits`. Unlike
 #'     `"integer"` this shows the true interior holes, which rounding to a
 #'     reporting grid smears shut; it is enumerated by dynamic programming and
-#'     errors if the lattice is too large.}
+#'     errors if the lattice is too large.
+#'
+#'     The two lattice rules are easy to confuse and the difference is not
+#'     small. GRIMMER is necessary but not sufficient for an integer sample to
+#'     exist, so the attainable set is a strict subset of the
+#'     GRIMMER-consistent one. At `l = 1, u = 5, n = 10, digits = 2` there are
+#'     491 GRIMMER-consistent reported pairs against 447 attainable ones
+#'     rounded to the same grid: 9% pass `"integer"` without being attainable,
+#'     and none go the other way. At `l = 0, u = 6, n = 23` with two items the
+#'     gap is 23,738 against 8,634. Use [brimmest()] to certify a single tuple
+#'     rather than rounding a lattice to compare against.
+#'
+#'     Note also that `"integer"` returns pairs already rounded to `digits`, so
+#'     testing membership means rounding the candidate first: an exact sample
+#'     SD of 0.5270463 matches nothing until it becomes 0.53.}
 #'   \item{`"attainable_alpha"`}{those exact tuples, additionally inside the
 #'     alpha-conditional bounds.}
 #' }
@@ -342,7 +365,7 @@ sd_region_data <- function(l, u, n,
 #' }
 #' @export
 plot_sd_region <- function(l, u, n,
-                           rule = c("quasi", "range", "range_n", "mean",
+                           rule = c("quasi", "range", "range_n", "mean", "muilwijk",
                                     "mean_naive_floor", "mestdagh",
                                     "pesant_regin", "alpha", "integer",
                                     "integer_alpha", "attainable",
@@ -351,10 +374,13 @@ plot_sd_region <- function(l, u, n,
                            n_items = 1, alpha = NULL, digits = 2,
                            round_digits = NULL, rounding = "half_up",
                            reference = TRUE, title = NULL, by = NULL,
+                           shade = c("outside", "inside"),
                            fill = "grey85", line_colour = "black",
                            reference_colour = "grey45",
                            point_colour = "#1d4ed8", point_size = 0.5) {
   rule <- match.arg(rule)
+  if (rule == "muilwijk") rule <- "mean"          # alias: named for its author
+  shade <- match.arg(shade)
   stopifnot(requireNamespace("ggplot2", quietly = TRUE))
   d <- sd_region_data(l = l, u = u, n = n, rule = rule, scoring = scoring,
                       n_items = n_items, alpha = alpha, digits = digits,
@@ -367,11 +393,29 @@ plot_sd_region <- function(l, u, n,
 
   p <- ggplot2::ggplot()
   # the region itself first, so the dashed reference stays visible on top of it
-  if (identical(attr(d, "type"), "band"))
-    p <- p + ggplot2::geom_ribbon(data = d,
-                                  ggplot2::aes(x = .data$mean, ymin = .data$lo,
-                                               ymax = .data$hi),
-                                  fill = fill, na.rm = TRUE)
+  if (identical(attr(d, "type"), "band")) {
+    if (shade == "inside") {
+      p <- p + ggplot2::geom_ribbon(data = d,
+                                    ggplot2::aes(x = .data$mean,
+                                                 ymin = .data$lo,
+                                                 ymax = .data$hi),
+                                    fill = fill, na.rm = TRUE)
+    } else {
+      # Knock the feasible rings out of a shaded panel rather than assembling
+      # the shading around them. The alpha rules leave stretches near each
+      # limit where no composite exists and `lo`/`hi` are NA; a ribbon draws
+      # nothing there, so assembled shading would leave those means unshaded
+      # and imply every SD is possible at them. See band_polygon().
+      step <- if (is.null(by)) (u - l) / 1000 else by
+      rings <- band_polygon(d, by = step)
+      p <- p + ggplot2::annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf,
+                                 ymax = Inf, fill = "grey10", alpha = 0.12)
+      if (!is.null(rings))
+        p <- p + ggplot2::geom_polygon(data = rings,
+          ggplot2::aes(x = .data$mean, y = .data$y, group = .data$ring),
+          inherit.aes = FALSE, fill = "white")
+    }
+  }
 
   # dashed reference: the sharp alpha-free band this rule should be judged against
   if (isTRUE(reference) && rule != "quasi") {
