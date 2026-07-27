@@ -62,7 +62,7 @@ Note what the points represent. The consistent set is the GRIM- and
 GRIMMER-consistent one, which is what \code{\link[=brimmer]{brimmer()}} applies. It is strictly
 larger than the set of attainable tuples, so an umbrella plot shows what the
 test admits rather than what exists; use \code{\link[=brimmest]{brimmest()}} to certify a tuple.
-The gap is not always small — 9\% at \verb{l = 1, u = 5, n = 10}, and nearly a
+The gap is not always small — 9\\% at \verb{l = 1, u = 5, n = 10}, and nearly a
 factor of three at \verb{l = 0, u = 6, n = 23} with two items.
 }
 \examples{

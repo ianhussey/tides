@@ -303,24 +303,24 @@ sd_region_data <- function(l, u, n,
 #'     integer data, with no reporting grid and so no `digits`. Unlike
 #'     `"integer"` this shows the true interior holes, which rounding to a
 #'     reporting grid smears shut; it is enumerated by dynamic programming and
-#'     errors if the lattice is too large.
-#'
-#'     The two lattice rules are easy to confuse and the difference is not
-#'     small. GRIMMER is necessary but not sufficient for an integer sample to
-#'     exist, so the attainable set is a strict subset of the
-#'     GRIMMER-consistent one. At `l = 1, u = 5, n = 10, digits = 2` there are
-#'     491 GRIMMER-consistent reported pairs against 447 attainable ones
-#'     rounded to the same grid: 9% pass `"integer"` without being attainable,
-#'     and none go the other way. At `l = 0, u = 6, n = 23` with two items the
-#'     gap is 23,738 against 8,634. Use [brimmest()] to certify a single tuple
-#'     rather than rounding a lattice to compare against.
-#'
-#'     Note also that `"integer"` returns pairs already rounded to `digits`, so
-#'     testing membership means rounding the candidate first: an exact sample
-#'     SD of 0.5270463 matches nothing until it becomes 0.53.}
+#'     errors if the lattice is too large.}
 #'   \item{`"attainable_alpha"`}{those exact tuples, additionally inside the
 #'     alpha-conditional bounds.}
 #' }
+#'
+#' The two lattice rules are easy to confuse and the difference is not small.
+#' GRIMMER is necessary but not sufficient for an integer sample to exist, so
+#' the attainable set is a strict subset of the GRIMMER-consistent one. At
+#' `l = 1, u = 5, n = 10, digits = 2` there are 491 GRIMMER-consistent reported
+#' pairs against 447 attainable ones rounded to the same grid: 9 percent pass
+#' `"integer"` without being attainable, and none go the other way. At
+#' `l = 0, u = 6, n = 23` with two items the gap is 23,738 against 8,634. Use
+#' [brimmest()] to certify a single tuple rather than rounding a lattice to
+#' compare against.
+#'
+#' Note also that `"integer"` returns pairs already rounded to `digits`, so
+#' testing membership means rounding the candidate first: an exact sample SD of
+#' 0.5270463 matches nothing until it becomes 0.53.
 #'
 #' @param l,u Numeric scalars, the scale limits (mean-score units when
 #'   `n_items > 1` and `scoring` is left at its default).
@@ -349,6 +349,14 @@ sd_region_data <- function(l, u, n,
 #' @param title Optional plot title.
 #' @param by Optional mean-grid spacing (default `(u - l) / 1000`); ignored by
 #'   the lattice rules, which step by `10^-digits`.
+#' @param shade `"outside"` (default) shades the infeasible region and leaves
+#'   the feasible one clear, matching [plot_sd_bounds()]; `"inside"` fills the
+#'   band. The outside form is drawn with [band_polygon()], so a rule whose
+#'   band is undefined at some means — the alpha rules near each limit — leaves
+#'   those means shaded rather than blank.
+#' @param expand Padding around the plotted region, as a proportion of the
+#'   scale width `u - l` rather than a fixed number of SD units, so the margin
+#'   looks the same on a 1-5 scale and a 0-100 one. Applied to both axes.
 #' @param fill,line_colour,reference_colour,point_colour,point_size Appearance.
 #' @return A ggplot object.
 #' @examples
@@ -374,7 +382,7 @@ plot_sd_region <- function(l, u, n,
                            n_items = 1, alpha = NULL, digits = 2,
                            round_digits = NULL, rounding = "half_up",
                            reference = TRUE, title = NULL, by = NULL,
-                           shade = c("outside", "inside"),
+                           shade = c("outside", "inside"), expand = 0.03,
                            fill = "grey85", line_colour = "black",
                            reference_colour = "grey45",
                            point_colour = "#1d4ed8", point_size = 0.5) {
@@ -442,7 +450,19 @@ plot_sd_region <- function(l, u, n,
                          colour = line_colour, linewidth = 0.4, na.rm = TRUE)
   }
 
+  # limits are set from the data rather than left to ggplot2, because the
+  # outside shading needs finite ones; padding is a proportion of the scale
+  # width so the margin is constant across scales of very different widths.
+  pad <- expand * (u - l)
+  y_hi <- if (identical(attr(d, "type"), "points"))
+            max(d$sd, na.rm = TRUE)
+          else max(c(d$hi, if (isTRUE(reference) && rule != "quasi")
+                             .quasi_band(seq(l, u, length.out = 101), n, l, u,
+                                         gg$mg)$hi), na.rm = TRUE)
+
   p +
+    ggplot2::coord_cartesian(xlim = c(l - pad, u + pad),
+                             ylim = c(-pad, y_hi + pad), expand = FALSE) +
     ggplot2::labs(x = "Mean", y = "Sample standard deviation", title = title) +
     ggplot2::theme_minimal() +
     ggplot2::theme(panel.grid.minor = ggplot2::element_blank())

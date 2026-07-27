@@ -188,7 +188,7 @@ plot_sd_bounds_pomp <- function(curve, points = NULL,
 #' GRIMMER-consistent one, which is what [brimmer()] applies. It is strictly
 #' larger than the set of attainable tuples, so an umbrella plot shows what the
 #' test admits rather than what exists; use [brimmest()] to certify a tuple.
-#' The gap is not always small — 9% at `l = 1, u = 5, n = 10`, and nearly a
+#' The gap is not always small — 9\% at `l = 1, u = 5, n = 10`, and nearly a
 #' factor of three at `l = 0, u = 6, n = 23` with two items.
 #'
 #' @param umbrella Output of [umbrella_data()], or an already-filtered lattice

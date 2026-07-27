@@ -55,10 +55,42 @@ sd_bounds(l = 1, u = 5, n = 9, mean = 2.44, Z = "quasiinteger")
 
 ## Checking a reported statistic
 
-`brimmer()` turns the bounds into a consistency verdict. Give it the
-reported values as they appear in a paper — numbers plus their decimal places —
-and it unrounds them, applies the bounds test, and (for integer data) defers the
-GRIM and GRIMMER verdicts to the `scrutiny` package.
+Three tests, named for how much they ask, and nested so that each contains the
+one before it:
+
+| test | asks | verdict |
+|---|---|---|
+| `brim()` | is the reported mean attainable? | necessary only |
+| `brimmer()` | and is the reported SD attainable with it? | necessary only |
+| `brimmest()` | is the pair jointly attainable by real integer data? | necessary **and** sufficient |
+
+`brim()` is the mean-side test on its own. It needs no SD, and asks only whether
+the reported mean could have arisen at all: within the scale limits, within the
+narrower band implied by any reported attained extremes, and — under
+`Z = "integer"` — GRIM-consistent.
+
+```{r}
+# an ordinary mean
+brim(l = 1, u = 7, n = 30, mean = 2.97, mean_digits = 2, Z = "integer")
+
+# GRIM-impossible: 30 x 3.51 is not a whole number
+brim(l = 1, u = 7, n = 30, mean = 3.51, mean_digits = 2, Z = "integer")
+```
+
+The failures are named separately, so an out-of-range mean (`in_scale_range`)
+is never confused with a granularity-impossible one (`grim`). `band_lo` and
+`band_hi` report the feasible band the mean was tested against; reporting an
+attained minimum and maximum narrows it.
+
+```{r}
+brim(a = 1, b = 7, n = 30, mean = 1.10, mean_digits = 2)[
+  , c("consistent", "failed_tests", "band_lo", "band_hi")]
+```
+
+`brimmer()` adds the SD. Give it the reported values as they appear in a paper —
+numbers plus their decimal places — and it unrounds them, applies the bounds
+test, and (for integer data) defers the GRIM and GRIMMER verdicts to the
+`scrutiny` package.
 
 ```{r}
 # an ordinary report on a 1-7 scale
@@ -112,6 +144,16 @@ points <- brimmer_multiple(
 plot_sd_bounds(curve, points = points)
 ```
 
+Shading marks what is *ruled out*, so the clear region is the answer to the
+question the figure was asked. `shade = "inside"` fills the feasible band
+instead, and `expand` sets the margin as a proportion of the scale width `u - l`
+rather than a fixed number of SD units, so a 1–7 scale and a 0–100 one are
+padded alike.
+
+```{r}
+plot_sd_bounds(curve, points = points, shade = "inside", expand = 0.06)
+```
+
 On the POMP scale, `reference = "parity"` keeps the geometry undistorted (a
 linear rescaling), while `reference = "sharp"` maps the feasible region to the
 unit square so a point's height is its position within the band.
@@ -120,15 +162,66 @@ unit square so a point's height is its position within the band.
 plot_sd_bounds_pomp(curve, points = points, reference = "sharp")
 ```
 
+## The nested constraints, drawn
+
+Each constraint set in the framework is a `rule` that `plot_sd_region()` can
+draw on its own, which is the quickest way to see what adding a constraint buys.
+
+```{r}
+plot_sd_region(l = 1, u = 5, n = 7, rule = "muilwijk",
+               title = "Muilwijk's ceiling, as originally stated")
+plot_sd_region(l = 1, u = 5, n = 7, rule = "quasi",
+               title = "Both bounds sharp, and GRIM-free")
+```
+
+`"muilwijk"` (an alias for `"mean"`) lets the counts at each limit be
+fractional. They cannot be, and `sd_delta()` is the price of rounding them: the
+fraction of that ceiling actually reachable. It is 1 exactly when both counts
+come out whole, and falls toward 0 near a limit, where the ceiling is least
+attainable.
+
+```{r}
+sd_delta(mean = c(3, 2, 1.07), n = 7, lower = 1, upper = 5)
+
+# which is exactly the gap between the two ceilings the package exports
+sd_max_structure_s(3, 7, 1, 5)^2
+sd_max_muilwijk(3, 7, 1, 5)^2 * sd_delta(3, 7, 1, 5)
+```
+
+Some rules leave stretches with no feasible SD at all — with a reported alpha
+there are means near each limit at which no composite exists. `band_polygon()`
+turns a band into closed rings so those stretches stay shaded rather than
+becoming blank, which would wrongly suggest any SD were possible there.
+
+```{r}
+d <- sd_region_data(0, 3, 7, rule = "alpha", n_items = 2, alpha = 0.70)
+c(means = nrow(d), undefined = sum(is.na(d$lo)),
+  rings = length(unique(band_polygon(d, by = 3 / 1000)$ring)))
+
+plot_sd_region(0, 3, 7, rule = "alpha", n_items = 2, alpha = 0.70,
+               title = "A reported alpha: three rings, not one band")
+```
+
 ## The umbrella
 
 `umbrella_data()` builds the full grid of reported (mean, SD) pairs at a given
 reporting precision, tagging each as consistent, GRIMMER-inconsistent, or out of
-bounds; `plot_umbrella()` renders it.
+bounds. `plot_umbrella()` draws only the consistent ones by default, since every
+other cell is a value that cannot be reported.
 
 ```{r}
-um <- umbrella_data(n = 14, l = 1, u = 7, digits = 2)
-plot_umbrella(um, curve = sd_bounds_curve(l = 1, u = 7, n = 14, Z = "quasiinteger"))
+um  <- umbrella_data(n = 14, l = 1, u = 7, digits = 2)
+cur <- sd_bounds_curve(l = 1, u = 7, n = 14, Z = "quasiinteger")
+plot_umbrella(um, curve = cur)
+```
+
+The vertical striping is the real structure: the means an integer sum can round
+to. `style = "tiles"` instead draws every cell of the grid, separating what the
+bounds rule out from what GRIMMER additionally rules out — useful for exposition,
+though it spends most of its ink on impossible values.
+
+```{r}
+plot_umbrella(um, curve = cur, style = "tiles")
 ```
 
 ## Settling what survives
