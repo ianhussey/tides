@@ -9,7 +9,9 @@ plot_sd_bounds(
   points = NULL,
   title = NULL,
   fill = "grey85",
-  line_colour = "grey30"
+  line_colour = "grey30",
+  shade = c("outside", "inside"),
+  expand = 0.03
 )
 }
 \arguments{
@@ -20,7 +22,17 @@ plot_sd_bounds(
 
 \item{title}{Optional plot title.}
 
-\item{fill, line_colour}{Band fill and outline colours.}
+\item{fill, line_colour}{Band fill and outline colours. \code{fill} is used only
+by \code{shade = "inside"}; the infeasible shading has its own fixed grey.}
+
+\item{shade}{\code{"outside"} (default) shades the infeasible region;
+\code{"inside"} fills the feasible band.}
+
+\item{expand}{Padding around the plotted region, as a proportion of the
+scale width \code{u - l} rather than a fixed number of SD units, so that the
+margin looks the same on a 1-5 scale and a 0-100 one. Applied to both
+axes. The limits always stretch to include \code{points}, so an out-of-bounds
+report is never clipped out of view.}
 }
 \value{
 A ggplot object.
@@ -28,6 +40,13 @@ A ggplot object.
 \description{
 The feasible SD band (floor to ceiling) against the mean, optionally with
 reported points coloured by consistency (green/red outlined dots).
+}
+\details{
+\code{shade = "outside"} (default) shades the infeasible region and leaves the
+feasible one clear, matching \code{\link[=plot_sd_bounds_pomp]{plot_sd_bounds_pomp()}} with
+\code{reference = "sharp"}, so the two scales read the same way: shaded means
+unreachable. \code{shade = "inside"} fills the feasible band instead, which was
+the behaviour before this argument existed.
 }
 \examples{
 curve <- sd_bounds_curve(l = 1, u = 7, n = 30, by = 0.1)
@@ -39,4 +58,7 @@ reports <- data.frame(mean = c(2.97, 3.51), sd = c(2.83, 3.50))
 checked <- brimmer_multiple(reports, l = 1, u = 7, n = 30,
                             mean_digits = 2, sd_digits = 2)
 plot_sd_bounds(curve, points = checked)
+
+# the previous look, with the feasible band filled
+plot_sd_bounds(curve, points = checked, shade = "inside")
 }

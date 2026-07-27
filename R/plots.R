@@ -18,11 +18,25 @@
 #' The feasible SD band (floor to ceiling) against the mean, optionally with
 #' reported points coloured by consistency (green/red outlined dots).
 #'
+#' `shade = "outside"` (default) shades the infeasible region and leaves the
+#' feasible one clear, matching [plot_sd_bounds_pomp()] with
+#' `reference = "sharp"`, so the two scales read the same way: shaded means
+#' unreachable. `shade = "inside"` fills the feasible band instead, which was
+#' the behaviour before this argument existed.
+#'
 #' @param curve Output of [sd_bounds_curve()].
 #' @param points Optional data.frame with `mean`, `sd`, and (optionally)
 #'   `consistent`; e.g. the output of [brimmer_multiple()].
 #' @param title Optional plot title.
-#' @param fill,line_colour Band fill and outline colours.
+#' @param fill,line_colour Band fill and outline colours. `fill` is used only
+#'   by `shade = "inside"`; the infeasible shading has its own fixed grey.
+#' @param shade `"outside"` (default) shades the infeasible region;
+#'   `"inside"` fills the feasible band.
+#' @param expand Padding around the plotted region, as a proportion of the
+#'   scale width `u - l` rather than a fixed number of SD units, so that the
+#'   margin looks the same on a 1-5 scale and a 0-100 one. Applied to both
+#'   axes. The limits always stretch to include `points`, so an out-of-bounds
+#'   report is never clipped out of view.
 #' @return A ggplot object.
 #' @examples
 #' curve <- sd_bounds_curve(l = 1, u = 7, n = 30, by = 0.1)
@@ -34,16 +48,52 @@
 #' checked <- brimmer_multiple(reports, l = 1, u = 7, n = 30,
 #'                             mean_digits = 2, sd_digits = 2)
 #' plot_sd_bounds(curve, points = checked)
+#'
+#' # the previous look, with the feasible band filled
+#' plot_sd_bounds(curve, points = checked, shade = "inside")
 #' @export
 plot_sd_bounds <- function(curve, points = NULL, title = NULL,
-                           fill = "grey85", line_colour = "grey30") {
+                           fill = "grey85", line_colour = "grey30",
+                           shade = c("outside", "inside"), expand = 0.03) {
   stopifnot(requireNamespace("ggplot2", quietly = TRUE))
+  shade <- match.arg(shade)
   cur <- curve[curve$feasible & is.finite(curve$max_sd), ]
-  p <- ggplot2::ggplot(cur, ggplot2::aes(x = .data$mean)) +
-    ggplot2::geom_ribbon(ggplot2::aes(ymin = .data$min_sd, ymax = .data$max_sd),
-                         fill = fill) +
+
+  # Padding is a proportion of the scale width, not a fixed SD amount, so the
+  # margin is visually constant across scales of very different widths.
+  lo_m <- min(cur$mean)
+  hi_m <- max(cur$mean)
+  pad <- expand * (hi_m - lo_m)
+  # Shading the outside needs finite limits, and finite limits will silently
+  # clip an out-of-bounds point - exactly the case the plot exists to show -
+  # so the ceiling of the view must account for the reported points as well.
+  y_hi <- max(c(cur$max_sd, points$sd), na.rm = TRUE)
+
+  p <- ggplot2::ggplot(cur, ggplot2::aes(x = .data$mean))
+  if (shade == "inside") {
+    p <- p +
+      ggplot2::geom_ribbon(ggplot2::aes(ymin = .data$min_sd, ymax = .data$max_sd),
+                           fill = fill)
+  } else {
+    sides <- data.frame(xmin = c(-Inf, hi_m), xmax = c(lo_m, Inf))
+    p <- p +
+      # beyond the scale limits, no mean is reportable at all
+      ggplot2::geom_rect(data = sides,
+        ggplot2::aes(xmin = .data$xmin, xmax = .data$xmax,
+                     ymin = -Inf, ymax = Inf),
+        inherit.aes = FALSE, fill = "grey10", alpha = 0.12) +
+      # above the ceiling and below the floor
+      ggplot2::geom_ribbon(ggplot2::aes(ymin = .data$max_sd,
+                                        ymax = y_hi + 2 * pad),
+                           fill = "grey10", alpha = 0.12) +
+      ggplot2::geom_ribbon(ggplot2::aes(ymin = -2 * pad, ymax = .data$min_sd),
+                           fill = "grey10", alpha = 0.12)
+  }
+  p <- p +
     ggplot2::geom_line(ggplot2::aes(y = .data$max_sd), colour = line_colour) +
     ggplot2::geom_line(ggplot2::aes(y = .data$min_sd), colour = line_colour) +
+    ggplot2::coord_cartesian(xlim = c(lo_m - pad, hi_m + pad),
+                             ylim = c(-pad, y_hi + pad), expand = FALSE) +
     ggplot2::labs(x = "Mean", y = "SD", title = title) +
     ggplot2::theme_minimal()
   if (!is.null(points)) p <- p + .bounds_point_layer(points, "mean", "sd")

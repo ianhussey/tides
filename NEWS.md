@@ -1,4 +1,4 @@
-# strait 0.4.6
+# strait 0.4.7
 
 ## Breaking changes
 
@@ -19,6 +19,16 @@
   reserved as a residual for infeasibility no other test accounts for.
 
 ## New features
+
+* `plot_sd_bounds()` gains `shade`, defaulting to `"outside"`: the infeasible
+  region is shaded and the feasible band left clear, so the native scale now
+  reads the same way as `plot_sd_bounds_pomp(reference = "sharp")` — shaded
+  means unreachable. `shade = "inside"` restores the previous filled band.
+* `plot_sd_bounds()` gains `expand`, the padding around the plotted region as
+  a proportion of the scale width `u - l` rather than a fixed number of SD
+  units, so the margin looks the same on a 1-5 scale and a 0-100 one. The
+  limits always stretch to include `points`, so an out-of-bounds report cannot
+  be clipped out of view by the finite limits that outside-shading requires.
 
 * `brimmest()` completes the `brim()` / `brimmer()` / `brimmest()` family with
   an exact possible / impossible certificate for reported `(mean, sd)` tuples
