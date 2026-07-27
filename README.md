@@ -188,7 +188,7 @@ The single-purpose bound primitives (e.g. `sd_max_structure_s()`, `sd_min_quasi_
 
 ## Suggested citation
 
-Hussey, I. (2024). strait: Bounds checks for reported summary statistics. https://github.com/ianhussey/strait doi: [10.5281/zenodo.21439905](https://doi.org/10.5281/zenodo.21439905)
+Hussey, I. (2026). strait: Bounds checks for reported summary statistics. https://github.com/ianhussey/strait doi: [10.5281/zenodo.21439905](https://doi.org/10.5281/zenodo.21439905)
 
 ## References
 
