@@ -1,3 +1,58 @@
+# strait 0.4.9
+
+## New features
+
+* `brimmest()` gains a fast certification path that decides most single
+  reports by arithmetic and a constructive search, instead of sweeping a state
+  space sized by the design. The verdict is unchanged — the new route is
+  verified to agree with the existing ones cell for cell — but the cost is
+  now set by the report rather than by the scale width and sample size.
+
+  Two layers do the work. A closed-form sandwich screen bounds the achievable
+  sum of squares at a candidate sample sum between the clustered and
+  Structure-S configurations, and adds the parity condition `Q = S (mod 2)`
+  that holds for every sample because `y^2 = y (mod 2)`. A window meeting no
+  admissible integer between those bounds is impossible on arithmetic alone.
+  What survives goes to a search over non-increasing samples — the partitions
+  of the sum — re-applying the sandwich at every step to what is left to
+  place. Completing a sample proves possibility and produces a witness;
+  exhausting the search proves impossibility. Reflecting `y -> W - y` when the
+  sum sits above the scale midpoint means the search always builds from the
+  nearer wall, where the tree is shallow, which is exactly where the
+  closed-form screens leak.
+
+  The search runs depth-first on an explicit stack rather than by recursion,
+  so sample size is not a constraint on it: a report at `n = 20000` is
+  certified, with a witness, in under half a second.
+
+* `brimmest()` gains a `search_budget` argument (default `2e5` nodes) bounding
+  that search. Reports it does not settle in budget fall through to the
+  corridor dynamic program as before, so the argument trades route for route
+  and never changes a verdict.
+
+## Performance
+
+* A single report on a 0-63 inventory at `n = 50` — a design the full lattice
+  refuses outright — falls from 82 s to 2.3 ms. A 0-100 scale at `n = 100`,
+  previously beyond either sweeping route, certifies in 4.6 ms. The blind-spot
+  cell of the documentation (mean 1.3, SD 0.9, `n = 9`, 1-5) falls from 453 to
+  53 microseconds, deciding both rounding rules in nine node expansions.
+  (Medians of repeated runs, both rounding rules, target construction
+  excluded from both sides.)
+* Grid-sized workloads are unaffected: `brimmest()` still routes a whole
+  reporting grid to the cached lattice, which remains much cheaper per cell
+  when the design is being enumerated anyway.
+
+## Validation
+
+* The new path was checked exhaustively against enumeration for every sample
+  sum and every narrow window at `n = 2..4` on scales up to `W = 5`, in both
+  directions, with every returned witness verified to be a real sample hitting
+  its window.
+* Against the lattice route it agreed on all 2,719,364 reporting-grid cells
+  spanning six designs, two reporting precisions and two rounding rules, and
+  was never cut short by its node budget.
+
 # strait 0.4.8
 
 ## Breaking changes

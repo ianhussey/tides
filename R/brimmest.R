@@ -55,15 +55,25 @@
 #' impossible, since the state table outgrows `max_cells`. A reported tuple
 #' pins both coordinates almost completely: the mean's rounding interval
 #' admits only a few integer sums, and each of those pins the sum of squares
-#' to a narrow window. Only states that can still reach one of those targets
-#' are visited, which confines the search to a corridor of roughly a tenth of
-#' the full table, and a hit can be declared at any layer because scores at
-#' the scale minimum pad a short sample out to `n`. Possibility is therefore
-#' often immediate; impossibility still costs a full sweep of the corridor.
+#' to a narrow window. That reduces certification to a question about one
+#' sample sum at a time, which is answered in three escalating steps.
+#'
+#' A closed-form sandwich comes first. For a given sum the achievable sums of
+#' squares lie between the clustered configuration and the Structure-S one,
+#' and all share the sum's parity; a window meeting no admissible integer
+#' between them is impossible on arithmetic alone. What survives goes to a
+#' constructive search over non-increasing samples — the partitions of the sum
+#' — with the same sandwich re-applied at every step to what is left to place.
+#' Reaching a complete sample proves possibility and produces a witness;
+#' exhausting the search proves impossibility. Only when neither happens
+#' inside `search_budget` does the corridor sweep run: a dynamic program
+#' confined to the states that can still reach a target, roughly a tenth of
+#' the full table.
 #'
 #' The practical effect is that designs the lattice refuses outright become
-#' answerable — a 0-63 inventory at `n = 50` needs a 3151 x 24801 table — at
-#' roughly twice the speed on the large designs where both routes work.
+#' answerable — a 0-63 inventory at `n = 50` needs a 3151 x 24801 table — and
+#' that the overwhelming majority of single reports are settled without any
+#' sweep at all.
 #'
 #' @section Rounding and the direction of proof:
 #' A hit certifies possibility under whichever rounding rule produced it. A
@@ -93,6 +103,10 @@
 #' @param n_items Positive whole number of response items (default 1).
 #' @param max_cells Guard on the dynamic program's state space (default
 #'   `2e7`); the enumeration errors rather than exhausting memory above it.
+#' @param search_budget Node budget for the constructive search (default
+#'   `2e5`). Raising it lets the search settle more reports on its own;
+#'   lowering it hands them to the corridor sweep sooner. The verdict is the
+#'   same either way — only which route produces it changes.
 #' @return A data.frame with one row per reported tuple: `mean`, `sd`,
 #'   `possible` (logical), and `rules` — the rounding rules under which the
 #'   tuple is reachable, comma-separated and `""` when none.
@@ -114,7 +128,7 @@ brimmest <- function(l, u, n, mean, sd, digits = NULL,
                     mean_digits = NULL, sd_digits = NULL,
                     rounding = c("half_up", "half_down"),
                     scoring = c("singleitem", "sumscored", "meanscored"),
-                    n_items = 1, max_cells = 2e7) {
+                    n_items = 1, max_cells = 2e7, search_budget = 2e5) {
   scoring <- match.arg(scoring)
   valid <- c("half_up", "half_down", "native", "ceiling", "floor",
              "trunc", "anti_trunc")
@@ -162,7 +176,13 @@ brimmest <- function(l, u, n, mean, sd, digits = NULL,
     hit_mat <- vapply(rounding, function(rr) {
       vapply(seq_len(nn), function(i) {
         tg <- .target_states(l, u, n, g$mg, mean[i], sd[i], md, sdd, rr)
-        got <- .attainable_target(W, n, tg, max_cells = max_cells)
+        # Arithmetic and a pruned constructive search first (see
+        # R/certify-sandwich.R); the corridor sweep only for what they leave
+        # undecided. Both give the same verdict, so the order is purely a
+        # matter of cost.
+        got <- .certify_fast(W, n, tg, budget = search_budget)
+        if (is.na(got)) got <- .attainable_target(W, n, tg,
+                                                  max_cells = max_cells)
         if (is.na(got)) stop(
           "this design is too large to certify at the requested precision; ",
           "raise max_cells, or report to fewer decimal places")

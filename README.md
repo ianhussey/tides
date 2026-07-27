@@ -70,7 +70,7 @@ The tests above are *necessary* — failing one proves a report impossible — b
 | `brimmer()` | and is the reported SD attainable with it? | necessary only |
 | `brimmest()` | is the pair jointly attainable by real integer data? | **necessary and sufficient** |
 
-It enumerates the exact attainable `(mean, sd)` lattice for a design by dynamic programming over the reachable *(sum, sum of squares)* states, rounds it to the reporting precision, and tests membership:
+For a whole reporting grid it enumerates the exact attainable `(mean, sd)` lattice for the design by dynamic programming over the reachable *(sum, sum of squares)* states, rounds it to the reporting precision, and tests membership:
 
 ```r
 # passes the bounds, GRIM and GRIMMER, yet no integer sample produces it
@@ -80,6 +80,8 @@ brimmest(l = 1, u = 5, n = 9, mean = 1.3, sd = 0.9, digits = 1)
 ```
 
 This is the same certificate the CLOSURE algorithm provides (`unsum::closure_generate()`), reached analytically rather than by search — an **analytic CLOSURE certification**. Verified cell-for-cell against CLOSURE across six designs (~5,700 tuples, zero disagreements) at roughly **700–1000x** the speed, because the cost depends only on `l`, `u` and `n` rather than on how many datasets satisfy the constraints, and one lattice certifies every tuple of a design at once.
+
+For a *single* report, enumerating every attainable pair to answer one membership question is the wrong shape of work — and past a certain scale width it is impossible, since the state table outgrows its own guard. A report pins the sample sum to a few integers and the sum of squares to a narrow window, so `brimmest()` answers it directly instead: a closed-form sandwich between the clustered and Structure-S configurations, plus the parity condition every sample obeys, disposes of most reports as arithmetic; what survives goes to a constructive search over the sample itself, which returns a witness when it completes and a proof of impossibility when it exhausts. A 0–63 inventory at *n* = 50 certifies in **0.006 s**, where the lattice route refuses to run at all and the earlier corridor sweep took 82 s.
 
 The trade is that no witness datasets are produced. Use CLOSURE when you need the actual candidate samples; use `brimmest()` when the verdict is the deliverable. See `validation/certification.qmd`.
 

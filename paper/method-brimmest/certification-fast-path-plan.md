@@ -1,8 +1,42 @@
 # Plan: near-analytic certification for `brimmest()`
 
-Status: plan only, nothing implemented. Companion to the manuscript sections
-"Certifying one report without enumerating every other" and "An open problem:
-the near-closed-form certificate" in `manuscript.qmd`.
+Status: **Phase A shipped in 0.4.9** (`R/certify-sandwich.R`,
+`tests/testthat/test-certify-sandwich.R`); Phase B still open. Companion to the
+manuscript sections "Certifying one report without enumerating every other",
+"Replacing the sweep with arithmetic and a witness" and "An open problem: the
+near-closed-form certificate" in `manuscript.qmd`.
+
+## What shipped, and how it differs from the plan below
+
+Steps 1, 2 and 4a collapsed into one object rather than three. A search over
+**non-increasing** value sequences is already a search over the partitions of
+`S`, so Step 2's partition enumeration is not a separate routine with its own
+`e <= T` threshold — it is what the Step 4a search *does* when the wall is
+near, and the `y -> W - y` reflection is applied once at entry rather than as
+a special case for the top wall. That removed the need for `.q_set_near_wall()`
+and for a measured threshold on `e`.
+
+The search is also stronger than the greedy the plan specified. A greedy walk
+upward from the clustered configuration is success-only: it certifies
+possibility when it reaches the target and concludes nothing when it stalls.
+Running the same construction as a depth-first search with the Step 1 sandwich
+re-applied at every node, and with children ordered by how centrally the
+surviving window sits inside each child's own sandwich, keeps the greedy dive
+as its first path while making **exhaustion a proof of impossibility**. The
+verdict is therefore exact in both directions whenever the search terminates,
+and the node budget — not the absence of a theorem — is the only thing that
+sends a report to the corridor DP.
+
+Measured on 2,719,364 reporting-grid cells across six designs, two precisions
+and two rounding rules: zero disagreements with the lattice route, and the
+budget was never reached. 0-63 at n = 50 fell from 82 s to 0.006 s.
+
+**Not done from Phase A.** `.target_states()` was not rewritten on exact
+integers; the fast path consumes its output and converts to integers in
+`.k_window()`, so the `1e-9` epsilons still live in candidate-sum generation.
+The witness is computed and tested but not surfaced in `brimmest()`'s return
+value, because the lattice route cannot produce one and the column would be
+silently absent for grid-sized workloads.
 
 ## Context
 
@@ -47,7 +81,7 @@ Terminology used throughout, on the shifted scale `y = x − l ∈ {0..W}`,
 
 ---
 
-## Step 1 — exact integer sandwich screen (ships first; fully rigorous)
+## Step 1 — exact integer sandwich screen — **SHIPPED (0.4.9)**
 
 **What.** Per candidate `S`, an O(1) test: the report is impossible unless the
 `Q` window intersects `[q_min(S), q_max(S)]` in an integer of the right
@@ -75,7 +109,7 @@ share of the umbrella's exterior that the corridor DP currently sweeps for.
 
 ---
 
-## Step 2 — wall-distance partition enumeration (ships first; fully rigorous)
+## Step 2 — wall-distance partition enumeration — **SHIPPED, subsumed by Step 4a**
 
 **What.** When the wall distance `e` is small, the complete achievable `Q` set
 at that `S` is exactly the sums of squares of the partitions of `e` into parts
@@ -104,7 +138,7 @@ from the validation doc into the package rather than duplicating it.
 
 ---
 
-## Step 3 — the resolution cutoff for large n (conditional; Phase B)
+## Step 3 — the resolution cutoff for large n — **OPEN (Phase B)**
 
 **What.** The top gap between adjacent achievable SDs is
 `g₁ = 2(R−1)/(R·√(n(n−1)))` (validation doc, same section — derived, not
@@ -130,7 +164,7 @@ after the lemma is proven in the manuscript.
 
 ---
 
-## Step 4 — greedy witness construction (4a ships first; 4b is the theorem)
+## Step 4 — witness construction — **4a SHIPPED (as exhaustive DFS); 4b OPEN**
 
 **4a (sound today).** A greedy builder: start from the clustered configuration
 (`Q = q_min`), walk `Q` upward in +2 steps by single-unit spreads
@@ -156,11 +190,13 @@ below the top fringe.
 
 ---
 
-## Step 5 — the routing composite
+## Step 5 — the routing composite — **SHIPPED, simplified**
 
 Order matters; the wall-distance check must precede any band logic, because
 near the walls the whole ladder is a few rungs and "top C·g₁ band" degenerates
 (the e = 3 example: *everything* is fringe).
+
+Planned:
 
 ```
 per candidate S (usually 1-5 of them):
@@ -171,6 +207,22 @@ per candidate S (usually 1-5 of them):
   5. window within ladder's enumerated
      top rungs (existing top_ss_ladder)  -> exact verdict, done
   6. corridor DP (existing)              -> exact verdict (fallback sliver)
+grid-sized workloads keep the cached-lattice route unchanged.
+```
+
+As shipped, because 2, 3 and 5 all turned out to be the same search:
+
+```
+per candidate S (usually 1-5 of them):
+  1. .k_window(): sandwich + parity      -> impossible, or continue
+  2. .witness_search(): reflect to the
+     nearer wall, DFS over non-increasing
+     samples with the sandwich re-applied
+     at every node
+       leaf reached  -> possible (+ witness), done
+       tree exhausted -> impossible, done
+       budget reached -> no verdict
+  3. .attainable_target(): corridor DP   -> exact verdict (fallback sliver)
 grid-sized workloads keep the cached-lattice route unchanged.
 ```
 
@@ -202,6 +254,13 @@ every verdict outside it is proven rather than assumed.
 ## Phasing
 
 - **Phase A** (all rigorous, no conjectures): Steps 1, 2, 4a, routing, tests,
-  benchmarks. Version bump + NEWS entry.
+  benchmarks. Version bump + NEWS entry. **Done in 0.4.9**, less the two items
+  listed under "Not done from Phase A" above.
 - **Phase B** (conditional on the lemma / theorem): Step 3, Step 4b, retire
-  `max_cells`, manuscript update.
+  `max_cells`, manuscript update. **Open.** Note that Phase A has changed what
+  Phase B would buy: Step 3's cutoff was motivated by the corridor DP being
+  slowest at large n, and the corridor DP now runs for essentially no report.
+  Step 4b's contiguity theorem remains worth proving, but for the manuscript's
+  sake rather than the package's — proving it would replace a search that
+  already terminates in microseconds with arithmetic that provably always
+  does.

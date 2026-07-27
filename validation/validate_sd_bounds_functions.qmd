@@ -736,6 +736,98 @@ The blind spot is therefore no longer a limitation of the package, only of the
 closed-form layer within it. `brimmer()` remains the fast screen; `brimmest()`
 is the exact adjudicator for whatever survives it.
 
+## The fast route reaches the same verdicts
+
+`brimmest()` has three routes to one verdict, and which one runs is a cost
+decision made from the design and the number of reports asked about. A grid
+goes to the cached attainable lattice. A single report on a large design goes
+first to the arithmetic sandwich and the constructive witness search
+(`R/certify-sandwich.R`), and only what those leave undecided within the node
+budget falls through to the corridor dynamic program
+(`R/attainable-target.R`). Interchangeability is therefore not a convenience
+claim but a correctness requirement, and it is checked three ways.
+
+The first is exhaustive: for small designs, enumerate every sample outright
+and compare the search's verdict against the true set of achievable sums of
+squares, for every sample sum and every narrow window, in both directions.
+Any witness the search returns must also be a real sample landing in its
+window — a verdict of "possible" that could not be substantiated by a witness
+would be a bug the verdict alone would hide.
+
+```{r}
+res_fast <- list()
+W_b <- 5; n_b <- 4
+gridb <- as.matrix(expand.grid(rep(list(0:W_b), n_b)))
+ach_b <- split(rowSums(gridb^2), rowSums(gridb))
+
+disagree <- 0L; bad_witness <- 0L; ncase <- 0L
+for (s in as.integer(names(ach_b))) {
+  ach <- sort(unique(ach_b[[as.character(s)]]))
+  for (klo in 0:(n_b * W_b * W_b)) for (khi in klo:min(klo + 2, n_b * W_b * W_b)) {
+    got <- strait:::.witness_search(W_b, n_b, s, klo, khi)
+    ncase <- ncase + 1L
+    if (!identical(got$possible, any(ach >= klo & ach <= khi)))
+      disagree <- disagree + 1L
+    if (isTRUE(got$possible)) {
+      w <- got$witness
+      if (length(w) != n_b || any(w < 0 | w > W_b) || sum(w) != s ||
+          sum(w^2) < klo || sum(w^2) > khi) bad_witness <- bad_witness + 1L
+    }
+  }
+}
+res_fast[[sprintf("search == enumeration on all %d windows (n=4, W=5)", ncase)]] <-
+  disagree == 0L
+res_fast[["every returned witness is a real sample in its window"]] <-
+  bad_witness == 0L
+```
+
+The second is the parity condition the sandwich rests on. `Q = S (mod 2)` for
+every sample, because `y^2 = y (mod 2)` term by term; the screen is sound only
+if that holds without exception, so it is checked rather than assumed.
+
+```{r}
+res_fast[["Q = S (mod 2) for every sample of the enumerated design"]] <-
+  all(rowSums(gridb^2) %% 2 == rowSums(gridb) %% 2)
+```
+
+The third is agreement with the routes it bypasses, cell for cell, on real
+reporting grids. Below is a reduced version; the full sweep run for this
+release covered 2,719,364 cells over six designs at one and two decimal
+places under both half-rounding rules, with zero disagreements and no report
+ever reaching the node budget.
+
+```{r}
+route_cmp <- function(l, u, n, dig) {
+  W <- u - l
+  gr <- expand.grid(mean = seq(l, u, by = 10^-dig),
+                    sd   = seq(0, (u - l) / 2, by = 10^-dig),
+                    rr   = c("half_up", "half_down"),
+                    stringsAsFactors = FALSE)
+  fast <- slow <- rep(NA, nrow(gr))
+  for (i in seq_len(nrow(gr))) {
+    tg <- strait:::.target_states(l, u, n, 1, gr$mean[i], gr$sd[i],
+                                  dig, dig, gr$rr[i])
+    fast[i] <- strait:::.certify_fast(W, n, tg)
+    slow[i] <- strait:::.attainable_target(W, n, tg)
+  }
+  c(cells = nrow(gr), capped = sum(is.na(fast)),
+    disagreed = sum(!is.na(fast) & fast != slow))
+}
+cmp <- rbind(route_cmp(1, 5, 9, 1), route_cmp(0, 6, 12, 1),
+             route_cmp(1, 7, 11, 1))
+res_fast[["fast route == corridor DP, cell for cell"]] <- sum(cmp[, "disagreed"]) == 0
+res_fast[["no report needed the corridor DP fallback"]] <- sum(cmp[, "capped"]) == 0
+
+for (nm in names(res_fast)) check(res_fast[[nm]], nm)
+kable(tibble(test = names(res_fast), passed = unlist(res_fast)),
+      caption = "The fast certification path agrees with what it replaces.")
+```
+
+That the corridor DP was never needed is a measurement over the designs swept
+here, not a theorem, which is why the fallback is retained. The open question
+it stands in for — whether the achievable sums of squares are contiguous below
+a computable fringe — is stated in `paper/method-brimmest/manuscript.qmd`.
+
 # Part 4: multi-item scoring, POMP, and the derived builders
 
 The `scoring`/`n_items` layer, the POMP transforms of `brimmer()`, and
