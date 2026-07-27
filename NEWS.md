@@ -20,6 +20,19 @@
 
 ## New features
 
+* `brimmest()` now certifies designs the full lattice refuses. A reported
+  tuple pins the sum to a few candidate values and the sum of squares to a
+  narrow window, so only states that can still reach one of those targets are
+  visited. That corridor is roughly a tenth of the full state table, and a hit
+  can be declared at any layer because scores at the scale minimum pad a short
+  sample out to `n`. A 0-63 inventory at `n = 50` needs a 3151 x 24801 table
+  and previously failed with a size error; it now returns a verdict. On large designs where
+  both routes work the targeted one is about twice as fast. Small designs
+  still use the lattice, which is cheaper there and is now cached per
+  `(l, u, n)` so repeated calls pay for it once. Verdicts are unchanged:
+  equivalence with lattice membership is asserted over 1.75 million cells
+  spanning six designs, two precisions and two rounding rules.
+
 * `plot_sd_bounds()` gains `shade`, defaulting to `"outside"`: the infeasible
   region is shaded and the feasible band left clear, so the native scale now
   reads the same way as `plot_sd_bounds_pomp(reference = "sharp")` — shaded

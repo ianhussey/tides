@@ -87,11 +87,35 @@ This is the same question the CLOSURE algorithm answers (see
 an \emph{analytic CLOSURE certification}. The trade is that no witness datasets
 are produced: the lattice records which \verb{(mean, sd)} pairs are reachable,
 not how. In exchange the cost depends only on \code{l}, \code{u} and \code{n}, not on how
-many datasets happen to satisfy the constraints, and one lattice certifies
-every tuple of that design at once — so a vector of reports costs barely
-more than a single one. The certification validation document in
-\verb{validation/} reports the comparison against CLOSURE in full.
+many datasets happen to satisfy the constraints. The certification
+validation document in \verb{validation/} reports the comparison against CLOSURE
+in full.
 }
+\section{How the work is done}{
+
+Two routes reach the same verdict, chosen automatically by design size.
+
+For a small design the whole attainable lattice is enumerated once and the
+reports matched against it, so a vector of tuples costs barely more than a
+single one. The lattice is cached per \verb{(l, u, n)}, so repeated calls on one
+design pay for it once.
+
+For a large design asked about a handful of reports, enumerating everything
+to answer a membership question is wasteful — and on a wide scale it is
+impossible, since the state table outgrows \code{max_cells}. A reported tuple
+pins both coordinates almost completely: the mean's rounding interval
+admits only a few integer sums, and each of those pins the sum of squares
+to a narrow window. Only states that can still reach one of those targets
+are visited, which confines the search to a corridor of roughly a tenth of
+the full table, and a hit can be declared at any layer because scores at
+the scale minimum pad a short sample out to \code{n}. Possibility is therefore
+often immediate; impossibility still costs a full sweep of the corridor.
+
+The practical effect is that designs the lattice refuses outright become
+answerable — a 0-63 inventory at \code{n = 50} needs a 3151 x 24801 table — at
+roughly twice the speed on the large designs where both routes work.
+}
+
 \section{Rounding and the direction of proof}{
 
 A hit certifies possibility under whichever rounding rule produced it. A

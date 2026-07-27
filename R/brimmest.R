@@ -38,10 +38,32 @@
 #' an *analytic CLOSURE certification*. The trade is that no witness datasets
 #' are produced: the lattice records which `(mean, sd)` pairs are reachable,
 #' not how. In exchange the cost depends only on `l`, `u` and `n`, not on how
-#' many datasets happen to satisfy the constraints, and one lattice certifies
-#' every tuple of that design at once — so a vector of reports costs barely
-#' more than a single one. The certification validation document in
-#' `validation/` reports the comparison against CLOSURE in full.
+#' many datasets happen to satisfy the constraints. The certification
+#' validation document in `validation/` reports the comparison against CLOSURE
+#' in full.
+#'
+#' @section How the work is done:
+#' Two routes reach the same verdict, chosen automatically by design size.
+#'
+#' For a small design the whole attainable lattice is enumerated once and the
+#' reports matched against it, so a vector of tuples costs barely more than a
+#' single one. The lattice is cached per `(l, u, n)`, so repeated calls on one
+#' design pay for it once.
+#'
+#' For a large design asked about a handful of reports, enumerating everything
+#' to answer a membership question is wasteful — and on a wide scale it is
+#' impossible, since the state table outgrows `max_cells`. A reported tuple
+#' pins both coordinates almost completely: the mean's rounding interval
+#' admits only a few integer sums, and each of those pins the sum of squares
+#' to a narrow window. Only states that can still reach one of those targets
+#' are visited, which confines the search to a corridor of roughly a tenth of
+#' the full table, and a hit can be declared at any layer because scores at
+#' the scale minimum pad a short sample out to `n`. Possibility is therefore
+#' often immediate; impossibility still costs a full sweep of the corridor.
+#'
+#' The practical effect is that designs the lattice refuses outright become
+#' answerable — a 0-63 inventory at `n = 50` needs a 3151 x 24801 table — at
+#' roughly twice the speed on the large designs where both routes work.
 #'
 #' @section Rounding and the direction of proof:
 #' A hit certifies possibility under whichever rounding rule produced it. A
@@ -112,29 +134,61 @@ brimmest <- function(l, u, n, mean, sd, digits = NULL,
   k <- as.integer(round(n_items))
   g <- .scoring_geometry(scoring, k, l, u)
 
-  # one lattice per design, reused across every reported tuple
-  lat <- .attainable_lattice(l, u, n, g$mg, max_cells = max_cells)
-
   nn <- max(length(mean), length(sd))
   mean <- rep(mean, length.out = nn)
   sd <- rep(sd, length.out = nn)
 
-  # Both sides are on the 10^-digits reporting grid, so compare them as whole
-  # numbers of grid steps rather than as strings: exact, and it keeps a
-  # multi-million-row lattice cheap to match against. Integers also sidestep
-  # the negative zero some rounding rules return at 0, which compares equal
-  # but formats differently.
-  mult_m <- 10^md
-  mult_s <- 10^sdd
-  qm <- round(mean * mult_m)
-  qs <- round(sd * mult_s)
+  # Two routes to the same verdict, chosen by how much work each implies.
+  #
+  # Targeted (see R/attainable-target.R): reachability of just the states the
+  # report pins down. Cost is per tuple, so it wins for a handful of reports,
+  # and it is the only route on wide scales, where the full lattice exceeds
+  # its own size guard.
+  #
+  # Lattice: enumerate every attainable pair once and match against it. Cost
+  # is per design regardless of how many tuples are asked about, so it wins
+  # once there are enough of them, as when brimmest() is handed a whole grid.
+  # A small lattice is so cheap to build, and now cached, that it beats the
+  # targeted route even for one tuple; the targeted route earns its overhead
+  # only once the lattice is genuinely large, and is the sole option once the
+  # lattice will not fit at all.
+  W <- as.integer(round(g$mg * (u - l)))
+  cells <- .lattice_cells(l, u, n, g$mg)
+  affordable <- !is.na(cells) && cells <= max_cells
+  use_target <- !affordable ||
+    (cells > 1e6 && nn * length(rounding) <= 64)
 
-  hit_mat <- vapply(rounding, function(rr) {
-    lm <- round(.round_reported(lat$mean, md, rr) * mult_m)
-    ls <- round(.round_reported(lat$sd, sdd, rr) * mult_s)
-    span <- max(c(ls, qs), 0) + 1              # same packing for both sides
-    (qm * span + qs) %in% (lm * span + ls)
-  }, logical(nn))
+  if (use_target) {
+    hit_mat <- vapply(rounding, function(rr) {
+      vapply(seq_len(nn), function(i) {
+        tg <- .target_states(l, u, n, g$mg, mean[i], sd[i], md, sdd, rr)
+        got <- .attainable_target(W, n, tg, max_cells = max_cells)
+        if (is.na(got)) stop(
+          "this design is too large to certify at the requested precision; ",
+          "raise max_cells, or report to fewer decimal places")
+        got
+      }, logical(1))
+    }, logical(nn))
+  } else {
+    # one lattice per design, reused across every reported tuple and cached so
+    # that repeated calls on the same design pay for it once
+    lat <- .lattice_cached(l, u, n, g$mg, max_cells)
+    # Both sides are on the 10^-digits reporting grid, so compare them as
+    # whole numbers of grid steps rather than as strings: exact, and it keeps
+    # a multi-million-row lattice cheap to match against. Integers also
+    # sidestep the negative zero some rounding rules return at 0, which
+    # compares equal but formats differently.
+    mult_m <- 10^md
+    mult_s <- 10^sdd
+    qm <- round(mean * mult_m)
+    qs <- round(sd * mult_s)
+    hit_mat <- vapply(rounding, function(rr) {
+      lm <- round(.round_reported(lat$mean, md, rr) * mult_m)
+      ls <- round(.round_reported(lat$sd, sdd, rr) * mult_s)
+      span <- max(c(ls, qs), 0) + 1            # same packing for both sides
+      (qm * span + qs) %in% (lm * span + ls)
+    }, logical(nn))
+  }
   dim(hit_mat) <- c(nn, length(rounding))
 
   rules <- apply(hit_mat, 1L, function(z) paste(rounding[z], collapse = ","))
