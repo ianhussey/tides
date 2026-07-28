@@ -2,6 +2,17 @@
 
 ## New features
 
+* `brimmest_multiple()` applies `brimmest()` across a data frame, as
+  `brimmer_multiple()` does for the closed-form screen. Columns matching
+  `brimmest()` arguments are read per row and anything in `...` is broadcast.
+  Rows are grouped by design and each group certified in one call, because one
+  attainable lattice serves every report of a design and is built once —
+  certifying a 200-row table on a single design takes about 2 ms. Repeated
+  `(mean, sd)` pairs within a design are computed once. `rounding`,
+  `max_cells` and `search_budget` may be given only as constants: `rounding`
+  is a set of admitted rules rather than one value per row, so reading it per
+  row would silently mangle it.
+
 * `brimmest()` gains a fast certification path that decides most single
   reports by arithmetic and a constructive search, instead of sweeping a state
   space sized by the design. The verdict is unchanged — the new route is
@@ -33,12 +44,27 @@
 ## Performance
 
 * A single report on a 0-63 inventory at `n = 50` — a design the full lattice
-  refuses outright — falls from 82 s to 2.3 ms. A 0-100 scale at `n = 100`,
-  previously beyond either sweeping route, certifies in 4.6 ms. The blind-spot
-  cell of the documentation (mean 1.3, SD 0.9, `n = 9`, 1-5) falls from 453 to
-  53 microseconds, deciding both rounding rules in nine node expansions.
-  (Medians of repeated runs, both rounding rules, target construction
-  excluded from both sides.)
+  refuses outright — falls from 78 s to 0.63 ms. A 0-100 scale at `n = 100`,
+  previously beyond either sweeping route, certifies in 1.5 ms. The blind-spot
+  cell of the documentation (mean 1.3, SD 0.9, `n = 9`, 1-5) falls from 493 to
+  41 microseconds, deciding both rounding rules in nine node expansions. Every
+  figure here is produced by the benchmark table in
+  `validation/validate_sd_bounds_functions.qmd`, medians of repeated runs over
+  both rounding rules.
+
+* The search itself costs about 6 microseconds per node, down from 22. Almost
+  all of that was R's own overhead rather than arithmetic — the cost was flat
+  in scale width, which is the signature. Children are now ordered lazily:
+  only the best one is wanted on the way down, and the way down is nearly
+  always the whole search, so `which.min()` serves the first visit and
+  `order()` is paid only by a frame that is returned to. `order()` inspects
+  its arguments through `match.arg()` and two `vapply()` passes before sorting
+  anything, which at these lengths costs several times the sort. `ifelse()`,
+  `pmax()`/`pmin()` and a general-purpose `.q_max_int()` call were likewise
+  replaced with masked arithmetic in the one function that runs per node, and
+  two conditions in its filter dropped as provably redundant given the
+  candidate range. No verdict changes: the ordering only decides which witness
+  is found first.
 * Grid-sized workloads are unaffected: `brimmest()` still routes a whole
   reporting grid to the cached lattice, which remains much cheaper per cell
   when the design is being enumerated anyway.

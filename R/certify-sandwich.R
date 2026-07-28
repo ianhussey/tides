@@ -109,72 +109,126 @@
   }
 
   # The next value to place, given that `i` remain, none may exceed `cap`,
-  # they must sum to S, and their squares must sum into [k_lo, k_hi].
-  # Returns the admissible choices, best first, or an empty vector when the
-  # state is already impossible.
+  # they must sum to S, and their squares must sum into [k_lo, k_hi]. Returns
+  # the admissible choices and a score for each -- how centrally the surviving
+  # window sits inside that child's own sandwich. A target hugging either end
+  # of what its subtree can reach is the one likeliest to need backtracking,
+  # so the lowest score is the child to try first. NULL when the state is
+  # already impossible.
   #
   # Note that when i == 1 this is the leaf test: the single remaining value is
   # forced, and it survives the filter only if it lands the sum and the sum of
   # squares exactly. So an admissible choice at i == 1 is a complete sample.
+  #
+  # This runs once per node and is the whole cost of the search, so it is
+  # written against R's overheads rather than for brevity: no ifelse(), which
+  # evaluates both arms over the full vector; no pmax()/pmin(); and the
+  # Structure-S ceiling inlined rather than taken from .q_max_int(), whose
+  # recycling and mask-scatter are wasted when the cap is already `ys`.
   children <- function(i, cap, S, k_lo, k_hi) {
     # The i - 1 values after this one are all <= y, so y must be at least
     # S / i; and it cannot exceed the running cap or the sum itself.
     y_hi <- min(cap, S)
     y_lo <- (S + i - 1) %/% i          # ceiling(S / i), without leaving integers
-    if (y_lo > y_hi) return(numeric(0))
+    if (y_lo > y_hi) return(NULL)
     ys <- y_lo:y_hi
 
     j <- i - 1
     Sp <- S - ys
     kl <- k_lo - ys * ys
     kh <- k_hi - ys * ys
-    if (j == 0) return(ys[Sp == 0 & kl <= 0 & kh >= 0])
+    if (j == 0) {
+      keep <- ys[Sp == 0 & kl <= 0 & kh >= 0]
+      return(if (length(keep)) list(y = keep, sc = numeric(length(keep))))
+    }
 
-    qm <- .q_min_int(Sp, j)
-    qM <- .q_max_int(Sp, ys)
-    lo <- pmax(kl, qm)
-    hi <- pmin(kh, qM)
+    m <- Sp %/% j
+    r <- Sp - j * m
+    qm <- (j - r) * m * m + r * (m + 1) * (m + 1)
+    # Structure-S on the remaining values, whose cap is the value just chosen.
+    # ys == 0 can only arise when Sp == 0, where the division is undefined and
+    # the true ceiling is 0.
+    nu <- Sp %/% ys
+    rem <- Sp - nu * ys
+    qM <- nu * ys * ys + rem * rem
+    qM[!is.finite(qM)] <- 0
+
+    lo <- kl; ix <- qm > kl; lo[ix] <- qm[ix]
+    hi <- kh; ix <- qM < kh; hi[ix] <- qM[ix]
     lo <- lo + ((lo %% 2) != (Sp %% 2))
-    ok <- Sp >= 0 & Sp <= j * ys & lo <= hi
-    if (!any(ok)) return(numeric(0))
-    # Order the children by how centrally the surviving window sits inside the
-    # child's own sandwich. A target hugging either end of what its subtree
-    # can reach is the one likeliest to need backtracking, so trying the
-    # roomiest child first is what turns the search into a straight dive for
-    # the overwhelming majority of attainable reports.
+    # `Sp >= 0` and `Sp <= j * ys` need no test: the first is implied by
+    # y_hi <= S, the second by y_lo >= S / i, which gives i*y >= S and hence
+    # (i - 1)*y >= S - y.
+    ok <- lo <= hi
+    if (!any(ok)) return(NULL)
+
     wid <- qM - qm
-    pos <- ifelse(wid > 0, ((lo + hi) / 2 - qm) / wid, 0.5)
-    ys[ok][order(abs(pos - 0.5)[ok])]
+    deg <- wid == 0                    # a sandwich of one value: a forced child
+    wid[deg] <- 1
+    pos <- ((lo + hi) / 2 - qm) / wid
+    pos[deg] <- 0.5
+    list(y = ys[ok], sc = abs(pos - 0.5)[ok])
   }
 
   # Depth-first, on an explicit stack rather than by recursion: the tree is n
   # deep, and a sample size in the thousands would otherwise exhaust R's
   # evaluation depth long before the node budget bit.
+  #
+  # A frame's children are ordered lazily. Only the best child is wanted on the
+  # way down, and the way down is nearly always the whole search -- an
+  # attainable report is typically reached in exactly n nodes, with no
+  # backtracking at all. So the first visit takes which.min(), and a frame pays
+  # for order() only if it is ever returned to. That matters because order()
+  # inspects its arguments through match.arg() and two vapply() passes before
+  # sorting anything, which costs several times the sort itself at these
+  # lengths.
   f_i <- numeric(n); f_S <- numeric(n)
-  f_lo <- numeric(n); f_hi <- numeric(n); f_at <- integer(n)
+  f_lo <- numeric(n); f_hi <- numeric(n)
+  f_at <- integer(n); f_pick <- integer(n); f_sorted <- logical(n)
   kids <- vector("list", n)
+  scs <- vector("list", n)
   acc <- numeric(n)
-
-  d <- 1L
-  f_i[1] <- n; f_S[1] <- S; f_lo[1] <- k_lo; f_hi[1] <- k_hi; f_at[1] <- 1L
-  kids[[1]] <- children(n, W, S, k_lo, k_hi)
 
   nodes <- 0
   capped <- FALSE
   hit <- NULL
+
+  root <- children(n, W, S, k_lo, k_hi)
+  if (is.null(root))
+    return(list(possible = FALSE, witness = NULL, nodes = nodes))
+
+  d <- 1L
+  f_i[1] <- n; f_S[1] <- S; f_lo[1] <- k_lo; f_hi[1] <- k_hi
+  f_at[1] <- 0L; f_sorted[1] <- FALSE
+  kids[[1]] <- root$y; scs[[1]] <- root$sc
+
   while (d > 0L) {
     if (nodes >= budget) {
       capped <- TRUE
       break
     }
-    at <- f_at[d]
     cd <- kids[[d]]
-    if (at > length(cd)) {                  # this subtree is exhausted
-      d <- d - 1L
+    if (!f_sorted[d]) {                     # first visit: best child only
+      k <- which.min(scs[[d]])
+      y <- cd[k]
+      f_pick[d] <- k
+      f_sorted[d] <- TRUE
+      f_at[d] <- 0L
+    } else if (f_at[d] == 0L) {             # returned to: order the rest, once
+      sc <- scs[[d]]
+      sc[f_pick[d]] <- Inf                  # the child already tried sorts last
+      kids[[d]] <- cd[order(sc)][seq_len(length(cd) - 1L)]
+      f_at[d] <- 1L
       next
+    } else {
+      at <- f_at[d]
+      if (at > length(cd)) {                # this subtree is exhausted
+        d <- d - 1L
+        next
+      }
+      f_at[d] <- at + 1L
+      y <- cd[at]
     }
-    f_at[d] <- at + 1L
-    y <- cd[at]
     acc[d] <- y
     nodes <- nodes + 1
     if (f_i[d] == 1) {                      # every value placed, window met
@@ -186,10 +240,11 @@
     nlo <- f_lo[d] - y * y
     nhi <- f_hi[d] - y * y
     nc <- children(ni, y, nS, nlo, nhi)
-    if (length(nc)) {
+    if (!is.null(nc)) {
       d <- d + 1L
       f_i[d] <- ni; f_S[d] <- nS; f_lo[d] <- nlo; f_hi[d] <- nhi
-      f_at[d] <- 1L; kids[[d]] <- nc
+      f_at[d] <- 0L; f_sorted[d] <- FALSE; f_pick[d] <- 0L
+      kids[[d]] <- nc$y; scs[[d]] <- nc$sc
     }
   }
 

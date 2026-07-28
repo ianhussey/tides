@@ -57,6 +57,15 @@ check <- function(ok, label) {
   ok_tally[[label]] <<- isTRUE(ok)
   invisible(ok)
 }
+
+# Sweeps that run for minutes are cached, so re-rendering is cheap. Delete
+# validation/models/ to force them to run again -- which is also what to do
+# when the recorded timings are wanted for a different machine.
+dir.create("models", showWarnings = FALSE)
+cached <- function(file, expr) {
+  path <- file.path("models", file)
+  if (file.exists(path)) readRDS(path) else { x <- force(expr); saveRDS(x, path); x }
+}
 ```
 
 # Part 1: validated paths
@@ -745,7 +754,7 @@ first to the arithmetic sandwich and the constructive witness search
 (`R/certify-sandwich.R`), and only what those leave undecided within the node
 budget falls through to the corridor dynamic program
 (`R/attainable-target.R`). Interchangeability is therefore not a convenience
-claim but a correctness requirement, and it is checked three ways.
+claim but a correctness requirement, and it is checked five ways.
 
 The first is exhaustive: for small designs, enumerate every sample outright
 and compare the search's verdict against the true set of achievable sums of
@@ -790,11 +799,8 @@ res_fast[["Q = S (mod 2) for every sample of the enumerated design"]] <-
   all(rowSums(gridb^2) %% 2 == rowSums(gridb) %% 2)
 ```
 
-The third is agreement with the routes it bypasses, cell for cell, on real
-reporting grids. Below is a reduced version; the full sweep run for this
-release covered 2,719,364 cells over six designs at one and two decimal
-places under both half-rounding rules, with zero disagreements and no report
-ever reaching the node budget.
+The third is agreement with the corridor dynamic program it bypasses, cell for
+cell, on real reporting grids.
 
 ```{r}
 route_cmp <- function(l, u, n, dig) {
@@ -817,16 +823,136 @@ cmp <- rbind(route_cmp(1, 5, 9, 1), route_cmp(0, 6, 12, 1),
              route_cmp(1, 7, 11, 1))
 res_fast[["fast route == corridor DP, cell for cell"]] <- sum(cmp[, "disagreed"]) == 0
 res_fast[["no report needed the corridor DP fallback"]] <- sum(cmp[, "capped"]) == 0
+```
+
+The fourth is the same comparison at scale, against the *lattice* route rather
+than the corridor — a second independent oracle — over every reportable cell of
+six designs at one and two decimal places under both half-rounding rules. This
+is the sweep the release notes and `paper/method-brimmest/manuscript.qmd`
+quote, so it is run here rather than asserted from memory. It takes a few
+minutes on a first render and is cached thereafter.
+
+```{r}
+fast_sweep <- cached("fastpath_sweep.rds", {
+  designs <- list(c(l=1,u=5,n=9), c(l=1,u=7,n=12), c(l=0,u=6,n=12),
+                  c(l=1,u=5,n=20), c(l=1,u=9,n=15), c(l=0,u=10,n=30))
+  rows <- list()
+  for (d in designs) {
+    l <- d[["l"]]; u <- d[["u"]]; n <- d[["n"]]; W <- u - l
+    for (dig in 1:2) {
+      stp <- 10^-dig
+      gr <- expand.grid(mean = seq(l, u, by = stp),
+                        sd = seq(0, ceiling((u - l) / 2 * 10^dig) / 10^dig, by = stp))
+      for (rr in c("half_up", "half_down")) {
+        ref <- brimmest(l = l, u = u, n = n, mean = gr$mean, sd = gr$sd,
+                        digits = dig, rounding = rr)$possible
+        got <- vapply(seq_len(nrow(gr)), function(i) {
+          tg <- strait:::.target_states(l, u, n, 1, gr$mean[i], gr$sd[i],
+                                        dig, dig, rr)
+          as.logical(strait:::.certify_fast(W, n, tg))
+        }, logical(1))
+        rows[[length(rows) + 1L]] <- data.frame(
+          design = sprintf("%d-%d, n=%d", l, u, n), digits = dig, rounding = rr,
+          cells = nrow(gr), capped = sum(is.na(got)),
+          disagreed = sum(!is.na(got) & got != ref))
+      }
+    }
+  }
+  do.call(rbind, rows)
+})
+
+res_fast[[sprintf("full sweep: fast route == lattice route on all %s cells",
+                  format(sum(fast_sweep$cells), big.mark = ","))]] <-
+  sum(fast_sweep$disagreed) == 0
+res_fast[["full sweep: no report fell through to the corridor DP"]] <-
+  sum(fast_sweep$capped) == 0
+
+kable(fast_sweep, row.names = FALSE,
+      caption = "Fast route against the attainable lattice, cell for cell.")
+```
+
+The fifth checks two claims the implementation makes in comments, which would
+otherwise be unfalsifiable prose sitting next to the code. The first is that
+two conditions in the child filter are redundant — `Sp >= 0` because the
+candidate range caps `y` at `S`, and `Sp <= (i-1)*y` because it floors `y` at
+`S/i` — so dropping them cannot change a verdict. The second is that the lazy
+ordering's slow path is reached at all: children are ordered only on a frame's
+*second* visit, and an attainable report is usually found with no backtracking,
+so that branch is invisible to the happy path and easy to ship broken.
+
+```{r}
+viol <- 0L; states <- 0L
+for (i in 2:60) for (cap in 1:40) for (S in 0:(i * cap)) {
+  y_hi <- min(cap, S); y_lo <- (S + i - 1) %/% i
+  if (y_lo > y_hi) next
+  ys <- y_lo:y_hi; Sp <- S - ys; j <- i - 1
+  states <- states + length(ys)
+  if (j > 0 && (any(Sp < 0) || any(Sp > j * ys))) viol <- viol + 1L
+}
+res_fast[[sprintf("the child filter's dropped guards hold on all %s states",
+                  format(states, big.mark = ","))]] <- viol == 0L
+
+# a search revisited a frame -- and so took the ordering branch -- unless it
+# reached a leaf in exactly n nodes
+cov_fast <- cached("fastpath_backtrack.rds", {
+  seen <- 0L; revisited <- 0L
+  for (n in 2:4) for (W in 1:5) for (s in 0:(n * W))
+    for (klo in 0:(n*W*W)) for (khi in klo:min(klo + 2, n*W*W)) {
+      r <- strait:::.witness_search(W, n, s, klo, khi)
+      seen <- seen + 1L
+      if (isTRUE(r$possible)) { if (r$nodes > n) revisited <- revisited + 1L }
+      else if (r$nodes >= 1) revisited <- revisited + 1L
+    }
+  c(searches = seen, revisited = revisited)
+})
+res_fast[["the lazy ordering's slow path is exercised, not dead code"]] <-
+  cov_fast[["revisited"]] > 0
 
 for (nm in names(res_fast)) check(res_fast[[nm]], nm)
 kable(tibble(test = names(res_fast), passed = unlist(res_fast)),
       caption = "The fast certification path agrees with what it replaces.")
 ```
 
+Of the `r format(cov_fast[["searches"]], big.mark = ",")` searches above,
+`r cov_fast[["revisited"]]` returned to a frame and paid for `order()`; the
+rest dived straight to a verdict.
+
 That the corridor DP was never needed is a measurement over the designs swept
 here, not a theorem, which is why the fallback is retained. The open question
 it stands in for — whether the achievable sums of squares are contiguous below
 a computable fringe — is stated in `paper/method-brimmest/manuscript.qmd`.
+
+### What the routes cost
+
+Timings rather than assertions, and the source of the figures quoted in the
+release notes. The corridor column is what the fast path replaced; the last two
+rows have no corridor entry because the report is on a scale where neither
+sweeping route will run at all.
+
+```{r}
+fast_bench <- cached("fastpath_bench.rds", {
+  one <- function(l, u, n, m, s, dig, corridor = TRUE, reps = 25) {
+    W <- u - l
+    tgs <- lapply(c("half_up", "half_down"),
+                  function(rr) strait:::.target_states(l, u, n, 1, m, s, dig, dig, rr))
+    md <- function(f) median(replicate(reps, { t0 <- Sys.time(); f()
+      as.numeric(difftime(Sys.time(), t0, units = "secs")) })) * 1e3
+    data.frame(
+      report = sprintf("%d-%d, n=%d, mean %s sd %s", l, u, n, m, s),
+      corridor_ms = if (corridor)
+        md(function() for (tg in tgs) strait:::.attainable_target(W, n, tg))
+        else NA_real_,
+      fast_ms = md(function() for (tg in tgs) strait:::.certify_fast(W, n, tg)))
+  }
+  rbind(one(1, 5, 9, 1.3, 0.9, 1),
+        one(0, 20, 30, 10.0, 5.0, 1),
+        one(0, 63, 50, 30.42, 12.71, 2, reps = 3),
+        one(0, 100, 100, 55.31, 20.44, 2, corridor = FALSE),
+        one(0, 100, 100, 99.80, 0.50, 2, corridor = FALSE))
+})
+kable(fast_bench, row.names = FALSE, digits = 3,
+      caption = "Milliseconds per report, both rounding rules, median of repeats.")
+```
 
 # Part 4: multi-item scoring, POMP, and the derived builders
 

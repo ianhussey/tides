@@ -154,6 +154,7 @@ umbrella_data(n = 14, l = 1, u = 7, digits = 2) |>
 | `brimmer(...)` | the SD-side test, nested on `brim()`: turn the bounds into a consistent/inconsistent verdict with POMP transforms; defers GRIM/GRIMMER to `scrutiny` |
 | `brimmer_multiple(data, ...)` | apply `brimmer()` to each row of a data frame |
 | `brimmest(l, u, n, mean, sd, digits, ...)` | exact possible / impossible certificate for reported tuples, by analytic enumeration of the attainable lattice (no dataset reconstruction) |
+| `brimmest_multiple(data, ...)` | the same certificate across a data frame, grouping rows by design so one lattice serves them all |
 | `sd_bounds_curve(l, u, n, ...)` | trace the floor and ceiling of the SD across the mean (hole-free under `"quasiinteger"`) |
 | `umbrella_data(n, l, u, ...)` | build the grid of reported (mean, SD) pairs with their consistency verdicts |
 | `plot_sd_bounds(curve, ...)` | plot the SD-bounds envelope on the native scale, with reported points |

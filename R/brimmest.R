@@ -216,3 +216,121 @@ brimmest <- function(l, u, n, mean, sd, digits = NULL,
              possible = as.logical(rowSums(hit_mat) > 0),
              rules = rules, stringsAsFactors = FALSE)
 }
+
+# ---- Batch certification -----------------------------------------------------
+
+#' Certify many reported (mean, SD) rows exactly
+#'
+#' Applies [brimmest()] to each row of a data frame. Columns of `data` whose
+#' names match [brimmest()] arguments are taken per row; any argument given in
+#' `...` is a constant broadcast to every row. Supplying one name both ways is
+#' an error. The counterpart of [brimmer_multiple()] for the exact test.
+#'
+#' Rows are **grouped by design** and each group certified in a single
+#' [brimmest()] call, which is the whole point of the function: one attainable
+#' lattice serves every report of a design and is built once, so certifying a
+#' 200-row table on one design costs barely more than certifying one row of it.
+#' Repeated `(mean, sd)` pairs within a design are computed once and reused.
+#' Row order is preserved.
+#'
+#' Recognised per row (column or constant): `l`, `u`, `n`, `mean`, `sd`,
+#' `digits`, `mean_digits`, `sd_digits`, `scoring`, `n_items`.
+#'
+#' `rounding`, `max_cells` and `search_budget` may be given only as constants,
+#' never as columns. `rounding` is a *set* of admitted rules rather than one
+#' value per row, and the other two are cost controls on the call; passing any
+#' of them as a column is an error rather than a silent per-row reading.
+#'
+#' @param data A data frame, one reported statistic set per row.
+#' @param ... Constant arguments applied to all rows.
+#' @param include_inputs If TRUE (default), returns `data` column-bound to the
+#'   results; if FALSE, only the result columns (same row order), for drop-in
+#'   use inside a `dplyr::mutate()` / `purrr` pipeline.
+#' @return A data frame with `possible` (logical) and `rules` (the rounding
+#'   rules under which the row is reachable, comma-separated and `""` when
+#'   none), optionally with `data` prepended. Unlike [brimmest()], the reported
+#'   `mean` and `sd` are not echoed back: they are already columns of `data`
+#'   when supplied that way, and repeating them would collide.
+#' @seealso [brimmest()] for one design at a time, [brimmer_multiple()] for the
+#'   closed-form screen to run first.
+#' @examples
+#' reports <- data.frame(mean = c(3.0, 1.3, 2.5),
+#'                       sd   = c(1.0, 0.9, 1.2))
+#'
+#' # one design, one lattice. Rows 2 and 3 are both impossible, for different
+#' # reasons: row 3 already fails GRIM and GRIMMER, while row 2 clears every
+#' # closed-form screen and is caught only here.
+#' brimmest_multiple(reports, l = 1, u = 5, n = 9, digits = 1)
+#'
+#' # designs may vary per row; rows sharing one are certified together
+#' mixed <- data.frame(mean = c(3.0, 1.3, 4.0),
+#'                     sd   = c(1.0, 0.9, 1.5),
+#'                     n    = c(9, 9, 12))
+#' brimmest_multiple(mixed, l = 1, u = 5, digits = 1,
+#'                   include_inputs = FALSE)
+#' @export
+brimmest_multiple <- function(data, ..., include_inputs = TRUE) {
+  if (!is.data.frame(data)) stop("data must be a data frame")
+  row_args <- c("l", "u", "n", "mean", "sd", "digits",
+                "mean_digits", "sd_digits", "scoring", "n_items")
+  call_args <- c("rounding", "max_cells", "search_budget")
+  consts <- list(...)
+  unknown <- setdiff(names(consts), c(row_args, call_args))
+  if (length(unknown))
+    stop("unknown constant argument(s): ", paste(unknown, collapse = ", "))
+  clash <- intersect(call_args, names(data))
+  if (length(clash))
+    stop(paste(clash, collapse = ", "), " applies to the whole call, not to ",
+         "one row; supply it as a constant rather than a column")
+
+  N <- nrow(data)
+  if (!N) stop("data has no rows")
+  resolve <- function(nm) {
+    incol <- nm %in% names(data)
+    incon <- nm %in% names(consts) && !is.null(consts[[nm]])
+    if (incol && incon)
+      stop(sprintf("'%s' supplied as both a column and a constant", nm))
+    if (incol) data[[nm]]
+    else if (incon) rep(consts[[nm]], length.out = N)
+    else NULL
+  }
+  cols <- lapply(row_args, resolve); names(cols) <- row_args
+  present <- row_args[!vapply(cols, is.null, logical(1))]
+  for (nm in c("l", "u", "n", "mean", "sd"))
+    if (!(nm %in% present))
+      stop(sprintf("'%s' is required (as a column of data or a constant)", nm))
+  if (!any(c("digits", "mean_digits", "sd_digits") %in% present))
+    stop("reported decimal places are required: give digits, or both ",
+         "mean_digits and sd_digits")
+
+  passthru <- consts[intersect(call_args, names(consts))]
+
+  # Group by design, not by row. brimmest() amortises one lattice across every
+  # tuple it is handed, and it also uses the number of tuples to choose its
+  # route, so handing it a whole group at once is both cheaper and better
+  # routed than calling it per row would be.
+  design <- setdiff(present, c("mean", "sd"))
+  fmt <- function(nm) format(cols[[nm]], nsmall = 6, trim = TRUE)
+  gkey <- do.call(paste, c(lapply(design, fmt), sep = "\r"))
+
+  possible <- logical(N)
+  rules <- character(N)
+  for (g in unique(gkey)) {
+    ix <- which(gkey == g)
+    args <- lapply(design, function(nm) cols[[nm]][ix[1]])
+    names(args) <- design
+    mu <- cols$mean[ix]
+    sg <- cols$sd[ix]
+    tk <- paste(format(mu, nsmall = 6, trim = TRUE),
+                format(sg, nsmall = 6, trim = TRUE), sep = "\r")
+    uk <- !duplicated(tk)
+    r <- do.call(brimmest, c(args, list(mean = mu[uk], sd = sg[uk]), passthru))
+    back <- match(tk, tk[uk])
+    possible[ix] <- r$possible[back]
+    rules[ix] <- r$rules[back]
+  }
+
+  res <- data.frame(possible = possible, rules = rules,
+                    stringsAsFactors = FALSE)
+  if (include_inputs) cbind(data, res) else res
+}

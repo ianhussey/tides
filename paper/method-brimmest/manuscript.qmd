@@ -386,11 +386,16 @@ it succeeds and concludes nothing when it fails, whereas an exhausted search
 is a proof in both directions.
 
 Measured against the corridor it replaces, on medians of repeated runs
-covering both rounding rules, the blind-spot cell falls from 453 to 53
-microseconds and the 0--63 inventory at $n = 50$ from 82 s to 2.3 ms. A
+covering both rounding rules, the blind-spot cell falls from 493 to 41
+microseconds and the 0--63 inventory at $n = 50$ from 78 s to 0.63 ms. A
 0--100 scale at $n = 100$ — untimed before, because neither sweeping route
-would run — certifies in 4.6 ms, and the parity screen alone disposes of a
-report there in 21 microseconds. Over 2.72 million reporting-grid cells
+would run — certifies in 1.5 ms, and the parity screen alone disposes of a
+report there in 25 microseconds. A node of the search costs about 6
+microseconds, of which the arithmetic is a small part: the per-node cost is
+flat from $W = 20$ to $W = 100$, so what is being paid for is interpretation,
+not computation. A compiled kernel would be the obvious next step, and would
+change these figures by roughly two orders of magnitude, but it would not
+change what is decidable. Over 2.72 million reporting-grid cells
 spanning six designs, two precisions and two rounding rules, the search agreed
 with the lattice route on every cell and was never once cut short by its node
 budget. Grid-sized workloads keep the cached lattice route, which remains far

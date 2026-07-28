@@ -25,9 +25,15 @@ test_that("the sandwich endpoints are the true extremes of the sum of squares", 
 test_that("the search decides every window a small design admits", {
   # exhaustive in both directions: for every sum and every narrow window, the
   # search must agree with enumeration, and any witness it returns must be a
-  # real sample hitting the window
-  # tens of thousands of cases, so the verdicts are accumulated and asserted
-  # once rather than one expectation at a time
+  # real sample hitting the window. Tens of thousands of cases, so the verdicts
+  # are accumulated and asserted once rather than one expectation at a time.
+  #
+  # This is also the only coverage of the lazy ordering's slow path. Children
+  # are ordered on a frame's second visit, not its first, and an attainable
+  # report is usually reached with no backtracking at all -- so the branch that
+  # calls order() is never taken on the happy path. Some of the searches below
+  # do take it; validation/validate_sd_bounds_functions.qmd counts how many,
+  # rather than a number being asserted here where it would go stale unseen.
   disagreed <- 0L
   bad_witness <- 0L
   for (n in 2:4) for (W in 1:5) {
