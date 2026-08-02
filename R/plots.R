@@ -24,7 +24,10 @@
 #' unreachable. `shade = "inside"` fills the feasible band instead, which was
 #' the behaviour before this argument existed.
 #'
-#' @param curve Output of [sd_bounds_curve()].
+#' @param curve Output of [sd_bounds_curve()]. Its `"step"` attribute, when
+#'   present, is the mean-grid spacing used to tell a sampling gap from a
+#'   genuine one under `shade = "outside"`; a curve built by hand, without that
+#'   attribute, should be on a uniform grid, from which the spacing is inferred.
 #' @param points Optional data.frame with `mean`, `sd`, and (optionally)
 #'   `consistent`; e.g. the output of [brimmer_multiple()].
 #' @param title Optional plot title.
@@ -81,9 +84,21 @@ plot_sd_bounds <- function(curve, points = NULL, title = NULL,
     # there is nothing there to knock out. Assembling the grey instead leaves
     # such a gap unshaded, which would assert that any SD at all is possible
     # there. See band_polygon().
+    # band_polygon() needs the grid spacing to tell a sampling gap from a
+    # genuine one, and sd_bounds_curve() records the spacing it used because
+    # its grid is not uniform: it adds each kink of the 1/(n * n_items) lattice
+    # plus a pair of neighbours 1e-9 away. Guessing the spacing from the means
+    # is what this used to do, and it fails outright once the kinks outnumber
+    # the uniform grid (about n * (u - l) > 333 at the default `by`): the
+    # median then falls BELOW the plain grid spacing, so every ordinary
+    # interval reads as a gap and the band is drawn as thousands of slivers.
+    # The median remains the fallback for a hand-built curve, where a uniform
+    # grid makes it right.
+    step <- attr(curve, "step")
     rings <- band_polygon(data.frame(mean = cur$mean, lo = cur$min_sd,
                                      hi = cur$max_sd),
-                          by = if (nrow(cur) > 1)
+                          by = if (!is.null(step)) step
+                               else if (nrow(cur) > 1)
                                  stats::median(diff(cur$mean)) else 1)
     p <- p +
       ggplot2::annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf,

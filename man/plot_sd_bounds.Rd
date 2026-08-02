@@ -15,7 +15,10 @@ plot_sd_bounds(
 )
 }
 \arguments{
-\item{curve}{Output of \code{\link[=sd_bounds_curve]{sd_bounds_curve()}}.}
+\item{curve}{Output of \code{\link[=sd_bounds_curve]{sd_bounds_curve()}}. Its \code{"step"} attribute, when
+present, is the mean-grid spacing used to tell a sampling gap from a
+genuine one under \code{shade = "outside"}; a curve built by hand, without that
+attribute, should be on a uniform grid, from which the spacing is inferred.}
 
 \item{points}{Optional data.frame with \code{mean}, \code{sd}, and (optionally)
 \code{consistent}; e.g. the output of \code{\link[=brimmer_multiple]{brimmer_multiple()}}.}

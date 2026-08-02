@@ -1,3 +1,30 @@
+# strait 0.4.10
+
+## Bug fixes
+
+* `plot_sd_bounds(shade = "outside")` drew the feasible region as thousands of
+  one-column slivers instead of a single band, for any design with a dense kink
+  lattice — roughly `n * (u - l) > 333` at the default `by`. At `l = 1, u = 7,
+  n = 60` it produced 921 rings where there is one region; at `n = 200`, 2001.
+  The verdicts were never affected, only the figure, but the figure asserted
+  that the means between the slivers admitted no SD at all, which is the one
+  thing that shading convention must not say.
+
+  The cause was that `plot_sd_bounds()` inferred the mean-grid spacing
+  `band_polygon()` needs — to tell a sampling gap from a genuine one — as
+  `median(diff(curve$mean))`. `sd_bounds_curve()`'s grid is deliberately not
+  uniform: on top of `seq(l, u, by)` it places every kink of the
+  `1/(n * n_items)` lattice and a pair of neighbours `1e-9` away, so each kink
+  contributes three closely spaced points. Once the kinks outnumber the uniform
+  grid the median falls *below* the plain grid spacing, and every ordinary
+  interval is then read as a gap.
+
+  `sd_bounds_curve()` now records the spacing it used in a `"step"` attribute
+  and `plot_sd_bounds()` reads it, the same way `plot_sd_region()` has always
+  passed the step it knows. A curve built by hand, without the attribute, still
+  falls back to the median, which is correct on the uniform grid such a curve
+  should be on.
+
 # strait 0.4.9
 
 ## New features

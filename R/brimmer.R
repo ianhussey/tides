@@ -329,6 +329,12 @@ brimmer_multiple <- function(data, ..., include_inputs = TRUE) {
 #' @param by Numeric or NULL; mean-grid spacing (default ~ `(u - l) / 1000`).
 #' @return A data.frame: `mean`, `min_sd`, `max_sd`, `feasible`, `pomp_mean`,
 #'   `parity_max`, `ceil_parity` (= `max_sd / parity_max`), `floor_parity`.
+#'   The `"step"` attribute records the uniform grid spacing `by` actually
+#'   used. The mean grid is deliberately NOT uniform - the kinks and their
+#'   neighbourhoods are sampled far more densely than `by` - so the spacing
+#'   cannot be recovered from the returned means, and a consumer that needs to
+#'   tell a sampling gap from a genuine gap in the band (as [band_polygon()]
+#'   and hence [plot_sd_bounds()] must) has to be told. See [plot_sd_bounds()].
 #' @examples
 #' curve <- sd_bounds_curve(l = 1, u = 7, n = 30, by = 0.1)
 #' head(curve[, c("mean", "min_sd", "max_sd")])
@@ -357,6 +363,7 @@ sd_bounds_curve <- function(l, u, n, Z = "quasiinteger",
   out$parity_max <- parity_max
   out$ceil_parity <- out$max_sd / parity_max
   out$floor_parity <- out$min_sd / parity_max
+  attr(out, "step") <- by
   out
 }
 

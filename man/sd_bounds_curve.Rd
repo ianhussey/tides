@@ -29,6 +29,12 @@ sd_bounds_curve(
 \value{
 A data.frame: \code{mean}, \code{min_sd}, \code{max_sd}, \code{feasible}, \code{pomp_mean},
 \code{parity_max}, \code{ceil_parity} (= \code{max_sd / parity_max}), \code{floor_parity}.
+The \code{"step"} attribute records the uniform grid spacing \code{by} actually
+used. The mean grid is deliberately NOT uniform - the kinks and their
+neighbourhoods are sampled far more densely than \code{by} - so the spacing
+cannot be recovered from the returned means, and a consumer that needs to
+tell a sampling gap from a genuine gap in the band (as \code{\link[=band_polygon]{band_polygon()}}
+and hence \code{\link[=plot_sd_bounds]{plot_sd_bounds()}} must) has to be told. See \code{\link[=plot_sd_bounds]{plot_sd_bounds()}}.
 }
 \description{
 Traces the minimum and maximum sample SD as the mean sweeps \verb{[l, u]}, on a
