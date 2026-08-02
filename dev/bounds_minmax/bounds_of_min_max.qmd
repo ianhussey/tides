@@ -1,0 +1,352 @@
+---
+title: "Inverting the SD bounds: what reported summary statistics imply about the unreported minimum, maximum, and range — and how this relates to CLOSURE"
+author:
+  - name: Ian Hussey
+format:
+  html:
+    embed-resources: true
+    toc: true
+    code-fold: true
+    code-tools: true
+    theme: flatly
+execute:
+  warning: false
+  message: false
+---
+
+<!--
+Companion working notes to master.qmd, bounds_observed_extremes.qmd, and
+app_observed_min_max_bounds.R. Written for Lukas' work on quantifying CLOSURE
+solution sets. The question: the app produces bounds on the observed minimum,
+maximum, and range analytically — is that equivalent to what CLOSURE would give,
+where does it differ, and what is each tool for?
+-->
+
+# Summary and leads (Ian & Lukas)
+
+**What this document establishes.** The bounds machinery of master.qmd can be run *backwards*: from reported $(n, \bar{x}, s)$ on an integer scale, we can compute what the sample's unreported observed minimum, maximum, and range must have been — analytically, in microseconds, at any scale, including scales where CLOSURE cannot enumerate. The answers are outer bounds that are provably never wrong, exact in $\sim$92–98% of exhaustively checked cases, off by at most 1–2 scale points otherwise, and closable to exactness by constructing a single witness sample (a SPRITE-like step, not a CLOSURE-like one).
+
+**Concrete leads:**
+
+1. **New check: forced endpoint usage, with counts.** Not just "at least one 7 is required" but "*at least $k$* 7s are required" (derived and validated below). Any figure, histogram, or supplementary dataset showing fewer endpoint responses than the summary statistics force is internally contradictory — a check that needs no DGP, no simulation, and no enumeration. Mirror version for the bottom endpoint.
+2. **New check: the impossibly modest maximum.** Everyone knows the Samuelson direction (reported max can't exceed $\bar{x} + s\sqrt{n-1}$); the mirror — the reported max can't be *below* $b_{\min}$ — appears unused in the trustworthiness literature.
+3. **Narrative statements for reports.** "All 30 participants scored within at most a 19-point window on this 63-point scale" is recovered from $(n, M, SD)$ alone and lands harder with non-statisticians than a tail probability.
+4. **CLOSURE staging.** Run these bounds first: they predict the projections of the fibre before enumeration, prune $(a,b)$ branches, sanity-check CLOSURE implementations (any enumerated sample outside the region = bug), and tell you when the fibre is structurally cramped (endpoint counts forced high, range interval a sliver) — the situations where fibre-size/fibre-probability weirdness scores (see `betabinomial_sampling_distributions.qmd`) will be most diagnostic.
+5. **Possible paper/tool shape.** "Inverse descriptives": given any reported $(n, M, SD, [l,u])$, output the implied min/max/range intervals and forced endpoint counts. Cheap to add to tides; complements GRIM (mean attainability) and the SD bounds (magnitude) with a third axis (implied raw-data structure).
+6. **Open question worth a morning.** The one-to-two-point slack traces to genuine gaps in achievable sums of squares near the maximum (exhibited below). Characterising exactly which $SS$ values are achievable would make every bound here closed-form exact and retire the witness step.
+
+# The inverse question
+
+Master.qmd asks the *forward* question: given constraints (scale limits $l, u$; sample size $n$; mean $\bar{x}$; integer data), what values can the SD take? This document is about the *inverse* question, implemented in `app_observed_min_max_bounds.R`:
+
+> Given reported $(n, \bar{x}, s)$ on an integer scale $[l, u]$, what could the sample's **observed minimum** $a = x_{(1)}$, **observed maximum** $b = x_{(n)}$, and **range** $W = b - a$ have been?
+
+The reported statistics are treated exactly as in master: a rounded mean denotes an interval, only GRIM-consistent sums inside it are considered, and the SD likewise gets a rounding band $[s_{lo}, s_{hi}]$, i.e. a band $[SS_{lo}, SS_{hi}]$ on the sum of squares $SS = (n-1)s^2$.
+
+This is the same fibre that CLOSURE works with — the set of all integer samples consistent with the report — but interrogated for three *projections* (min, max, range) rather than enumerated.
+
+```{r}
+#| code-summary: "core functions (transcribed from the app)"
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(knitr)
+
+TOL <- 1e-9
+
+# attained-extremes floor on SS (bounds_observed_extremes.qmd):
+# if the observed extremes are a and b, then SS >= p^2 + q^2 + (p-q)^2/(n-2)
+ss_floor_attained <- function(a, b, n, xbar) {
+  p <- xbar - a; q <- b - xbar
+  if (n <= 2) return(ifelse(abs(xbar - (a + b)/2) < TOL, (b - a)^2/2, Inf))
+  p^2 + q^2 + (p - q)^2 / (n - 2)
+}
+
+# mean-conditional ceiling on SS with a, b as the effective limits (Muilwijk form)
+ss_ceiling_ab <- function(a, b, n, xbar) n * (b - xbar) * (xbar - a)
+
+# integer (Structure S) maximum of SS on limits [A, B] at mean xbar
+ss_max_S <- function(n, xbar, A, B) {
+  R <- B - A; if (R <= 0) return(0)
+  Sx <- n * (xbar - A)
+  nu <- min(floor(Sx / R + 1e-9), n - 1)
+  xr <- A + (Sx - nu * R); nl <- n - nu - 1
+  nl * A^2 + xr^2 + nu * B^2 - n * xbar^2
+}
+```
+
+# The mathematics
+
+## The joint feasibility test
+
+The engine is a *pointwise test on candidate pairs* $(a, b)$, built from two results we already have:
+
+**Necessary condition (floor).** If a sample's observed extremes are $a$ and $b$, those extremes are attained by definition, so the attained-extremes floor of `bounds_observed_extremes.qmd` applies with $p = \bar{x} - a$, $q = b - \bar{x}$:
+
+$$
+SS \;\ge\; p^2 + q^2 + \frac{(p - q)^2}{n - 2}.
+$$
+
+A candidate $(a, b)$ with floor above $SS_{hi}$ is impossible: a sample spanning that far *must* be more dispersed than reported.
+
+**Necessary condition (ceiling).** All observations lie in $[a, b]$, so the mean-conditional maximum applies with $a, b$ as the effective limits:
+
+$$
+SS \;\le\; n\,(b - \bar{x})(\bar{x} - a).
+$$
+
+A candidate $(a, b)$ with ceiling below $SS_{lo}$ is impossible: a sample confined that tightly *cannot* be as dispersed as reported.
+
+A pair passes if some GRIM-consistent mean in the rounding interval satisfies both. The set of passing pairs is a region in the $(a, b)$ plane; its $a$-extent, $b$-extent, and diagonal extent give the candidate bounds on the minimum, maximum, and range.
+
+Because both conditions are necessary, this region is an **outer bound**: it can never exclude a truth, only include slightly too much. Exhaustive validation: across all integer samples for $n = 3\ldots6$ on scales $0$–$4$ through $1$–$6$ — 218,084 samples — the test never excluded a real sample's $(a, b)$ pair.
+
+## Sharp analytic marginals
+
+The projections themselves also have closed forms, which is what makes the approach "analytic instead of enumerative":
+
+**Smallest possible minimum and largest possible maximum: sharp Samuelson.** The Laguerre–Samuelson inequality bounds every attained observation: $|x_i - \bar{x}| \le \sqrt{SS \cdot (n-1)/n}$. It is attained by the configuration *one observation at the extreme, the other $n - 1$ all equal* — which is exactly the minimum-SS configuration for a pinned extreme. Hence
+
+$$
+a_{\min} = \max\!\Big(l,\; \big\lceil \bar{x} - \sqrt{SS\,(n{-}1)/n} \big\rceil\Big),
+\qquad
+b_{\max} = \min\!\Big(u,\; \big\lfloor \bar{x} + \sqrt{SS\,(n{-}1)/n} \big\rfloor\Big).
+$$
+
+**Largest possible minimum and smallest possible maximum: inverted Structure S.** Raising the sample minimum $A$ shrinks the room available for dispersion; the reported $SS$ stays feasible only while the integer maximum on $[A, u]$ still reaches it. So
+
+$$
+a_{\max} = \max\{A : SS^{\max}_{\text{S}}(n, \bar{x}, A, u) \ge SS_{lo}\},
+\qquad
+b_{\min} = \min\{B : SS^{\max}_{\text{S}}(n, \bar{x}, l, B) \ge SS_{lo}\},
+$$
+
+where $SS^{\max}_{\text{S}}$ is Mestdagh's Structure S maximum from master.qmd. These are one-dimensional threshold searches over at most $u - l$ integers — not enumeration.
+
+**How exact are these?** Validated against exhaustive enumeration on small scales:
+
+```{r}
+#| code-summary: "validation: analytic marginals vs exhaustive enumeration"
+res <- list()
+for (n in 3:6) for (l in c(0, 1)) for (u in c(4, 6)) {
+  g <- as.matrix(do.call(expand.grid, rep(list(l:u), n)))
+  S <- rowSums(g); SS <- rowSums((g - S/n)^2)
+  mn <- apply(g, 1, min); mx <- apply(g, 1, max)
+  key <- paste(S, round(SS, 9))
+  for (k in unique(key)) {
+    i <- key == k; xb <- S[i][1]/n; ss <- SS[i][1]
+    if (ss < 1e-9) next
+    samu <- sqrt(ss * (n - 1)/n)
+    a_min_f <- max(l, ceiling(xb - samu - 1e-9))
+    b_max_f <- min(u, floor(xb + samu + 1e-9))
+    As <- l:floor(xb + 1e-9)
+    a_max_f <- max(As[sapply(As, function(A) ss_max_S(n, xb, A, u) >= ss - 1e-9)])
+    Bs <- ceiling(xb - 1e-9):u
+    b_min_f <- min(Bs[sapply(Bs, function(B) ss_max_S(n, xb, l, B) >= ss - 1e-9)])
+    res[[length(res) + 1]] <- c(amin = min(mn[i]) - a_min_f, amax = a_max_f - max(mn[i]),
+                                bmax = b_max_f - max(mx[i]), bmin = min(mx[i]) - b_min_f)
+  }
+}
+d <- do.call(rbind, res)
+tibble(bound = c("smallest min (Samuelson)", "largest min (inv. Structure S)",
+                 "largest max (Samuelson)", "smallest max (inv. Structure S)"),
+       formula = c("amin", "amax", "bmax", "bmin")) |>
+  rowwise() |>
+  mutate(`exact (%)` = round(100 * mean(abs(d[, formula]) < 1e-9), 1),
+         `max error (scale points)` = max(d[, formula]),
+         `ever invalid?` = any(d[, formula] < -1e-9)) |>
+  select(-formula) |>
+  kable(caption = sprintf(
+    "Analytic marginals vs exhaustive enumeration over %d (n, scale, mean, SS) groups. All four formulas are always valid; when not exactly tight, they are off by at most one scale point.", nrow(d)))
+```
+
+## Why "at most one point off," and what closes the gap
+
+The residual unit of slack has a definite cause: **the set of achievable sums of squares is not an interval.** For $n$ integers with fixed sum, achievable $SS$ values share a parity, but near the maximum there are genuine gaps. Concretely, for $n = 5$ on $1$–$5$ with sum $17$:
+
+```{r}
+#| code-summary: "the achievability gap, exhibited"
+g <- as.matrix(do.call(expand.grid, rep(list(1:5), 5)))
+q <- sort(unique(rowSums(g[rowSums(g) == 17, ]^2)))
+cat("achievable sum(x^2):", paste(q, collapse = ", "), "\n")
+cat("gaps: 73 and 75 are skipped — the parity-contiguity conjecture is FALSE\n")
+```
+
+An analytic formula that assumes any $SS$ between floor and ceiling is achievable will therefore occasionally certify a pair that no actual sample attains. The app closes this gap **constructively**: for each extreme candidate it attempts to build a real integer sample with the required $(n, \text{sum}, SS)$ band and pinned extremes, scanning inward until one is found. Where a witness exists the bound is *exact and attained* — the app displays the sample. This is the only non-analytic ingredient, and it operates on a handful of candidates, not on the fibre.
+
+# Is this CLOSURE?
+
+Short answer: **the witness step is SPRITE-like; the bounds themselves are not CLOSURE — they are what CLOSURE's output would project to, obtained without enumeration.**
+
+| | CLOSURE | this approach |
+|---|---|---|
+| object computed | the complete fibre: every frequency vector matching the report | three projections of that fibre (min, max, range extents) |
+| method | exhaustive enumeration | closed forms + threshold search; witness construction only at the extremes |
+| exactness | exact by construction | outer bound, always valid; exact wherever a witness certifies (in practice: the extremes) |
+| cost | combinatorial in $n$ and scale; infeasible at BDI scale ($0$–$63$, $n = 30$) | $O((u-l)^2)$ feasibility tests; instant at any scale |
+| output granularity | full samples, frequency tables, fibre size | interval summaries + one witness sample per extreme |
+| rounding & GRIM | handled | handled identically |
+
+Three equivalence caveats worth being precise about:
+
+1. **At the extremes, agreement is certified.** When the witness search succeeds at (say) the widest range, that endpoint *equals* what CLOSURE's enumeration would report — both exhibit an actual sample. This held for all six extremes in the case-study inputs below.
+2. **In the interior, the app asserts less than CLOSURE knows.** The app reports intervals. The truly attainable set of, say, minima could in principle have holes inside that interval; CLOSURE would see them, the app would not. (None were observed in the small-scale validations, but it is not proven.)
+3. **The app has no notion of multiplicity.** CLOSURE knows *how many* samples share each $(a, b)$; the app only knows the pair is feasible. Anything probabilistic — fibre sizes, exact probabilities of the reported statistics, the weirdness scores discussed in `betabinomial_sampling_distributions.qmd` — needs the fibre itself.
+
+So the practical relationship: **the app is a screen, CLOSURE is a microscope.** The app answers the projection questions in microseconds at any scale, including scales where CLOSURE cannot run; CLOSURE answers everything, where it can run at all. And the app's feasibility region is a valid *pre-filter* for CLOSURE: any enumeration strategy that branches on the observed extremes can prune every $(a, b)$ pair outside the region before generating a single sample.
+
+# Use cases
+
+## Recovering unreported observed extremes
+
+Most papers report $(n, M, SD)$ but not min/max. The inverse bounds recover what the unreported values must have been. For the case study of `betabinomial_sampling_distributions.qmd` — BDI-II, $n = 30$, $M = 20.1$, $SD = 2.5$:
+
+```{r}
+#| code-summary: "case study: feasible (a, b) region"
+region_bounds <- function(l, u, n, mean_rep, sd_rep, dp = 1) {
+  h <- 0.5 * 10^(-dp)
+  ss_lo <- (n - 1) * max(0, sd_rep - h)^2
+  ss_hi <- (n - 1) * (sd_rep + h)^2
+  S_all <- seq(ceiling(n * (mean_rep - h) - TOL), floor(n * (mean_rep + h) + TOL))
+  S_all <- S_all[S_all >= n * l & S_all <= n * u]
+  grid <- expand.grid(a = l:u, b = l:u) |> filter(b >= a)
+  feas <- rep(FALSE, nrow(grid))
+  for (S in S_all) {
+    xb <- S / n
+    ok <- grid$a <= xb & grid$b >= xb &
+      mapply(function(a, b) ss_floor_attained(a, b, n, xb) <= ss_hi + TOL &&
+                            ss_ceiling_ab(a, b, n, xb) >= ss_lo - TOL,
+             grid$a, grid$b)
+    feas <- feas | ok
+  }
+  f <- grid[feas, ]
+  tibble(`observed minimum` = sprintf("%d to %d", min(f$a), max(f$a)),
+         `observed maximum` = sprintf("%d to %d", min(f$b), max(f$b)),
+         `observed range`   = sprintf("%d to %d", min(f$b - f$a), max(f$b - f$a)),
+         `feasible (a,b) pairs` = nrow(f))
+}
+kable(region_bounds(0, 63, 30, 20.1, 2.5, dp = 1),
+      caption = "BDI-II case study (n = 30, M = 20.1, SD = 2.5): what the unreported extremes must have been. (Outer bounds; the app's witness search tightens these to exact attained values.)")
+```
+
+Every one of the 30 participants sat inside a window of at most ~19 points on a 63-point scale — a statement about raw data recovered from summary statistics alone, and often more persuasive to a reader than a tail probability.
+
+## Endpoint-usage checks ("are there any 7s?")
+
+The **smallest possible maximum** $b_{\min}$ answers a question that comes up constantly in figure/data auditing: *must* the sample have contained the scale endpoint? The extreme case is degenerate but instructive: a mean of exactly $6.0$ on a $1$–$7$ scale with any $SD > 0$ *forces* at least one $7$ — with all values $\le 6$, a mean of $6$ requires every value to equal $6$, i.e. $SD = 0$. The graded version comes from inverting Structure S. For $n = 30$, mean $5.8$ on $1$–$7$:
+
+```{r}
+#| code-summary: "endpoint-forcing threshold"
+n_e <- 30; xb_e <- 5.8
+ss_cap6 <- ss_max_S(n_e, xb_e, 1, 6)              # max SS if no observation exceeds 6
+sd_cap6 <- sqrt(ss_cap6 / (n_e - 1))
+cat(sprintf("max possible SD with no 7s: %.3f\n", sd_cap6))
+cat(sprintf("=> any reported SD above %.3f FORCES at least one 7 in the data\n", sd_cap6))
+```
+
+This works in both directions:
+
+- **Forced endpoint usage.** Reported mean $5.8$, SD $1.2$: at least one participant must have answered $7$. If the paper's histogram shows none, the histogram and the summary statistics cannot describe the same data.
+- **Weird *lack* of endpoint usage.** Same logic, read as a plausibility screen: a reported mean near the top of the scale with a substantial SD implies heavy endpoint usage. The next subsection turns this from a yes/no into a *count*.
+- Symmetrically, $a_{\max}$ (largest possible minimum) screens the bottom endpoint.
+
+## Minimum endpoint counts: "at least $k$ participants answered 7"
+
+The yes/no question ($b_{\min} = u$?) generalises to a quantitative one: **what is the smallest number of top-endpoint responses consistent with the report?** The decomposition is direct. Suppose exactly $c$ observations equal $u$; the remaining $k = n - c$ are integers in $[l, u-1]$ with sum $T_c = S - cu$, and the total sum of squares is $cu^2$ plus their contribution. That contribution is bracketed by two closed forms we already use everywhere:
+
+$$
+Q^{\min}(k, T_c) \;\le\; \textstyle\sum_{\text{rest}} x^2 \;\le\; Q^{\max}(k, T_c),
+$$
+
+the $\nu$-centred clustering minimum (Pesant & Régin) and the Structure S maximum (Mestdagh), both on $[l, u-1]$. So a count $c$ is feasible only if the required band on $\sum x^2$ intersects $[\,cu^2 + Q^{\min},\; cu^2 + Q^{\max}\,]$ and the sum is arithmetically reachable ($kl \le T_c \le k(u-1)$). The **minimum forced count** is the smallest such $c$ — a scan over at most $n + 1$ values with closed-form tests, no enumeration. The bottom-endpoint version is the mirror image (rest on $[l+1, u]$).
+
+Because the test is built from necessary conditions, the result is a valid *lower* bound on the true forced count, subject to the same achievability-gap caveat as everything else here. Exhaustive validation:
+
+```{r}
+#| code-summary: "minimum endpoint counts: functions and exhaustive validation"
+q_min_cluster <- function(k, T, A, B) {          # nu-centred clustering minimum of sum(x^2)
+  base <- T %/% k; rem <- T - k * base
+  rem * (base + 1)^2 + (k - rem) * base^2
+}
+q_max_S2 <- function(k, T, A, B) {               # Structure S maximum of sum(x^2)
+  R <- B - A; if (R == 0) return(k * A^2)
+  Sx <- T - k * A; nu <- Sx %/% R
+  if (nu >= k) return(k * B^2)
+  xr <- A + (Sx - nu * R)
+  (k - nu - 1) * A^2 + xr^2 + nu * B^2
+}
+min_top_count <- function(n, S, Qlo, Qhi, l, u) {
+  for (c in 0:n) {
+    k <- n - c; T <- S - c * u
+    if (k == 0) { if (T == 0 && c*u^2 >= Qlo - TOL && c*u^2 <= Qhi + TOL) return(c) else next }
+    if (T < k * l || T > k * (u - 1)) next
+    if (c*u^2 + q_min_cluster(k, T, l, u - 1) <= Qhi + TOL &&
+        c*u^2 + q_max_S2(k, T, l, u - 1) >= Qlo - TOL) return(c)
+  }
+  Inf
+}
+min_bot_count <- function(n, S, Qlo, Qhi, l, u) {
+  for (c in 0:n) {
+    k <- n - c; T <- S - c * l
+    if (k == 0) { if (T == 0 && c*l^2 >= Qlo - TOL && c*l^2 <= Qhi + TOL) return(c) else next }
+    if (T < k * (l + 1) || T > k * u) next
+    if (c*l^2 + q_min_cluster(k, T, l + 1, u) <= Qhi + TOL &&
+        c*l^2 + q_max_S2(k, T, l + 1, u) >= Qlo - TOL) return(c)
+  }
+  Inf
+}
+
+sl_t <- c(); sl_b <- c(); inval <- 0
+for (n in 3:6) for (l in c(0, 1)) for (u in c(4, 6)) {
+  g <- as.matrix(do.call(expand.grid, rep(list(l:u), n)))
+  S <- rowSums(g); Q <- rowSums(g^2)
+  cu <- rowSums(g == u); cl <- rowSums(g == l)
+  key <- paste(S, Q)
+  for (k in unique(key)) {
+    i <- key == k; s0 <- S[i][1]; q0 <- Q[i][1]
+    ft <- min_top_count(n, s0, q0, q0, l, u); fb <- min_bot_count(n, s0, q0, q0, l, u)
+    tt <- min(cu[i]); tb <- min(cl[i])
+    if (ft > tt || fb > tb) inval <- inval + 1
+    sl_t <- c(sl_t, tt - ft); sl_b <- c(sl_b, tb - fb)
+  }
+}
+tibble(endpoint = c("top (count of u's)", "bottom (count of l's)"),
+       `groups tested` = length(sl_t),
+       `ever invalid (formula > truth)?` = inval > 0,
+       `exact (%)` = round(100 * c(mean(sl_t == 0), mean(sl_b == 0)), 1),
+       `max under-count` = c(max(sl_t), max(sl_b))) |>
+  kable(caption = "Minimum-endpoint-count formulas vs exhaustive enumeration (every (n, sum, SS) group, n = 3-6, four scales). The formula is always a valid lower bound on the forced count; when not exact it under-counts by at most 2.")
+```
+
+The worked example, extended — how many $7$s does a report of mean $5.8$ on $1$–$7$ at $n = 30$ force, as a function of the reported SD?
+
+```{r}
+#| code-summary: "worked example: forced 7s as a function of reported SD"
+n_e <- 30; S_e <- 174                     # mean 5.8 exactly
+tibble(`reported SD` = c(0.80, 0.93, 1.00, 1.20, 1.50, 2.00)) |>
+  rowwise() |>
+  mutate(`minimum # of 7s forced` = {
+    Q0 <- (n_e - 1) * `reported SD`^2 + S_e^2 / n_e
+    min_top_count(n_e, S_e, Q0, Q0 + 1e-9, 1, 7)
+  }) |>
+  kable(caption = "n = 30, mean 5.8, scale 1-7. The threshold at SD = 0.925 (previous subsection) is where the count first becomes nonzero; beyond it the forced count climbs steeply - at SD = 2.0, more than half the sample must be at the ceiling.")
+```
+
+This is the check in its most audit-ready form: a paper reporting mean $5.8$, SD $1.5$, $n = 30$ whose response histogram shows fewer than eight $7$s is internally inconsistent — no dataset exists with those statistics and that histogram, regardless of any distributional assumption.
+
+## Consistency when extremes *are* reported
+
+When a paper does report min and max (descriptives tables often do), the pair can be tested directly against the region — one lookup. This subsumes the classical Samuelson check (reported max cannot exceed $\bar{x} + s\sqrt{n-1}$) and adds its much less known mirror: the reported max cannot be *below* $b_{\min}$ either. A reported maximum can be impossibly modest.
+
+## For CLOSURE-based workflows specifically
+
+1. **Predict projections without enumerating.** If the quantity of interest is "what minima/maxima/ranges are consistent," the app answers at scales CLOSURE cannot touch, and agrees with CLOSURE at the certified extremes where both can run.
+2. **Sanity-check CLOSURE implementations.** The outer region is a theorem; any CLOSURE output containing a sample outside it indicates a bug (in one of the two).
+3. **Prune CLOSURE's search.** Enumeration that branches on the observed extremes can discard $(a, b)$ pairs failing the two-inequality test before generating samples inside them.
+4. **Split "weirdness" into stages.** The scores developed in `betabinomial_sampling_distributions.qmd` (fibre size; exact fibre probability under a DGP) need the full fibre. The inverse bounds supply a cheaper, assumption-free first stage: *how constrained are the extremes?* When $b_{\min} = u$ (endpoint forced) or the range interval is a sliver, the fibre is already known to be structurally cramped before any enumeration — the same collapse that makes the "horns" cells have fibre size 1.
+
+# Summary
+
+- The app computes **projections of the CLOSURE fibre analytically**: an always-valid outer region from two inequalities (attained-extremes floor; mean-conditional ceiling), with closed-form marginals — sharp Samuelson for the outer extremes, inverted Structure S for the inner ones — exact in 92–98% of exhaustively checked cases and never off by more than one scale point.
+- The residual point is closed by a **SPRITE-like constructive search** (unit transfers on a pinned configuration), which certifies extremes by exhibiting real samples. That step, and only that step, resembles SPRITE; nothing enumerates the fibre.
+- **Equivalence with CLOSURE holds at certified extremes**; CLOSURE retains strictly more information (interior structure, multiplicity) at combinatorial cost. They compose: screen with the inverse bounds, enumerate with CLOSURE where the screen says the fibre is interesting, then score weirdness with fibre size and fibre probability.
