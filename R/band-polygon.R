@@ -59,6 +59,79 @@ band_polygon <- function(d, by) {
   out
 }
 
+
+#' The outline of an umbrella grid
+#'
+#' The envelope of a lattice of reportable `(mean, sd)` tuples, as closed rings:
+#' at each mean the lowest and highest consistent SD, handed to
+#' [band_polygon()]. This is what `plot_umbrella(style = "contour")` draws, and
+#' it is returned as data so the outline can be drawn elsewhere, or measured.
+#'
+#' `by` is the spacing that tells a true gap in the umbrella from its ordinary
+#' striping, and it defaults to the median gap between the means that *have* a
+#' consistent tuple rather than to the reporting grid's step. Under `Z =
+#' "integer"` only the means an integer sum can round to survive, so on the
+#' reporting grid almost every neighbouring pair of means is a gap; splitting
+#' there would make each stripe its own one-column ring, and a one-column ring
+#' has no width to draw. The median of the realised spacing is the striping's
+#' own period, so the stripes join into the envelope and only a true stretch of
+#' infeasible means — wider than `1.5 * by` — still splits the region.
+#'
+#' The contour therefore claims less than the tuples do: it says which `(mean,
+#' sd)` pairs are near the region the tests admit, not which ones are in it.
+
+#' @param umbrella Output of [umbrella_data()], or an already-filtered lattice
+#'   from `sd_region_data(rule = "integer")` — anything with `mean` and `sd`,
+#'   filtered by `consistent` when that column is present.
+#' @param by Mean spacing that separates a true gap from the striping;
+#'   defaults to the median spacing between the means that have a consistent
+#'   tuple. Give it explicitly to keep a narrow true gap from being bridged.
+#' @return A long-format data frame with `mean`, `y` and a `ring` id, as
+#'   [band_polygon()] returns, or `NULL` if no tuple is consistent.
+#' @seealso [plot_umbrella()] to draw it, [band_polygon()] for the ring
+#'   construction, [umbrella_data()] for the lattice.
+#' @examples
+#' grid <- umbrella_data(n = 12, l = 1, u = 3, digits = 1)
+#' rings <- umbrella_contour(grid)
+#'
+#' # one region here, and it spans the scale
+#' length(unique(rings$ring))
+#' range(rings$mean)
+#' @export
+umbrella_contour <- function(umbrella, by = NULL) {
+  pts <- if ("consistent" %in% names(umbrella)) {
+    umbrella[!is.na(umbrella$consistent) & umbrella$consistent, , drop = FALSE]
+  } else {
+    umbrella
+  }
+
+  ms <- sort(unique(pts$mean))
+
+  if (!length(ms)) {
+    return(NULL)
+  }
+
+  i <- match(pts$mean, ms)
+  lo <- rep(NA_real_, length(ms))
+  hi <- lo
+
+  agg_lo <- tapply(pts$sd, i, min)
+  agg_hi <- tapply(pts$sd, i, max)
+
+  lo[as.integer(names(agg_lo))] <- agg_lo
+  hi[as.integer(names(agg_hi))] <- agg_hi
+
+  if (is.null(by)) {
+    by <- if (length(ms) > 1) stats::median(diff(ms)) else 1
+  }
+
+  band_polygon(
+    tibble::tibble(mean = ms, lo = lo, hi = hi),
+    by = by
+  )
+}
+
+
 #' The count-parity correction to the mean-conditional ceiling
 #'
 #' The factor relating Muilwijk's mean-conditional ceiling to the sharp one.

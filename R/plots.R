@@ -199,6 +199,29 @@ plot_sd_bounds_pomp <- function(curve, points = NULL,
 #' saturated colour, on impossible tuples, and GRIMMER's verdict alternating
 #' between adjacent SDs produces interference banding that obscures the striping.
 #'
+#' `style = "contour"` draws only the outline of the umbrella: the panel is
+#' shaded, the region between the lowest and highest consistent SD at each mean
+#' is knocked out of the shading, and that region is stroked. It is the look of
+#' [plot_sd_bounds()] — and of the app in `app/default app/` — but taken from
+#' the lattice itself rather than from the continuous bounds, so what it outlines
+#' is what the tests actually admit. Use it when the point cloud is too dense to
+#' read, when the figure is a backdrop for reported points, or to see the
+#' discrete envelope against the continuous one by passing `curve` as well.
+#'
+#' The outline itself comes from [umbrella_contour()], which is exported, so
+#' the rings can also be had as data. Being an envelope, it is drawn across the
+#' vertical striping rather than around it, and its interior therefore claims
+#' less than the points do: see that function for what `contour_by` controls
+#' and what the region does and does not assert.
+#'
+#' The grey under `"points"` and `"contour"` is a layer, not a theme element:
+#' it is a rectangle over the whole panel with the feasible region knocked out
+#' of it, so it says "no tuple here" as data rather than as decoration. That is
+#' why no theme call removes it — `theme_void()` strips the axes and panel and
+#' the shading stays, as it must, since the statement it makes survives the
+#' loss of the axes. Use `shade = "none"` to drop it, which also leaves the
+#' contour unfilled, so the plot can sit over something else.
+#'
 #' Note what the points represent. The consistent set is the GRIM- and
 #' GRIMMER-consistent one, which is what [brimmer()] applies. It is strictly
 #' larger than the set of attainable tuples, so an umbrella plot shows what the
@@ -211,27 +234,57 @@ plot_sd_bounds_pomp <- function(curve, points = NULL,
 #'   filtered by `consistent` when that column is present.
 #' @param curve Optional [sd_bounds_curve()] output to overlay as bound lines.
 #' @param title Optional plot title.
-#' @param style `"points"` (default) or `"tiles"`; see Details.
-#' @param point_colour,point_size Point appearance. `point_size` defaults to a
-#'   value chosen from the number of points, since a size that reads well for a
-#'   few hundred is a solid mass at twenty thousand.
+#' @param style `"points"` (default), `"tiles"` or `"contour"`; see Details.
+#' @param point_colour,point_size Point appearance, used by `style = "points"`.
+#'   `point_size` defaults to a value chosen from the number of points, since a
+#'   size that reads well for a few hundred is a solid mass at twenty thousand.
 #' @param reference_colour Colour of the overlaid bound curves.
+#' @param line_colour Colour of the contour outline, used by
+#'   `style = "contour"`.
+#' @param contour_by Passed to [umbrella_contour()] as `by`: the mean spacing
+#'   that `style = "contour"` uses to tell a genuine gap in the umbrella from
+#'   its ordinary striping (see Details). Defaults to the median spacing between
+#'   the means that have a consistent tuple; give it explicitly to keep a narrow
+#'   gap — a stretch near a scale limit that a reported alpha rules out, say —
+#'   from being bridged.
+#' @param shade `"outside"` (default) greys everything the design rules out;
+#'   `"none"` draws no shading at all, and leaves the contour unfilled. Applies
+#'   to `"points"` and `"contour"`; `"tiles"` colours every cell already, so
+#'   there is nothing left to shade.
 #' @param expand Padding as a proportion of the scale width, as in
 #'   [plot_sd_bounds()].
 #' @return A ggplot object.
 #' @examples
-#' grid <- umbrella_data(n = 12, l = 1, u = 3, digits = 1)
+#' grid <- umbrella_data(n = 12, l = 1, u = 7, digits = 2)
 #' plot_umbrella(grid, title = "n = 12, 1-3 scale")
 #'
-#' # the previous look, separating the two ways a tuple can be ruled out
+#' # The previous look, separating the two ways a tuple can be ruled out
 #' plot_umbrella(grid, style = "tiles")
+#'
+#' # Just the outline of the region, as the Shiny app draws it, with the
+#' # continuous bounds dashed over it for comparison
+#' curve <- sd_bounds_curve(l = 1, u = 3, n = 12, by = 0.05)
+#' plot_umbrella(grid, curve = curve, style = "contour")
+#'
+#' # The outline alone, on whatever background the theme gives it
+#' plot_umbrella(grid, style = "contour", shade = "none") + ggplot2::theme_void()
 #' @export
-plot_umbrella <- function(umbrella, curve = NULL, title = NULL,
-                          style = c("points", "tiles"),
-                          point_colour = "black", point_size = NULL,
-                          reference_colour = "grey35", expand = 0.03) {
+plot_umbrella <- function(
+  umbrella,
+  curve = NULL,
+  title = NULL,
+  style = c("points", "tiles", "contour"),
+  point_colour = "black",
+  point_size = NULL,
+  reference_colour = "grey35",
+  line_colour = "grey30",
+  contour_by = NULL,
+  shade = c("outside", "none"),
+  expand = 0.03
+) {
   stopifnot(requireNamespace("ggplot2", quietly = TRUE))
-  style <- match.arg(style)
+  style <- rlang::arg_match(style)
+  shade <- rlang::arg_match(shade)
 
   if (style == "tiles") {
     umbrella$category <- ifelse(umbrella$consistent, "consistent",
@@ -258,27 +311,73 @@ plot_umbrella <- function(umbrella, curve = NULL, title = NULL,
     return(p)
   }
 
+  # The tuples both remaining styles draw: the consistent ones, or every row
+  # when the lattice has already been filtered (e.g. `sd_region_data(rule =
+  # "integer")`) and carries no verdict column
   pts <- if ("consistent" %in% names(umbrella)) {
     umbrella[!is.na(umbrella$consistent) & umbrella$consistent,
              c("mean", "sd"), drop = FALSE]
   } else {
     umbrella[, c("mean", "sd"), drop = FALSE]
   }
-  if (is.null(point_size))
-    point_size <- if (nrow(pts) > 12000) 0.045 else
-                  if (nrow(pts) > 2000) 0.12 else 0.35
 
   lo_m <- min(umbrella$mean)
   hi_m <- max(umbrella$mean)
   pad <- expand * (hi_m - lo_m)
   y_hi <- max(c(pts$sd, curve$max_sd), na.rm = TRUE)
 
-  p <- ggplot2::ggplot(pts, ggplot2::aes(.data$mean, .data$sd)) +
+  p <- ggplot2::ggplot(pts, ggplot2::aes(.data$mean, .data$sd))
+  if (shade == "outside") {
     # the panel is infeasible everywhere except at the points themselves
-    ggplot2::annotate("rect", xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf,
-                      fill = "grey10", alpha = 0.12) +
-    ggplot2::geom_point(colour = point_colour, size = point_size, shape = 16,
-                        na.rm = TRUE)
+    p <- p +
+      ggplot2::annotate(
+        "rect",
+        xmin = -Inf,
+        xmax = Inf,
+        ymin = -Inf,
+        ymax = Inf,
+        fill = "grey10",
+        alpha = 0.12
+      )
+  }
+
+  if (style == "contour") {
+    # Rings rather than a ribbon, for the reason band_polygon() exists: where
+    # the umbrella genuinely stops, the shading must stay, and a ring leaves it
+    # there by construction. The knockout is white, as in `plot_sd_bounds()`;
+    # with nothing to knock out of, the ring is left unfilled instead, so
+    # whatever is underneath shows through.
+    rings <- umbrella_contour(pts, by = contour_by)
+    if (!is.null(rings)) {
+      p <- p +
+        ggplot2::geom_polygon(
+          data = rings,
+          ggplot2::aes(x = .data$mean, y = .data$y, group = .data$ring),
+          inherit.aes = FALSE,
+          fill = if (shade == "outside") "white" else NA,
+          colour = line_colour,
+          linewidth = 0.35
+        )
+    }
+  } else {
+    if (is.null(point_size)) {
+      point_size <- if (nrow(pts) > 12000) {
+        0.045
+      } else if (nrow(pts) > 2000) {
+        0.12
+      } else {
+        0.35
+      }
+    }
+    p <- p +
+      ggplot2::geom_point(
+        colour = point_colour,
+        size = point_size,
+        shape = 16,
+        na.rm = TRUE
+      )
+  }
+
   if (!is.null(curve)) {
     cur <- curve[curve$feasible & is.finite(curve$max_sd), ]
     p <- p +

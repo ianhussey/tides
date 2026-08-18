@@ -15,7 +15,9 @@ Depends:
     R (>= 4.1)
 Imports:
     ggplot2,
-    scrutiny
+    rlang,
+    scrutiny,
+    tibble
 Suggests:
     knitr,
     rmarkdown,
