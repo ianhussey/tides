@@ -76,6 +76,67 @@ test_that("plot_umbrella() supports both styles", {
   lat <- sd_region_data(1, 3, 12, rule = "integer", digits = 1)
   expect_false("consistent" %in% names(lat))
   expect_s3_class(plot_umbrella(lat), "ggplot")
+  expect_s3_class(plot_umbrella(lat, style = "contour"), "ggplot")
+})
+
+test_that("shade = 'none' drops the shading layer and the contour's fill", {
+  um <- suppressWarnings(umbrella_data(n = 12, l = 1, u = 3, digits = 1))
+  # the shading is a layer, not a theme element, so it is one layer fewer
+  n_layers <- function(p) length(p$layers)
+  expect_equal(
+    n_layers(plot_umbrella(um, shade = "none")),
+    n_layers(plot_umbrella(um)) - 1L
+  )
+  contour_none <- plot_umbrella(um, style = "contour", shade = "none")
+  expect_equal(n_layers(contour_none), 1L)
+  # and the ring is left unfilled, so what is underneath shows through
+  expect_true(is.na(contour_none$layers[[1]]$aes_params$fill))
+  expect_identical(
+    plot_umbrella(um, style = "contour")$layers[[2]]$aes_params$fill,
+    "white"
+  )
+  expect_error(plot_umbrella(um, shade = "inside"))
+})
+
+test_that("umbrella_contour() is the envelope of the consistent tuples", {
+  um <- suppressWarnings(umbrella_data(n = 12, l = 1, u = 3, digits = 1))
+  pts <- um[um$consistent, c("mean", "sd")]
+  rings <- umbrella_contour(um)
+  # one region, spanning the means that have a consistent tuple, and reaching
+  # the extreme SDs those tuples take
+  expect_equal(length(unique(rings$ring)), 1L)
+  expect_equal(range(rings$mean), range(pts$mean))
+  expect_equal(range(rings$y), range(pts$sd))
+  # it filters by `consistent` itself, so an already-filtered lattice - what
+  # plot_umbrella() hands it - gives the same rings
+  expect_equal(umbrella_contour(pts), rings)
+  expect_null(umbrella_contour(um[0, ]))
+})
+
+test_that("the contour joins GRIM's stripes but splits a genuine gap", {
+  # at two decimals only the means an integer sum rounds to survive, so the
+  # reporting grid's own step would make every stripe a zero-width ring
+  striped <- suppressWarnings(umbrella_data(n = 25, l = 1, u = 5, digits = 2))
+  pts <- striped[striped$consistent, c("mean", "sd")]
+  expect_gt(min(diff(sort(unique(pts$mean)))), 0.01)
+  expect_equal(length(unique(umbrella_contour(pts)$ring)), 1L)
+  # forcing the reporting step back in splits it into one ring per stripe
+  by_grid <- umbrella_contour(pts, by = 0.01)
+  expect_equal(length(unique(by_grid$ring)), length(unique(pts$mean)))
+
+  # a reported alpha leaves stretches of infeasible means, which stay split
+  gapped <- suppressWarnings(umbrella_data(
+    n = 7,
+    l = 0,
+    u = 3,
+    digits = 2,
+    scoring = "meanscored",
+    n_items = 2,
+    alpha = 0.70
+  ))
+
+  gapped <- gapped[gapped$consistent, c("mean", "sd")]
+  expect_gt(length(unique(umbrella_contour(gapped)$ring)), 1L)
 })
 
 test_that("plot_sd_region() supports both shading conventions", {
